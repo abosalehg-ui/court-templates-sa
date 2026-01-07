@@ -66,6 +66,10 @@
 1. فعّل GitHub Pages من إعدادات المخزن
 2. ادخل على الرابط: `https://abosalehg-ui.github.io/court-templates-sa`
 
+### إضافة: الأداة المحولة
+1. حمّل الملف `wordtotemplates.py`
+2. أو لتحميل نسخة EXE لملف تحويل النماذج wordtotemplates : `https://drive.google.com/file/d/1RRLDvRrMKzXxz3SV8b5HKvo-j_Mb22mw/view?usp=sharing`
+
 ---
 
 ## 🛠️ التقنيات المستخدمة
@@ -74,6 +78,7 @@
 - **CSS3** - التنسيق والتصميم
 - **JavaScript** - الوظائف والتفاعل
 - **LocalStorage** - حفظ البيانات محلياً
+- **Python** - لتحويل نماذج الوورد ل TEMPLATES DATA
 
 ---
 
@@ -89,6 +94,10 @@
 |:---:|:---:|
 | ![المواريث](screenshots/inheritance.png) | ![التفقيط](screenshots/tafqit.png) |
 
+|أداة تحويل جداول الورد إلى بيانات js |
+|:---:|:---:|
+| ![wordtotemplates](screenshots/WordToTemplates.png) 
+
 </div>
 
 ---
@@ -99,12 +108,14 @@
 court-templates-sa/
 ├── index.html          # الملف الرئيسي
 ├── README.md           # هذا الملف
+├── wordtotemplates.py  # أداة تحويل جداول الورد إلى بيانات js 
 ├── LICENSE             # رخصة المشروع
 └── screenshots/        # لقطات الشاشة
     ├── main.png
     ├── dark.png
     ├── inheritance.png
     └── tafqit.png
+    └── WordToTemplates.png
 ```
 
 ---
