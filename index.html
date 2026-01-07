@@ -917,6 +917,7 @@
             <div class="header-actions">
                 <button class="btn btn-secondary" onclick="openModal('tafqitModal')">🔢 تفقيط</button>
                 <button class="btn btn-secondary" onclick="openModal('inheritanceModal')">📊 المواريث</button>
+                <button class="btn btn-secondary" onclick="openModal('expertModal')">💼 أتعاب الخبرة</button>
                 <button class="btn btn-icon btn-secondary" onclick="toggleTheme()" title="الوضع الليلي">🌙</button>
             </div>
         </div>
@@ -1040,6 +1041,7 @@
         <div class="mobile-nav-item active" onclick="toggleSidebar()">📁<span>التصنيفات</span></div>
         <div class="mobile-nav-item" onclick="openModal('tafqitModal')">🔢<span>تفقيط</span></div>
         <div class="mobile-nav-item" onclick="openModal('inheritanceModal')">📊<span>المواريث</span></div>
+        <div class="mobile-nav-item" onclick="openModal('expertModal')">💼<span>الخبرة</span></div>
         <div class="mobile-nav-item" onclick="toggleTheme()">🌙<span>الوضع</span></div>
     </nav>
 
@@ -1238,6 +1240,41 @@
             </div>
         </div>
     </div>
+<!-- Expert Fees Calculator Modal -->
+<div class="modal-overlay" id="expertModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h2>💼 حاسبة أتعاب الخبرة</h2>
+            <button class="modal-close" onclick="closeModal('expertModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>أصل المطالبة (ريال)</label>
+                <input type="number" class="form-control" id="claimAmount" placeholder="المبلغ الذي طالب به المدعي" oninput="calculateExpertFees()">
+            </div>
+            <div class="form-group">
+                <label>المبلغ المحكوم به (ريال)</label>
+                <input type="number" class="form-control" id="awardedAmount" placeholder="المبلغ الذي حكمت به المحكمة" oninput="calculateExpertFees()">
+            </div>
+            <div class="form-group">
+                <label>قيمة أتعاب الخبير (ريال)</label>
+                <input type="number" class="form-control" id="expertFees" placeholder="إجمالي أتعاب الخبير" oninput="calculateExpertFees()">
+            </div>
+            
+            <div id="expertResult" style="margin-top: 1.5rem;">
+                <div class="result-box">أدخل البيانات لحساب التوزيع</div>
+            </div>
+            
+            <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;" onclick="copyExpertResult()">
+                📋 نسخ النتيجة
+            </button>
+            
+            <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border); text-align: center; color: var(--text-light); font-size: 0.85rem;">
+                إعداد: سليمان بن متعب الشمري - القاضي بوزارة العدل
+            </div>
+        </div>
+    </div>
+</div>
 
     <!-- Toast -->
     <div class="toast" id="toast"></div>
@@ -6340,6 +6377,80 @@ const templatesData = {
             t = setTimeout(() => fn.apply(this, args), wait);
         };
     }
+    // ==================== EXPERT FEES CALCULATOR ====================
+function calculateExpertFees() {
+    const claim = parseFloat(document.getElementById('claimAmount').value) || 0;
+    const awarded = parseFloat(document.getElementById('awardedAmount').value) || 0;
+    const fees = parseFloat(document.getElementById('expertFees').value) || 0;
+    
+    const container = document.getElementById('expertResult');
+    
+    if (claim <= 0 || fees <= 0) {
+        container.innerHTML = '<div class="result-box">أدخل البيانات لحساب التوزيع</div>';
+        return;
+    }
+    
+    if (awarded > claim) {
+        container.innerHTML = '<div class="result-box" style="background: #fef3c7; border-color: #f59e0b;">المبلغ المحكوم به لا يمكن أن يتجاوز أصل المطالبة</div>';
+        return;
+    }
+    
+    // الحسابات
+    const lossRatio = (claim - awarded) / claim;
+    const plaintiffShare = fees * lossRatio;
+    const defendantShare = fees - plaintiffShare;
+    
+    const formatNum = (n) => n.toLocaleString('ar-SA', { maximumFractionDigits: 2 });
+    const formatPercent = (n) => (n * 100).toLocaleString('ar-SA', { maximumFractionDigits: 2 }) + '%';
+    
+    container.innerHTML = `
+        <div class="result-header">📊 نتيجة التوزيع</div>
+        <table class="result-table">
+            <tr>
+                <td><strong>نسبة ما خسره المدعي من دعواه</strong></td>
+                <td>${formatPercent(lossRatio)}</td>
+            </tr>
+            <tr>
+                <td><strong>ما يتحمله المدعي من أتعاب الخبرة</strong></td>
+                <td>${formatNum(plaintiffShare)} ريال</td>
+            </tr>
+            <tr>
+                <td><strong>ما يتحمله المدعى عليه من أتعاب الخبرة</strong></td>
+                <td>${formatNum(defendantShare)} ريال</td>
+            </tr>
+        </table>
+    `;
+}
+
+function copyExpertResult() {
+    const claim = parseFloat(document.getElementById('claimAmount').value) || 0;
+    const awarded = parseFloat(document.getElementById('awardedAmount').value) || 0;
+    const fees = parseFloat(document.getElementById('expertFees').value) || 0;
+    
+    if (claim <= 0 || fees <= 0) {
+        showToast('أدخل البيانات أولاً', '');
+        return;
+    }
+    
+    const lossRatio = (claim - awarded) / claim;
+    const plaintiffShare = fees * lossRatio;
+    const defendantShare = fees - plaintiffShare;
+    
+    const formatNum = (n) => n.toLocaleString('ar-SA', { maximumFractionDigits: 2 });
+    const formatPercent = (n) => (n * 100).toLocaleString('ar-SA', { maximumFractionDigits: 2 }) + '%';
+    
+    const text = `حاسبة أتعاب الخبرة
+أصل المطالبة: ${formatNum(claim)} ريال
+المبلغ المحكوم به: ${formatNum(awarded)} ريال
+أتعاب الخبير: ${formatNum(fees)} ريال
+
+النتيجة:
+- نسبة خسارة المدعي: ${formatPercent(lossRatio)}
+- يتحمله المدعي: ${formatNum(plaintiffShare)} ريال
+- يتحمله المدعى عليه: ${formatNum(defendantShare)} ريال`;
+    
+    copyToClipboard(text);
+}
     </script>
 </body>
 </html>
