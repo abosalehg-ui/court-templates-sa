@@ -64,11 +64,11 @@
 
 ### الطريقة الثانية: GitHub Pages
 1. فعّل GitHub Pages من إعدادات المخزن
-2. ادخل على الرابط: `https://abosalehg-ui.github.io/court-templates-sa`
+2. ادخل على الرابط: (https://abosalehg-ui.github.io/court-templates-sa)
 
 ### إضافة: الأداة المحولة
 1. حمّل الملف `wordtotemplates.py`
-2. أو لتحميل نسخة EXE لملف تحويل النماذج wordtotemplates : `https://drive.google.com/file/d/1RRLDvRrMKzXxz3SV8b5HKvo-j_Mb22mw/view?usp=sharing`
+2. أو لتحميل نسخة EXE لملف تحويل النماذج: (https://drive.google.com/file/d/1RRLDvRrMKzXxz3SV8b5HKvo-j_Mb22mw/view?usp=sharing)
 
 ---
 
@@ -95,7 +95,7 @@
 | ![المواريث](screenshots/inheritance.png) | ![التفقيط](screenshots/tafqit.png) |
 
 |أداة تحويل جداول الورد إلى بيانات js |
-|:---:|:---:|
+|:---:|
 | ![wordtotemplates](screenshots/WordToTemplates.png) 
 
 </div>
