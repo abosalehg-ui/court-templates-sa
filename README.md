@@ -9,7 +9,7 @@
 [![HTML](https://img.shields.io/badge/HTML5-E34F26?logo=html5&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/HTML)
 [![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?logo=javascript&logoColor=black)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
 
-[عرض التطبيق](https://YOUR_USERNAME.github.io/court-templates-sa) · [الإبلاغ عن مشكلة](https://github.com/YOUR_USERNAME/court-templates-sa/issues)
+[عرض التطبيق](https://abosalehg-ui.github.io/court-templates-sa) · [الإبلاغ عن مشكلة](https://github.com/abosalehg-ui/court-templates-sa)
 
 </div>
 
@@ -64,7 +64,7 @@
 
 ### الطريقة الثانية: GitHub Pages
 1. فعّل GitHub Pages من إعدادات المخزن
-2. ادخل على الرابط: `https://YOUR_USERNAME.github.io/court-templates-sa`
+2. ادخل على الرابط: `https://abosalehg-ui.github.io/court-templates-sa`
 
 ---
 
