@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نماذج ضبط القضايا تجريبي</title>
+    <title>قوالب ضبط القضايا تجريبي</title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -911,7 +911,7 @@
             <div class="logo">
                 <div class="logo-icon">⚖️</div>
                 <div class="logo-text">
-                    <h1>نماذج ضبط القضايا (تجريبي)</h1>
+                    <h1>قوالب ضبط القضايا (تجريبي)</h1>
                 </div>
             </div>
             <div class="header-actions">
@@ -935,7 +935,7 @@
         <main class="content-area">
             <div class="search-bar">
                 <div class="search-input-wrapper">
-                    <input type="text" class="search-input" id="searchInput" placeholder="ابحث في النماذج...">
+                    <input type="text" class="search-input" id="searchInput" placeholder="ابحث في القوالب...">
                 </div>
             </div>
 
@@ -943,7 +943,7 @@
                 <div class="empty-state">
                     <div class="empty-state-icon">📋</div>
                     <h3>اختر تصنيفاً من القائمة</h3>
-                    <p>أو ابحث في النماذج المتاحة</p>
+                    <p>أو ابحث في القوالب المتاحة</p>
                 </div>
             </div>
 
@@ -1011,7 +1011,7 @@
                 <div class="tool-body">
                     <div class="favorites-list" id="favoritesList">
                         <div class="empty-state" style="padding: 1rem; font-size: 0.9rem;">
-                            <p>لا توجد نماذج مفضلة</p>
+                            <p>لا توجد قوالب مفضلة</p>
                         </div>
                     </div>
                 </div>
@@ -5123,7 +5123,7 @@ const templatesData = {
             container.innerHTML = `
                 <div class="empty-state">
                     <div class="empty-state-icon">📭</div>
-                    <h3>لا توجد نماذج في هذا التصنيف</h3>
+                    <h3>لا توجد قوالب في هذا التصنيف</h3>
                 </div>
             `;
             return;
@@ -5283,7 +5283,7 @@ const templatesData = {
         if (!list) return;
         
         if (favorites.length === 0) {
-            list.innerHTML = `<div class="empty-state" style="padding: 1rem; font-size: 0.9rem;"><p>لا توجد نماذج مفضلة</p></div>`;
+            list.innerHTML = `<div class="empty-state" style="padding: 1rem; font-size: 0.9rem;"><p>لا توجد قوالب مفضلة</p></div>`;
             return;
         }
 
