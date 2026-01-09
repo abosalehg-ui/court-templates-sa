@@ -4690,7 +4690,7 @@ const templatesData = {
             const results = [];
             for (let cat in templatesData) {
                 templatesData[cat].forEach(t => {
-                    if (t.content.includes(query) || (t.keyword && t.keyword.includes(query))) {
+                    if (t.content.includes(query) || (t.keyword && t.keyword.includes(query)) || (t.num && t.num.includes(query))) {
                         results.push({...t, category: cat});
                     }
                 });
