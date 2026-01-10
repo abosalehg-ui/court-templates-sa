@@ -4698,54 +4698,54 @@ const templatesData = {
         }, 300));
     }
 
-    function showSearchResults(results, query) {
-        const container = document.getElementById('templatesList');
-        
-        if (results.length === 0) {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <div class="empty-state-icon">🔍</div>
-                    <h3>لا توجد نتائج لـ "${query}"</h3>
-                </div>
-            `;
-            return;
-        }
-
-        let html = `
-            <div class="content-header">
-                <h2>نتائج البحث</h2>
-                <span>${results.length} نتيجة</span>
+function showSearchResults(results, query) {
+    const container = document.getElementById('templatesList');
+    
+    if (results.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">🔍</div>
+                <h3>لا توجد نتائج لـ "${query}"</h3>
             </div>
-            <div style="overflow-x: auto;">
-                <table class="templates-table">
-                    <thead>
-                        <tr>
-                            <th>التصنيف</th>
-                            <th>الاختصار</th>
-                            <th>المحتوى</th>
-                            <th>نسخ</th>
-                        </tr>
-                    </thead>
-                    <tbody>
         `;
-
-        results.forEach((t, idx) => {
-            const preview = t.content.substring(0, 70) + '...';
-            html += `
-                <tr>
-                    <td>${t.category}</td>
-                    <td class="template-keyword">${t.keyword || '-'}</td>
-                    <td class="template-preview">${preview}</td>
-                    <td class="template-actions-cell">
-                        <button class="copy-btn" onclick="copyToClipboard(\`${t.content.replace(/`/g, '\\`').replace(/\n/g, ' ')}\`)">نسخ</button>
-                    </td>
-                </tr>
-            `;
-        });
-
-        html += '</tbody></table></div>';
-        container.innerHTML = html;
+        return;
     }
+    let html = `
+        <div class="content-header">
+            <h2>نتائج البحث</h2>
+            <span>${results.length} نتيجة</span>
+        </div>
+        <div style="overflow-x: auto;">
+            <table class="templates-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>الرقم</th>
+                        <th>الاختصار</th>
+                        <th>المحتوى</th>
+                        <th>نسخ</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    results.forEach((t, idx) => {
+        const preview = t.content.substring(0, 70) + '...';
+        const templateIdx = templatesData[t.category].indexOf(t);
+        html += `
+            <tr onclick="viewSearchResult('${t.category}', ${templateIdx})" style="cursor: pointer;">
+                <td class="template-num">${idx + 1}</td>
+                <td class="template-num">${t.num || '-'}</td>
+                <td class="template-keyword">${t.keyword || '-'}</td>
+                <td class="template-preview">${preview}</td>
+                <td class="template-actions-cell">
+                    <button class="copy-btn" onclick="event.stopPropagation(); copyToClipboard(\`${t.content.replace(/`/g, '\\`').replace(/\n/g, ' ')}\`)">نسخ</button>
+                </td>
+            </tr>
+        `;
+    });
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+}
 
     // ==================== THEME ====================
     function toggleTheme() {
@@ -5760,6 +5760,10 @@ function copyExpertResult() {
 - يتحمله المدعى عليه: ${formatNum(defendantShare)} ريال`;
     
     copyToClipboard(text);
+}
+function viewSearchResult(category, idx) {
+    currentCategory = category;
+    viewTemplate(idx);
 }
     </script>
 </body>
