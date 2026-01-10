@@ -4687,12 +4687,12 @@ const templatesData = {
             // Search all categories
             const results = [];
             for (let cat in templatesData) {
-                templatesData[cat].forEach(t => {
-                    if (t.content.includes(query) || (t.keyword && t.keyword.includes(query)) || (t.num && t.num.includes(query))) {
-                        results.push({...t, category: cat});
-                    }
-                });
-            }
+    templatesData[cat].forEach((t, idx) => {
+        if (t.content.includes(query) || (t.keyword && t.keyword.includes(query)) || (t.num && t.num.includes(query))) {
+            results.push({...t, category: cat, originalIdx: idx});
+        }
+    });
+}
 
             showSearchResults(results, query);
         }, 300));
@@ -4730,7 +4730,7 @@ function showSearchResults(results, query) {
     `;
     results.forEach((t, idx) => {
         const preview = t.content.substring(0, 70) + '...';
-        const templateIdx = templatesData[t.category].indexOf(t);
+        const templateIdx = t.originalIdx;
         html += `
             <tr onclick="viewSearchResult('${t.category}', ${templateIdx})" style="cursor: pointer;">
                 <td class="template-num">${idx + 1}</td>
