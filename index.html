@@ -965,6 +965,144 @@
 .dropdown.show .dropdown-arrow {
     transform: rotate(180deg);
 }
+
+/* Diyat Calculator */
+.diyat-options {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+}
+
+@media (max-width: 600px) {
+    .diyat-options { grid-template-columns: 1fr; }
+}
+
+.option-group {
+    background: var(--bg-main);
+    border-radius: var(--radius);
+    padding: 0.75rem;
+    border: 1px solid var(--border);
+}
+
+.option-group label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+
+.option-buttons {
+    display: flex;
+    gap: 0.4rem;
+}
+
+.option-btn {
+    flex: 1;
+    padding: 0.5rem;
+    border: 2px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+}
+
+.option-btn.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
+.diyat-list {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-card);
+}
+
+.diyat-item {
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background 0.2s;
+}
+
+.diyat-item:last-child { border-bottom: none; }
+
+.diyat-item:hover {
+    background: rgba(26, 95, 74, 0.08);
+}
+
+.diyat-item.selected {
+    background: rgba(26, 95, 74, 0.15);
+    border-right: 4px solid var(--primary);
+}
+
+.diyat-item-num {
+    background: var(--primary);
+    color: white;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    flex-shrink: 0;
+    margin-left: 0.5rem;
+}
+
+.diyat-item-name {
+    flex: 1;
+    font-weight: 500;
+}
+
+.diyat-result-card {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+    color: white;
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    margin-top: 1rem;
+    text-align: center;
+}
+
+.diyat-result-card .label {
+    font-size: 0.9rem;
+    opacity: 0.9;
+    margin-bottom: 0.5rem;
+}
+
+.diyat-result-card .value {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.diyat-result-card .tafqit {
+    font-size: 0.95rem;
+    opacity: 0.95;
+    border-top: 1px solid rgba(255,255,255,0.3);
+    padding-top: 0.75rem;
+    margin-top: 0.75rem;
+}
+
+.diyat-info-tag {
+    display: inline-block;
+    background: var(--secondary);
+    color: white;
+    padding: 0.2rem 0.6rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    margin: 0.2rem;
+}
     </style>
 </head>
 <body>
@@ -996,6 +1134,10 @@
         <div class="dropdown-item" onclick="selectCalc('trafficModal')">
             <span class="dropdown-item-icon">🚗</span>
             <span>الأضرار المرورية</span>
+        </div>
+        <div class="dropdown-item" onclick="selectCalc('diyatModal')">
+        <span class="dropdown-item-icon">📜</span>
+        <span>الديات والشجاج</span>
         </div>
     </div>
 </div>
@@ -1440,6 +1582,63 @@
             <div class="dropdown-item" style="border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem;" onclick="selectMobileCalc('trafficModal')">
                 <span class="dropdown-item-icon">🚗</span>
                 <span>الأضرار المرورية</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Diyat Calculator Modal -->
+<div class="modal-overlay" id="diyatModal">
+    <div class="modal" style="max-width: 800px;">
+        <div class="modal-header">
+            <h2>📜 حاسبة الديات والشجاج</h2>
+            <button class="modal-close" onclick="closeModal('diyatModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="diyat-options">
+                <div class="option-group">
+                    <label>الجنس</label>
+                    <div class="option-buttons">
+                        <button class="option-btn active" data-type="gender" data-value="male" onclick="setDiyatOption(this)">رجل</button>
+                        <button class="option-btn" data-type="gender" data-value="female" onclick="setDiyatOption(this)">امرأة</button>
+                    </div>
+                </div>
+                <div class="option-group">
+                    <label>نوع الجناية</label>
+                    <div class="option-buttons">
+                        <button class="option-btn active" data-type="crime" data-value="Amd" onclick="setDiyatOption(this)">عمد وشبهه</button>
+                        <button class="option-btn" data-type="crime" data-value="Khata" onclick="setDiyatOption(this)">خطأ</button>
+                    </div>
+                </div>
+                <div class="option-group">
+                    <label>وحدة الدية</label>
+                    <div class="option-buttons">
+                        <button class="option-btn active" data-type="unit" data-value="riyal" onclick="setDiyatOption(this)">ريال</button>
+                        <button class="option-btn" data-type="unit" data-value="camel" onclick="setDiyatOption(this)">إبل</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <input type="text" class="form-control" id="diyatSearch" placeholder="🔍 ابحث عن عضو أو منفعة (مثل: النفس، اللسان، الأنف...)" oninput="filterDiyatList()">
+            </div>
+
+            <div class="diyat-list" id="diyatList"></div>
+
+            <div id="diyatResult"></div>
+
+            <div style="margin-top: 1rem; padding: 0.75rem; background: var(--bg-main); border-radius: var(--radius); font-size: 0.85rem; color: var(--text-secondary); border-right: 4px solid var(--secondary);">
+                <strong>📌 ملاحظات هامة:</strong><br>
+                • <strong>دية العمد وشبهه:</strong> على الجاني (وشبهه على العاقلة في 3 سنين)<br>
+                • <strong>دية الخطأ:</strong> على العاقلة في 3 سنين<br>
+                • <strong>دية الإبل:</strong> العمد = 25 بنت مخاض + 25 بنت لبون + 25 حقة + 25 جذعة<br>
+                • <strong>الخطأ:</strong> 20 بنت مخاض + 20 بني مخاض + 20 بنت لبون + 20 حقة + 20 جذعة<br>
+                • <strong>"حكومة"</strong> تعني تقديرها للقاضي حسب الاجتهاد<br>
+                • المصدر: الأمر السامي رقم 43108 وتاريخ 2/10/1432هـ
+            </div>
+
+            <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); text-align: center; color: var(--text-light); font-size: 0.85rem;">
+                إعداد: عبدالعزيز بن عبدالرزاق الغديان التميمي - قاضي استئناف متقاعد
             </div>
         </div>
     </div>
@@ -2815,6 +3014,162 @@ document.addEventListener('click', function(e) {
         return mapping[pluralName] || pluralName;
     }
 
+// ==================== DIYAT CALCULATOR ====================
+let diyatState = {
+    gender: 'male',
+    crime: 'Amd',
+    unit: 'riyal',
+    selectedItem: null
+};
+
+function setDiyatOption(btn) {
+    const type = btn.dataset.type;
+    const value = btn.dataset.value;
+    
+    // تحديث الأزرار النشطة في نفس المجموعة
+    btn.parentElement.querySelectorAll('.option-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    
+    diyatState[type] = value;
+    
+    // تحديث النتيجة إذا كان هناك عنصر مختار
+    if (diyatState.selectedItem) {
+        showDiyatResult(diyatState.selectedItem);
+    }
+}
+
+function loadDiyatList() {
+    if (typeof diyatData === 'undefined') {
+        document.getElementById('diyatList').innerHTML = 
+            '<div style="padding: 2rem; text-align: center; color: var(--text-light);">⚠️ لم يتم تحميل ملف البيانات (diyat-data.js)</div>';
+        return;
+    }
+    
+    const list = document.getElementById('diyatList');
+    list.innerHTML = diyatData.map(item => `
+        <div class="diyat-item" data-num="${item.num}" data-name="${item.name}" onclick="selectDiyatItem(${item.num})">
+            <div style="display: flex; align-items: center; flex: 1;">
+                <div class="diyat-item-num">${item.num}</div>
+                <div class="diyat-item-name">${item.name}</div>
+            </div>
+            <span style="color: var(--text-light); font-size: 0.85rem;">←</span>
+        </div>
+    `).join('');
+}
+
+function filterDiyatList() {
+    const query = document.getElementById('diyatSearch').value.trim();
+    const items = document.querySelectorAll('.diyat-item');
+    
+    items.forEach(item => {
+        const name = item.dataset.name || '';
+        const num = item.dataset.num || '';
+        const match = !query || name.includes(query) || num.includes(query);
+        item.style.display = match ? 'flex' : 'none';
+    });
+}
+
+function selectDiyatItem(num) {
+    const item = diyatData.find(d => d.num === num);
+    if (!item) return;
+    
+    diyatState.selectedItem = item;
+    
+    // إبراز العنصر المختار
+    document.querySelectorAll('.diyat-item').forEach(i => i.classList.remove('selected'));
+    document.querySelector(`.diyat-item[data-num="${num}"]`).classList.add('selected');
+    
+    showDiyatResult(item);
+}
+
+function showDiyatResult(item) {
+    const key = diyatState.gender === 'male' 
+        ? (diyatState.crime === 'Amd' ? 'maleAmd' : 'maleKhata')
+        : (diyatState.crime === 'Amd' ? 'femaleAmd' : 'femaleKhata');
+    
+    const fieldKey = key + '_' + diyatState.unit;
+    const value = item[fieldKey];
+    
+    const genderLabel = diyatState.gender === 'male' ? 'الرجل' : 'المرأة';
+    const crimeLabel = diyatState.crime === 'Amd' ? 'العمد وشبهه' : 'الخطأ';
+    const unitLabel = diyatState.unit === 'riyal' ? 'ريال سعودي' : 'من الإبل';
+    
+    let displayValue = value;
+    let tafqit = '';
+    
+    // التفقيط (للقيم الرقمية فقط بالريال)
+    if (diyatState.unit === 'riyal' && /^\d+(\.\d+)?$/.test(value)) {
+        const num = Math.floor(parseFloat(value));
+        displayValue = num.toLocaleString('ar-SA') + ' ريال';
+        let words = numberToArabicWords(num);
+        if (num === 1) words += ' ريال سعودي';
+        else if (num === 2) words = words.replace('اثنان', '') + 'ريالان سعوديان';
+        else if (num >= 3 && num <= 10) words += ' ريالات سعودية';
+        else words += ' ريال سعودي';
+        words += ' فقط لا غير';
+        tafqit = words;
+    } else if (diyatState.unit === 'camel' && /^\d+(\.\d+)?$/.test(value)) {
+        displayValue = value + ' من الإبل';
+    } else if (value === 'حكومة') {
+        displayValue = '⚖️ حكومة (تقدير القاضي)';
+    } else if (value === 'مهر المثل') {
+        displayValue = '💍 مهر المثل';
+    } else if (value === 'قيمته') {
+        displayValue = '💰 قيمته (السوقية)';
+    } else if (/^[=\-]+$/.test(value)) {
+        displayValue = '➖ لا تقدير له في هذه الحالة';
+    } else {
+        displayValue = value;
+    }
+    
+    const resultDiv = document.getElementById('diyatResult');
+    resultDiv.innerHTML = `
+        <div class="diyat-result-card">
+            <div class="label">
+                <span class="diyat-info-tag">${genderLabel}</span>
+                <span class="diyat-info-tag">${crimeLabel}</span>
+                <span class="diyat-info-tag">${unitLabel}</span>
+            </div>
+            <div style="font-size: 1.05rem; opacity: 0.95; margin-bottom: 0.5rem;">
+                ${item.name}
+            </div>
+            <div class="value">${displayValue}</div>
+            ${tafqit ? `<div class="tafqit">${tafqit}</div>` : ''}
+            <button class="btn" style="background: white; color: var(--primary); margin-top: 0.75rem;" onclick="copyDiyatResult()">
+                📋 نسخ النتيجة
+            </button>
+        </div>
+    `;
+}
+
+function copyDiyatResult() {
+    if (!diyatState.selectedItem) return;
+    
+    const item = diyatState.selectedItem;
+    const key = diyatState.gender === 'male' 
+        ? (diyatState.crime === 'Amd' ? 'maleAmd' : 'maleKhata')
+        : (diyatState.crime === 'Amd' ? 'femaleAmd' : 'femaleKhata');
+    const fieldKey = key + '_' + diyatState.unit;
+    const value = item[fieldKey];
+    
+    const genderLabel = diyatState.gender === 'male' ? 'الرجل' : 'المرأة';
+    const crimeLabel = diyatState.crime === 'Amd' ? 'العمد وشبهه' : 'الخطأ';
+    const unitLabel = diyatState.unit === 'riyal' ? 'ريال سعودي' : 'من الإبل';
+    
+    const text = `حاسبة الديات والشجاج
+العضو/المنفعة: ${item.name} (رقم ${item.num})
+الجنس: ${genderLabel}
+نوع الجناية: ${crimeLabel}
+الدية: ${value} ${unitLabel}`;
+    
+    copyToClipboard(text);
+}
+
+// تحميل القائمة عند فتح المودال
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(loadDiyatList, 500);
+});
+
     // ==================== UTILITIES ====================
     function showToast(msg, type = '') {
         const t = document.getElementById('toast');
@@ -3064,6 +3419,7 @@ function viewSearchResult(category, idx) {
 }
     </script>
 
+<script src="data/diyat-data.js"></script>
 <script src="data/templates.js"></script>
 </body>
 </html>
