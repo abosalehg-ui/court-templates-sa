@@ -1,3 +1,4 @@
+<div align="center">
 # ⚖️ قوالب ضبط القضايا
 
 **منصة شاملة للنماذج والصيغ القضائية والحاسبات المتخصصة للمحاكم السعودية**
@@ -9,6 +10,7 @@
 
 [🌐 عرض التطبيق](https://abosalehg-ui.github.io/court-templates-sa) · [🐛 الإبلاغ عن مشكلة](https://github.com/abosalehg-ui/court-templates-sa/issues)
 
+</div>
 ---
 
 ## 📋 نظرة عامة
@@ -222,7 +224,7 @@ court-templates-sa/
 هذا المشروع مرخص تحت [MIT License](https://github.com/abosalehg-ui/court-templates-sa/blob/main/LICENSE).
 
 ---
-
+<div align="center">
 ## 👨‍💻 المطور
 
 **عبدالكريم العبود**
@@ -230,6 +232,7 @@ court-templates-sa/
 [![Email](https://img.shields.io/badge/Email-abo.saleh.g%40gmail.com-red?logo=gmail)](mailto:abo.saleh.g@gmail.com)
 [![GitHub](https://img.shields.io/badge/GitHub-abosalehg--ui-181717?logo=github)](https://github.com/abosalehg-ui)
 
+</div>
 ---
 
 ## 🙏 شكر وتقدير
@@ -239,7 +242,9 @@ court-templates-sa/
 - **فضيلة القاضي/ عبدالعزيز بن عبدالرزاق الغديان التميمي** (قاضي استئناف متقاعد) - إعداد جدول مقادير الديات والشجاج
 - **كل من ساهم** في مراجعة النماذج أو اقتراح التحسينات
 ---
-
+<div align="center">
 صُنع بـ ❤️ لخدمة العاملين في القطاع القضائي
 
 **⭐ إذا أعجبك المشروع، لا تنسَ إضافة نجمة! ⭐**
+
+</div>
