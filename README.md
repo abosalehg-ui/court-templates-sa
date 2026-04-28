@@ -1,7 +1,8 @@
 <div align="center">
-# ⚖️ قوالب ضبط القضايا
 
-**منصة شاملة للنماذج والصيغ القضائية والحاسبات المتخصصة للمحاكم السعودية**
+<h1>⚖️ قوالب ضبط القضايا</h1>
+
+<p><strong>منصة شاملة للنماذج والصيغ القضائية والحاسبات المتخصصة للمحاكم السعودية</strong></p>*
 
 [![GitHub](https://img.shields.io/badge/GitHub-Repository-blue?logo=github)](https://github.com/abosalehg-ui/court-templates-sa)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/abosalehg-ui/court-templates-sa/blob/main/LICENSE)
