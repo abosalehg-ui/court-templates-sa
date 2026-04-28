@@ -224,7 +224,6 @@ court-templates-sa/
 
 ---
  
-<div align="center">
 ## 👨‍💻 المطور
 
 **عبدالكريم العبود**
