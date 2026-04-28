@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>قوالب ضبط القضايا</title>
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --primary: #1a5f4a;
@@ -93,6 +95,8 @@
             color: #fff;
             font-size: 1.3rem;
             font-weight: 700;
+            font-family: 'Amiri', serif;
+            letter-spacing: 0.5px;
         }
 
         .logo-text span {
@@ -100,6 +104,28 @@
             font-size: 0.8rem;
             display: block;
         }
+
+/* تصغير الهيدر على الجوال */
+@media (max-width: 768px) {
+    .header {
+        padding: 0.6rem 0.85rem;
+    }
+    
+    .logo {
+        gap: 0.6rem;
+    }
+    
+    .logo-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        font-size: 1.1rem;
+    }
+    
+    .logo-text h1 {
+        font-size: 1rem;
+    }
+}
 
         .header-actions {
             display: flex;
