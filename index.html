@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>قوالب ضبط القضايا تجريبي</title>
+    <title>قوالب ضبط القضايا</title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -902,6 +902,69 @@
         .fav-btn:hover {
             transform: scale(1.2);
         }
+/* Dropdown Menu */
+.dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.dropdown-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+    min-width: 220px;
+    overflow: hidden;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.2s ease;
+    z-index: 200;
+    border: 1px solid var(--border);
+}
+
+.dropdown.show .dropdown-menu {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.dropdown-item {
+    padding: 0.85rem 1.2rem;
+    cursor: pointer;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.95rem;
+    font-weight: 500;
+    transition: all 0.2s;
+    border-bottom: 1px solid var(--border);
+}
+
+.dropdown-item:last-child {
+    border-bottom: none;
+}
+
+.dropdown-item:hover {
+    background: var(--primary);
+    color: white;
+}
+
+.dropdown-item-icon {
+    font-size: 1.2rem;
+}
+
+.dropdown-arrow {
+    font-size: 0.7rem;
+    transition: transform 0.2s;
+}
+
+.dropdown.show .dropdown-arrow {
+    transform: rotate(180deg);
+}
     </style>
 </head>
 <body>
@@ -911,13 +974,31 @@
             <div class="logo">
                 <div class="logo-icon">⚖️</div>
                 <div class="logo-text">
-                    <h1>قوالب ضبط القضايا (تجريبي)</h1>
+                    <h1>قوالب ضبط القضايا</h1>
                 </div>
             </div>
             <div class="header-actions">
                 <button class="btn btn-secondary" onclick="openModal('tafqitModal')">🔢 تفقيط</button>
-                <button class="btn btn-secondary" onclick="openModal('inheritanceModal')">📊 المواريث</button>
-                <button class="btn btn-secondary" onclick="openModal('expertModal')">💼 أتعاب الخبرة</button>
+<button class="btn btn-secondary" onclick="openModal('inheritanceModal')">📊 المواريث</button>
+<div class="dropdown" id="calcDropdown">
+    <button class="btn btn-secondary" onclick="toggleDropdown(event)">
+        🧮 الحاسبات <span class="dropdown-arrow">▼</span>
+    </button>
+    <div class="dropdown-menu">
+        <div class="dropdown-item" onclick="selectCalc('expertModal')">
+            <span class="dropdown-item-icon">💼</span>
+            <span>أتعاب الخبرة</span>
+        </div>
+        <div class="dropdown-item" onclick="selectCalc('damagesModal')">
+            <span class="dropdown-item-icon">⚠️</span>
+            <span>تقدير الأضرار</span>
+        </div>
+        <div class="dropdown-item" onclick="selectCalc('trafficModal')">
+            <span class="dropdown-item-icon">🚗</span>
+            <span>الأضرار المرورية</span>
+        </div>
+    </div>
+</div>
                 <button class="btn btn-icon btn-secondary" onclick="toggleTheme()" title="الوضع الليلي">🌙</button>
             </div>
         </div>
@@ -1041,7 +1122,7 @@
         <div class="mobile-nav-item active" onclick="toggleSidebar()">📁<span>التصنيفات</span></div>
         <div class="mobile-nav-item" onclick="openModal('tafqitModal')">🔢<span>تفقيط</span></div>
         <div class="mobile-nav-item" onclick="openModal('inheritanceModal')">📊<span>المواريث</span></div>
-        <div class="mobile-nav-item" onclick="openModal('expertModal')">💼<span>الخبرة</span></div>
+        <div class="mobile-nav-item" onclick="openMobileCalcs()">🧮<span>الحاسبات</span></div>
         <div class="mobile-nav-item" onclick="toggleTheme()">🌙<span>الوضع</span></div>
     </nav>
 
@@ -1276,6 +1357,94 @@
     </div>
 </div>
 
+<!-- Damages Calculator Modal -->
+<div class="modal-overlay" id="damagesModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h2>⚠️ حاسبة تقدير الأضرار</h2>
+            <button class="modal-close" onclick="closeModal('damagesModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>قيمة الضرر (ريال)</label>
+                <input type="number" class="form-control" id="damageValue" placeholder="إجمالي قيمة الضرر" oninput="calculateDamages()">
+            </div>
+            <div class="form-group">
+                <label>نسبة المسؤولية (%)</label>
+                <input type="number" class="form-control" id="responsibilityRatio" placeholder="من 0 إلى 100" min="0" max="100" oninput="calculateDamages()">
+            </div>
+            
+            <div id="damagesResult" style="margin-top: 1.5rem;">
+                <div class="result-box">أدخل البيانات لحساب التعويض</div>
+            </div>
+            
+            <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;" onclick="copyDamagesResult()">
+                📋 نسخ النتيجة
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Traffic Damages Calculator Modal -->
+<div class="modal-overlay" id="trafficModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h2>🚗 حاسبة الأضرار المرورية</h2>
+            <button class="modal-close" onclick="closeModal('trafficModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>تقدير التلفيات (ريال)</label>
+                <input type="number" class="form-control" id="trafficDamages" placeholder="قيمة التلفيات" oninput="calculateTraffic()">
+            </div>
+            <div class="form-group">
+                <label>رسوم التقدير (ريال)</label>
+                <input type="number" class="form-control" id="trafficFees" placeholder="رسوم تقدير الأضرار" oninput="calculateTraffic()">
+            </div>
+            <div class="form-group">
+                <label>رسوم شحن المركبة (ريال)</label>
+                <input type="number" class="form-control" id="trafficShipping" placeholder="رسوم سطحة/شحن" oninput="calculateTraffic()">
+            </div>
+            <div class="form-group">
+                <label>تلفيات أو أضرار أخرى (ريال)</label>
+                <input type="number" class="form-control" id="trafficOther" placeholder="أضرار إضافية" oninput="calculateTraffic()">
+            </div>
+            
+            <div id="trafficResult" style="margin-top: 1.5rem;">
+                <div class="result-box">أدخل البيانات لحساب المجموع</div>
+            </div>
+            
+            <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;" onclick="copyTrafficResult()">
+                📋 نسخ النتيجة
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Mobile Calculators Menu Modal -->
+<div class="modal-overlay" id="mobileCalcsModal">
+    <div class="modal" style="max-width: 400px;">
+        <div class="modal-header">
+            <h2>🧮 اختر الحاسبة</h2>
+            <button class="modal-close" onclick="closeModal('mobileCalcsModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="dropdown-item" style="border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 0.75rem; padding: 1rem 1.25rem;" onclick="selectMobileCalc('expertModal')">
+                <span class="dropdown-item-icon">💼</span>
+                <span>أتعاب الخبرة</span>
+            </div>
+            <div class="dropdown-item" style="border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 0.75rem; padding: 1rem 1.25rem;" onclick="selectMobileCalc('damagesModal')">
+                <span class="dropdown-item-icon">⚠️</span>
+                <span>تقدير الأضرار</span>
+            </div>
+            <div class="dropdown-item" style="border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem;" onclick="selectMobileCalc('trafficModal')">
+                <span class="dropdown-item-icon">🚗</span>
+                <span>الأضرار المرورية</span>
+            </div>
+        </div>
+    </div>
+</div>
+
     <!-- Toast -->
     <div class="toast" id="toast"></div>
 
@@ -1342,7 +1511,7 @@
             const displayName = categoryNames[cat] || cat;
             
             li.innerHTML = `
-                <div class="category-header" onclick="selectCategory('${cat}')">
+                <div class="category-header" onclick="selectCategory('${cat}', event)">
                     <span>${displayName}</span>
                     <span class="category-count">${templatesData[cat].length}</span>
                 </div>
@@ -1351,23 +1520,25 @@
         }
     }
 
-    function selectCategory(cat) {
-        currentCategory = cat;
-        
-        // Update active state
-        document.querySelectorAll('.category-header').forEach(h => h.classList.remove('active'));
+    function selectCategory(cat, event) {
+    currentCategory = cat;
+    
+    // Update active state
+    document.querySelectorAll('.category-header').forEach(h => h.classList.remove('active'));
+    if (event && event.target) {
         event.target.closest('.category-header').classList.add('active');
-        
-        document.getElementById('templatesList').style.display = 'block';
-        // Show templates list
-        showTemplatesList(templatesData[cat], cat);
-        
-        // Hide detail view
-        document.getElementById('templateDetail').classList.remove('show');
-        
-        // Close mobile sidebar
-        document.getElementById('sidebar').classList.remove('show');
     }
+    
+    document.getElementById('templatesList').style.display = 'block';
+    // Show templates list
+    showTemplatesList(templatesData[cat], cat);
+    
+    // Hide detail view
+    document.getElementById('templateDetail').classList.remove('show');
+    
+    // Close mobile sidebar
+    document.getElementById('sidebar').classList.remove('show');
+}
 
     // ==================== TEMPLATES LIST ====================
     function showTemplatesList(templates, categoryName) {
@@ -1707,6 +1878,34 @@ function showSearchResults(results, query) {
     function openModal(id) {
         document.getElementById(id).classList.add('show');
     }
+
+// ==================== DROPDOWN ====================
+function toggleDropdown(e) {
+    e.stopPropagation();
+    document.getElementById('calcDropdown').classList.toggle('show');
+}
+
+function selectCalc(modalId) {
+    document.getElementById('calcDropdown').classList.remove('show');
+    openModal(modalId);
+}
+
+function openMobileCalcs() {
+    openModal('mobileCalcsModal');
+}
+
+function selectMobileCalc(modalId) {
+    closeModal('mobileCalcsModal');
+    setTimeout(() => openModal(modalId), 200);
+}
+
+// إغلاق القائمة المنسدلة عند الضغط خارجها
+document.addEventListener('click', function(e) {
+    const dropdown = document.getElementById('calcDropdown');
+    if (dropdown && !dropdown.contains(e.target)) {
+        dropdown.classList.remove('show');
+    }
+});
 
     function closeModal(id) {
         document.getElementById(id).classList.remove('show');
@@ -2702,6 +2901,160 @@ function copyExpertResult() {
 - نسبة خسارة المدعي: ${formatPercent(lossRatio)}
 - يتحمله المدعي: ${formatNum(plaintiffShare)} ريال
 - يتحمله المدعى عليه: ${formatNum(defendantShare)} ريال`;
+    
+    copyToClipboard(text);
+}
+// ==================== DAMAGES CALCULATOR ====================
+function calculateDamages() {
+    const value = parseFloat(document.getElementById('damageValue').value) || 0;
+    const ratio = parseFloat(document.getElementById('responsibilityRatio').value) || 0;
+    const container = document.getElementById('damagesResult');
+    
+    if (value <= 0 || ratio < 0) {
+        container.innerHTML = '<div class="result-box">أدخل البيانات لحساب التعويض</div>';
+        return;
+    }
+    
+    if (ratio > 100) {
+        container.innerHTML = '<div class="result-box" style="background: #fef3c7; border-color: #f59e0b;">نسبة المسؤولية يجب ألا تتجاوز 100%</div>';
+        return;
+    }
+    
+    const compensation = value * (ratio / 100);
+    const remaining = value - compensation;
+    const formatNum = (n) => n.toLocaleString('ar-SA', { maximumFractionDigits: 2 });
+    
+    // التفقيط
+    const intCompensation = Math.floor(compensation);
+    let words = numberToArabicWords(intCompensation);
+    if (intCompensation === 1) words += ' ريال سعودي';
+    else if (intCompensation === 2) words = words.replace('اثنان', '') + 'ريالان سعوديان';
+    else if (intCompensation >= 3 && intCompensation <= 10) words += ' ريالات سعودية';
+    else words += ' ريال سعودي';
+    words += ' فقط لا غير';
+    
+    container.innerHTML = `
+        <div class="result-header">📊 نتيجة التعويض</div>
+        <table class="result-table">
+            <tr>
+                <td><strong>قيمة الضرر الكلية</strong></td>
+                <td>${formatNum(value)} ريال</td>
+            </tr>
+            <tr>
+                <td><strong>نسبة المسؤولية</strong></td>
+                <td>${ratio}%</td>
+            </tr>
+            <tr style="background: rgba(26, 95, 74, 0.1);">
+                <td><strong>قيمة التعويض المستحق</strong></td>
+                <td><strong>${formatNum(compensation)} ريال</strong></td>
+            </tr>
+            <tr>
+                <td><strong>المتبقي على الطرف الآخر</strong></td>
+                <td>${formatNum(remaining)} ريال</td>
+            </tr>
+        </table>
+        <div class="evidence-box" style="margin-top: 1rem;">
+            <strong>تفقيط التعويض:</strong> ${words}
+        </div>
+    `;
+}
+
+function copyDamagesResult() {
+    const value = parseFloat(document.getElementById('damageValue').value) || 0;
+    const ratio = parseFloat(document.getElementById('responsibilityRatio').value) || 0;
+    
+    if (value <= 0 || ratio < 0 || ratio > 100) {
+        showToast('أدخل البيانات أولاً', '');
+        return;
+    }
+    
+    const compensation = value * (ratio / 100);
+    const formatNum = (n) => n.toLocaleString('ar-SA', { maximumFractionDigits: 2 });
+    
+    const text = `حاسبة تقدير الأضرار
+قيمة الضرر: ${formatNum(value)} ريال
+نسبة المسؤولية: ${ratio}%
+قيمة التعويض المستحق: ${formatNum(compensation)} ريال`;
+    
+    copyToClipboard(text);
+}
+
+// ==================== TRAFFIC DAMAGES CALCULATOR ====================
+function calculateTraffic() {
+    const damages = parseFloat(document.getElementById('trafficDamages').value) || 0;
+    const fees = parseFloat(document.getElementById('trafficFees').value) || 0;
+    const shipping = parseFloat(document.getElementById('trafficShipping').value) || 0;
+    const other = parseFloat(document.getElementById('trafficOther').value) || 0;
+    const container = document.getElementById('trafficResult');
+    
+    const total = damages + fees + shipping + other;
+    
+    if (total <= 0) {
+        container.innerHTML = '<div class="result-box">أدخل البيانات لحساب المجموع</div>';
+        return;
+    }
+    
+    const formatNum = (n) => n.toLocaleString('ar-SA', { maximumFractionDigits: 2 });
+    
+    // التفقيط
+    const intTotal = Math.floor(total);
+    let words = numberToArabicWords(intTotal);
+    if (intTotal === 1) words += ' ريال سعودي';
+    else if (intTotal === 2) words = words.replace('اثنان', '') + 'ريالان سعوديان';
+    else if (intTotal >= 3 && intTotal <= 10) words += ' ريالات سعودية';
+    else words += ' ريال سعودي';
+    words += ' فقط لا غير';
+    
+    container.innerHTML = `
+        <div class="result-header">📊 إجمالي الأضرار المرورية</div>
+        <table class="result-table">
+            <tr>
+                <td><strong>تقدير التلفيات</strong></td>
+                <td>${formatNum(damages)} ريال</td>
+            </tr>
+            <tr>
+                <td><strong>رسوم التقدير</strong></td>
+                <td>${formatNum(fees)} ريال</td>
+            </tr>
+            <tr>
+                <td><strong>رسوم شحن المركبة</strong></td>
+                <td>${formatNum(shipping)} ريال</td>
+            </tr>
+            <tr>
+                <td><strong>تلفيات أو أضرار أخرى</strong></td>
+                <td>${formatNum(other)} ريال</td>
+            </tr>
+            <tr style="background: rgba(26, 95, 74, 0.1);">
+                <td><strong>المجموع الكلي</strong></td>
+                <td><strong>${formatNum(total)} ريال</strong></td>
+            </tr>
+        </table>
+        <div class="evidence-box" style="margin-top: 1rem;">
+            <strong>تفقيط المجموع:</strong> ${words}
+        </div>
+    `;
+}
+
+function copyTrafficResult() {
+    const damages = parseFloat(document.getElementById('trafficDamages').value) || 0;
+    const fees = parseFloat(document.getElementById('trafficFees').value) || 0;
+    const shipping = parseFloat(document.getElementById('trafficShipping').value) || 0;
+    const other = parseFloat(document.getElementById('trafficOther').value) || 0;
+    const total = damages + fees + shipping + other;
+    
+    if (total <= 0) {
+        showToast('أدخل البيانات أولاً', '');
+        return;
+    }
+    
+    const formatNum = (n) => n.toLocaleString('ar-SA', { maximumFractionDigits: 2 });
+    
+    const text = `حاسبة الأضرار المرورية
+تقدير التلفيات: ${formatNum(damages)} ريال
+رسوم التقدير: ${formatNum(fees)} ريال
+رسوم شحن المركبة: ${formatNum(shipping)} ريال
+تلفيات أخرى: ${formatNum(other)} ريال
+المجموع الكلي: ${formatNum(total)} ريال`;
     
     copyToClipboard(text);
 }
