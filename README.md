@@ -226,7 +226,7 @@ court-templates-sa/
  
 ## 👨‍💻 المطور
 <div align="center">
-**عبدالكريم العبود**
+عبدالكريم صالح العبود
 
 [![Email](https://img.shields.io/badge/Email-abo.saleh.g%40gmail.com-red?logo=gmail)](mailto:abo.saleh.g@gmail.com)
 [![GitHub](https://img.shields.io/badge/GitHub-abosalehg--ui-181717?logo=github)](https://github.com/abosalehg-ui)
