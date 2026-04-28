@@ -11,7 +11,6 @@
 [🌐 عرض التطبيق](https://abosalehg-ui.github.io/court-templates-sa) · [🐛 الإبلاغ عن مشكلة](https://github.com/abosalehg-ui/court-templates-sa/issues)
 
 </div>
----
 
 ## 📋 نظرة عامة
 
