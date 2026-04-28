@@ -2,7 +2,7 @@
 
 <h1>⚖️ قوالب ضبط القضايا</h1>
 
-<p><strong>منصة شاملة للنماذج والصيغ القضائية والحاسبات المتخصصة للمحاكم السعودية</strong></p>*
+<p><strong>منصة شاملة للنماذج والصيغ القضائية والحاسبات المتخصصة للمحاكم السعودية</strong></p>
 
 [![GitHub](https://img.shields.io/badge/GitHub-Repository-blue?logo=github)](https://github.com/abosalehg-ui/court-templates-sa)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/abosalehg-ui/court-templates-sa/blob/main/LICENSE)
@@ -227,7 +227,7 @@ court-templates-sa/
  
 ## 👨‍💻 المطور
 <div align="center">
-عبدالكريم صالح العبود
+<p><strong>عبدالكريم صالح العبود</strong></p>
 
 [![Email](https://img.shields.io/badge/Email-abo.saleh.g%40gmail.com-red?logo=gmail)](mailto:abo.saleh.g@gmail.com)
 [![GitHub](https://img.shields.io/badge/GitHub-abosalehg--ui-181717?logo=github)](https://github.com/abosalehg-ui)
