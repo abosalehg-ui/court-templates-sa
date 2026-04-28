@@ -232,7 +232,6 @@ court-templates-sa/
 [![GitHub](https://img.shields.io/badge/GitHub-abosalehg--ui-181717?logo=github)](https://github.com/abosalehg-ui)
 
 </div>
----
 
 ## 🙏 شكر وتقدير
 
