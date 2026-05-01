@@ -1,1126 +1,894 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-محوّل نماذج الوورد إلى Templates Data
-تطوير: عبدالكريم العبود | abo.saleh.g@gmail.com
-"""
+محول قوالب الجلسات
+أداة تحويل ملفات Word (.docx) إلى صيغة templates.js
 
+الميزات:
+- سحب وإفلات + زر استعراض
+- معاينة JSON قبل الحفظ مع إمكانية التعديل
+- وضع ليلي/نهاري بزر يدوي مع حفظ التفضيل
+- دعم الشاشات عالية الدقة
+- واجهة عربية كاملة (RTL)
+"""
+import os
 import sys
 import json
-import os
-from pathlib import Path
 
-try:
-    from PyQt5.QtWidgets import (
-        QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-        QLabel, QPushButton, QLineEdit, QTextEdit, QComboBox, QListWidget,
-        QListWidgetItem, QFileDialog, QMessageBox, QSplitter, QGroupBox,
-        QFormLayout, QTabWidget, QTableWidget, QTableWidgetItem, QHeaderView,
-        QStyle, QStyleFactory, QInputDialog, QMenu, QAction, QStatusBar,
-        QProgressBar, QFrame, QSpinBox, QCheckBox
-    )
-    from PyQt5.QtCore import Qt, QSize, QTimer
-    from PyQt5.QtGui import QFont, QIcon, QPalette, QColor, QClipboard
-except ImportError:
-    print("يجب تثبيت PyQt5 أولاً:")
-    print("pip install PyQt5")
-    sys.exit(1)
+# دعم الشاشات عالية الدقة (يجب وضعه قبل استيراد QtWidgets)
+os.environ.setdefault("QT_AUTO_SCREEN_SCALE_FACTOR", "1")
+os.environ.setdefault("QT_ENABLE_HIGHDPI_SCALING", "1")
 
-try:
-    from docx import Document
-    from docx.table import Table
-except ImportError:
-    print("يجب تثبيت python-docx أولاً:")
-    print("pip install python-docx")
-    sys.exit(1)
+from PyQt5.QtCore import (
+    Qt, QSettings, QMimeData, QTimer, QSize,
+)
+from PyQt5.QtGui import (
+    QFont, QFontDatabase, QIcon, QPalette, QColor, QDragEnterEvent, QDropEvent,
+    QPixmap, QPainter,
+)
+from PyQt5.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+    QLabel, QPushButton, QFileDialog, QListWidget, QListWidgetItem,
+    QTextEdit, QSplitter, QMessageBox, QFrame, QStackedWidget,
+    QToolButton, QSizePolicy, QStyle,
+)
+
+from docx import Document
 
 
-class Template:
-    """كائن النموذج"""
-    def __init__(self, num='', keyword='', content='', category=''):
-        self.num = num
-        self.keyword = keyword
-        self.content = content
-        self.category = category
-    
-    def to_dict(self):
-        return {
-            'num': self.num,
-            'keyword': self.keyword,
-            'content': self.content
-        }
-    
-    def __str__(self):
-        return f"[{self.num}] {self.keyword}: {self.content[:50]}..."
+# ════════════════════════ منطق التحويل ════════════════════════
+# (كان في ملف converter.py سابقاً، تم دمجه هنا ليصبح كل شيء في ملف واحد)
+
+def _get_cell_text(cell):
+    """يستخرج نص الخلية مع الحفاظ على فواصل الأسطر بين الفقرات."""
+    paragraphs = [p.text for p in cell.paragraphs]
+    return '\n'.join(paragraphs).strip('\n').strip()
 
 
-class TemplateConverter(QMainWindow):
-    """النافذة الرئيسية للتطبيق"""
-    
-    # التصنيفات الافتراضية
-    DEFAULT_CATEGORIES = [
-        'الدعوى', 'الإجابة', 'المرافعة', 'الأسباب', 'الحكم',
-        'الشهادة', 'الصلح', 'اليمين', 'النكول', 'الكفالة',
-        'الالتماس', 'الشطب', 'الغياب', 'الاختصاص', 'التمويل',
-        'العقارات', 'المشاكل_التقنية'
-    ]
-    
+def _extract_keyword_from_content(content):
+    """
+    عند فراغ خلية الـ keyword، نأخذ أول كلمتين عربيتين من المحتوى.
+    التوقف عند أول كلمة لا تحتوي حروفاً عربية (مثل النقاط أو الأرقام).
+    """
+    if not content:
+        return ""
+    tokens = content.split()
+    keyword_parts = []
+    for tok in tokens[:5]:
+        has_arabic = any('\u0600' <= c <= '\u06FF' for c in tok)
+        if has_arabic:
+            keyword_parts.append(tok)
+            if len(keyword_parts) >= 2:
+                break
+        else:
+            break
+    return ' '.join(keyword_parts)
+
+
+def parse_docx(filepath):
+    """
+    يحلل ملف docx ويعيد قائمة من العناصر:
+    [{"num": "1", "keyword": "...", "content": "..."}, ...]
+
+    المنطق:
+    - يكشف تلقائياً عدد الأعمدة (2 = keyword|content، 3 = num|keyword|content)
+    - يتجاهل الترويسات المدموجة والصفوف الفارغة
+    - يعيد الترقيم تسلسلياً من 1
+    """
+    doc = Document(filepath)
+    items = []
+    counter = 1
+
+    for table in doc.tables:
+        for row in table.rows:
+            cells = list(row.cells)
+            if len(cells) < 2:
+                continue
+
+            # نأخذ "الخلايا المنطقية" بإزالة التكرارات الناتجة عن دمج الخلايا
+            # في python-docx: الخلايا المدموجة تشير لنفس عنصر <w:tc>
+            logical_texts = []
+            seen_tcs = set()
+            for c in cells:
+                tc_id = id(c._tc)
+                if tc_id not in seen_tcs:
+                    seen_tcs.add(tc_id)
+                    logical_texts.append(_get_cell_text(c))
+
+            # ترويسة مدموجة بالكامل (خلية واحدة منطقية فقط) = نتجاهل
+            if len(logical_texts) < 2:
+                continue
+
+            # كشف التخطيط:
+            # عمودان => keyword | content
+            # ثلاثة أعمدة => num (يُتجاهل) | keyword | content
+            if len(logical_texts) == 2:
+                keyword = logical_texts[0]
+                content = logical_texts[1]
+            else:
+                keyword = logical_texts[-2]
+                content = logical_texts[-1]
+
+            # تخطي الصفوف بلا محتوى
+            if not content:
+                continue
+
+            # استخراج keyword من المحتوى عند فراغه
+            if not keyword:
+                keyword = _extract_keyword_from_content(content)
+
+            items.append({
+                "num": str(counter),
+                "keyword": keyword,
+                "content": content
+            })
+            counter += 1
+
+    return items
+
+
+def filename_to_key(filepath):
+    """'الجلسة الأولى.docx' -> 'الجلسة_الأولى'"""
+    name = os.path.splitext(os.path.basename(filepath))[0]
+    return name.replace(' ', '_')
+
+
+def build_js_content(data):
+    """يبني نص ملف JS بصيغة const templatesData = {...};"""
+    json_str = json.dumps(data, ensure_ascii=False, indent=4)
+    return f"const templatesData = {json_str};\n"
+
+
+def parse_files(filepaths):
+    """يحلل مجموعة ملفات ويعيد قاموساً: {"key1": [...], "key2": [...]}"""
+    data = {}
+    for fp in filepaths:
+        key = filename_to_key(fp)
+        data[key] = parse_docx(fp)
+    return data
+
+
+# ====================== الأنماط (Themes) ======================
+
+LIGHT_THEME = {
+    "bg":            "#F7F8FA",
+    "bg_alt":        "#FFFFFF",
+    "bg_drop":       "#EEF2FF",
+    "bg_drop_hover": "#E0E7FF",
+    "border":        "#D1D5DB",
+    "border_focus":  "#6366F1",
+    "text":          "#111827",
+    "text_muted":    "#6B7280",
+    "primary":       "#4F46E5",
+    "primary_hover": "#4338CA",
+    "primary_text":  "#FFFFFF",
+    "secondary":     "#E5E7EB",
+    "secondary_hover":"#D1D5DB",
+    "secondary_text":"#111827",
+    "danger":        "#DC2626",
+    "danger_hover":  "#B91C1C",
+    "success":       "#10B981",
+    "success_hover": "#059669",
+    "code_bg":       "#F3F4F6",
+    "code_text":     "#1F2937",
+    "shadow":        "rgba(0,0,0,0.08)",
+}
+
+DARK_THEME = {
+    "bg":            "#0F172A",
+    "bg_alt":        "#1E293B",
+    "bg_drop":       "#1E293B",
+    "bg_drop_hover": "#334155",
+    "border":        "#334155",
+    "border_focus":  "#818CF8",
+    "text":          "#F1F5F9",
+    "text_muted":    "#94A3B8",
+    "primary":       "#6366F1",
+    "primary_hover": "#818CF8",
+    "primary_text":  "#FFFFFF",
+    "secondary":     "#334155",
+    "secondary_hover":"#475569",
+    "secondary_text":"#F1F5F9",
+    "danger":        "#EF4444",
+    "danger_hover":  "#DC2626",
+    "success":       "#10B981",
+    "success_hover": "#34D399",
+    "code_bg":       "#0F172A",
+    "code_text":     "#E2E8F0",
+    "shadow":        "rgba(0,0,0,0.4)",
+}
+
+
+def build_stylesheet(theme):
+    """يبني ورقة الأنماط بناءً على القاموس المعطى."""
+    return f"""
+    QMainWindow, QWidget#mainContainer {{
+        background-color: {theme['bg']};
+        color: {theme['text']};
+    }}
+
+    QWidget {{
+        color: {theme['text']};
+        font-family: 'Segoe UI', 'Tajawal', 'Cairo', Arial, sans-serif;
+    }}
+
+    /* ====== شريط العنوان ====== */
+    QFrame#headerBar {{
+        background-color: {theme['bg_alt']};
+        border: none;
+        border-bottom: 1px solid {theme['border']};
+    }}
+
+    QLabel#appTitle {{
+        font-size: 20px;
+        font-weight: 700;
+        color: {theme['text']};
+        padding: 4px 8px;
+    }}
+
+    QLabel#appSubtitle {{
+        font-size: 12px;
+        color: {theme['text_muted']};
+        padding: 0 8px;
+    }}
+
+    /* ====== زر تبديل الوضع ====== */
+    QToolButton#themeToggle {{
+        background-color: {theme['secondary']};
+        color: {theme['secondary_text']};
+        border: 1px solid {theme['border']};
+        border-radius: 8px;
+        padding: 8px 14px;
+        font-size: 13px;
+        font-weight: 600;
+        min-width: 100px;
+    }}
+    QToolButton#themeToggle:hover {{
+        background-color: {theme['secondary_hover']};
+    }}
+
+    /* ====== منطقة السحب والإفلات ====== */
+    QFrame#dropZone {{
+        background-color: {theme['bg_drop']};
+        border: 2px dashed {theme['border']};
+        border-radius: 12px;
+        padding: 20px;
+    }}
+    QFrame#dropZone[active="true"] {{
+        background-color: {theme['bg_drop_hover']};
+        border: 2px dashed {theme['border_focus']};
+    }}
+    QLabel#dropLabel {{
+        font-size: 16px;
+        font-weight: 600;
+        color: {theme['text']};
+        background: transparent;
+    }}
+    QLabel#dropHint {{
+        font-size: 13px;
+        color: {theme['text_muted']};
+        background: transparent;
+    }}
+
+    /* ====== الأزرار ====== */
+    QPushButton {{
+        background-color: {theme['secondary']};
+        color: {theme['secondary_text']};
+        border: 1px solid {theme['border']};
+        border-radius: 8px;
+        padding: 9px 18px;
+        font-size: 13px;
+        font-weight: 600;
+        min-height: 20px;
+    }}
+    QPushButton:hover {{
+        background-color: {theme['secondary_hover']};
+    }}
+    QPushButton:disabled {{
+        opacity: 0.5;
+        color: {theme['text_muted']};
+    }}
+
+    QPushButton#primaryBtn {{
+        background-color: {theme['primary']};
+        color: {theme['primary_text']};
+        border: 1px solid {theme['primary']};
+    }}
+    QPushButton#primaryBtn:hover {{
+        background-color: {theme['primary_hover']};
+        border: 1px solid {theme['primary_hover']};
+    }}
+    QPushButton#primaryBtn:disabled {{
+        background-color: {theme['secondary']};
+        color: {theme['text_muted']};
+        border: 1px solid {theme['border']};
+    }}
+
+    QPushButton#successBtn {{
+        background-color: {theme['success']};
+        color: white;
+        border: 1px solid {theme['success']};
+    }}
+    QPushButton#successBtn:hover {{
+        background-color: {theme['success_hover']};
+        border: 1px solid {theme['success_hover']};
+    }}
+
+    QPushButton#dangerBtn {{
+        background-color: transparent;
+        color: {theme['danger']};
+        border: 1px solid {theme['danger']};
+    }}
+    QPushButton#dangerBtn:hover {{
+        background-color: {theme['danger']};
+        color: white;
+    }}
+
+    /* ====== قائمة الملفات ====== */
+    QListWidget {{
+        background-color: {theme['bg_alt']};
+        color: {theme['text']};
+        border: 1px solid {theme['border']};
+        border-radius: 8px;
+        padding: 6px;
+        font-size: 13px;
+        outline: none;
+    }}
+    QListWidget::item {{
+        background-color: transparent;
+        padding: 8px 12px;
+        border-radius: 6px;
+        margin: 2px 0;
+    }}
+    QListWidget::item:hover {{
+        background-color: {theme['secondary']};
+    }}
+    QListWidget::item:selected {{
+        background-color: {theme['primary']};
+        color: {theme['primary_text']};
+    }}
+
+    /* ====== محرر النص (المعاينة) ====== */
+    QTextEdit {{
+        background-color: {theme['code_bg']};
+        color: {theme['code_text']};
+        border: 1px solid {theme['border']};
+        border-radius: 8px;
+        padding: 12px;
+        font-family: 'Consolas', 'Cascadia Code', 'Courier New', monospace;
+        font-size: 13px;
+        selection-background-color: {theme['primary']};
+        selection-color: {theme['primary_text']};
+    }}
+    QTextEdit:focus {{
+        border: 1px solid {theme['border_focus']};
+    }}
+
+    /* ====== التسميات ====== */
+    QLabel#sectionLabel {{
+        font-size: 14px;
+        font-weight: 700;
+        color: {theme['text']};
+        padding: 4px 0;
+    }}
+    QLabel#statusLabel {{
+        font-size: 12px;
+        color: {theme['text_muted']};
+        padding: 4px 8px;
+    }}
+    QLabel#statusLabel[type="success"] {{
+        color: {theme['success']};
+        font-weight: 600;
+    }}
+    QLabel#statusLabel[type="error"] {{
+        color: {theme['danger']};
+        font-weight: 600;
+    }}
+
+    /* ====== الفاصل (Splitter) ====== */
+    QSplitter::handle {{
+        background-color: {theme['border']};
+        width: 4px;
+    }}
+    QSplitter::handle:hover {{
+        background-color: {theme['border_focus']};
+    }}
+
+    /* ====== شريط التمرير ====== */
+    QScrollBar:vertical {{
+        background: transparent;
+        width: 12px;
+        border: none;
+    }}
+    QScrollBar::handle:vertical {{
+        background: {theme['border']};
+        border-radius: 6px;
+        min-height: 30px;
+    }}
+    QScrollBar::handle:vertical:hover {{
+        background: {theme['text_muted']};
+    }}
+    QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+        background: none;
+        border: none;
+        height: 0;
+    }}
+    QScrollBar:horizontal {{
+        background: transparent;
+        height: 12px;
+        border: none;
+    }}
+    QScrollBar::handle:horizontal {{
+        background: {theme['border']};
+        border-radius: 6px;
+        min-width: 30px;
+    }}
+    QScrollBar::handle:horizontal:hover {{
+        background: {theme['text_muted']};
+    }}
+    QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
+        background: none;
+        border: none;
+        width: 0;
+    }}
+
+    /* ====== صناديق الحوار ====== */
+    QMessageBox {{
+        background-color: {theme['bg_alt']};
+        color: {theme['text']};
+    }}
+    QMessageBox QLabel {{
+        color: {theme['text']};
+        font-size: 13px;
+    }}
+    QMessageBox QPushButton {{
+        min-width: 80px;
+        padding: 6px 16px;
+    }}
+    """
+
+
+# ====================== الواجهة الرئيسية ======================
+
+class DropZone(QFrame):
+    """منطقة السحب والإفلات."""
+    def __init__(self, on_files_dropped, parent=None):
+        super().__init__(parent)
+        self.on_files_dropped = on_files_dropped
+        self.setObjectName("dropZone")
+        self.setProperty("active", "false")
+        self.setAcceptDrops(True)
+        self.setMinimumHeight(120)
+
+        layout = QVBoxLayout(self)
+        layout.setAlignment(Qt.AlignCenter)
+        layout.setSpacing(8)
+
+        self.label = QLabel("اسحب ملفات Word هنا")
+        self.label.setObjectName("dropLabel")
+        self.label.setAlignment(Qt.AlignCenter)
+
+        self.hint = QLabel("أو انقر على زر «استعراض» أدناه — يدعم ملفات .docx متعددة")
+        self.hint.setObjectName("dropHint")
+        self.hint.setAlignment(Qt.AlignCenter)
+
+        layout.addWidget(self.label)
+        layout.addWidget(self.hint)
+
+    def _set_active(self, active):
+        self.setProperty("active", "true" if active else "false")
+        # إعادة تطبيق النمط لتفعيل الـ property selector
+        self.style().unpolish(self)
+        self.style().polish(self)
+
+    def dragEnterEvent(self, event: QDragEnterEvent):
+        mime: QMimeData = event.mimeData()
+        if mime.hasUrls():
+            for url in mime.urls():
+                if url.toLocalFile().lower().endswith('.docx'):
+                    event.acceptProposedAction()
+                    self._set_active(True)
+                    return
+        event.ignore()
+
+    def dragLeaveEvent(self, event):
+        self._set_active(False)
+        super().dragLeaveEvent(event)
+
+    def dropEvent(self, event: QDropEvent):
+        self._set_active(False)
+        urls = event.mimeData().urls()
+        files = []
+        for url in urls:
+            path = url.toLocalFile()
+            if path.lower().endswith('.docx'):
+                files.append(path)
+        if files:
+            self.on_files_dropped(files)
+            event.acceptProposedAction()
+
+
+class MainWindow(QMainWindow):
+    SETTINGS_ORG = "DocxToJsTool"
+    SETTINGS_APP = "TemplatesConverter"
+
     def __init__(self):
         super().__init__()
-        self.templates = {}  # {category: [Template, ...]}
-        self.current_file = None
-        self.is_dark_mode = False
-        self.init_categories()
-        self.init_ui()
-        self.apply_light_theme()
-    
-    def init_categories(self):
-        """تهيئة التصنيفات"""
-        for cat in self.DEFAULT_CATEGORIES:
-            self.templates[cat] = []
-    
-    def init_ui(self):
-        """إنشاء واجهة المستخدم"""
-        self.setWindowTitle('محوّل نماذج الوورد إلى Templates Data')
-        self.setMinimumSize(1200, 800)
+        self.settings = QSettings(self.SETTINGS_ORG, self.SETTINGS_APP)
+        self.is_dark = self.settings.value("darkMode", False, type=bool)
+
+        # حالة التطبيق
+        self.files = []          # قائمة بمسارات الملفات المختارة
+        self.parsed_data = None  # نتيجة التحليل (قاموس)
+
+        self._setup_ui()
+        self._apply_theme()
+
+    # ---------- بناء الواجهة ----------
+    def _setup_ui(self):
+        self.setWindowTitle("محول قوالب الجلسات — Word إلى JavaScript")
+        self.setMinimumSize(1100, 720)
         self.setLayoutDirection(Qt.RightToLeft)
-        
-        # الودجت المركزي
-        central_widget = QWidget()
-        self.setCentralWidget(central_widget)
-        main_layout = QVBoxLayout(central_widget)
-        
-        # شريط الأدوات العلوي
-        toolbar = self.create_toolbar()
-        main_layout.addLayout(toolbar)
-        
-        # التبويبات
-        self.tabs = QTabWidget()
-        self.tabs.addTab(self.create_import_tab(), '📥 استيراد من وورد')
-        self.tabs.addTab(self.create_manual_tab(), '✏️ إضافة يدوية')
-        self.tabs.addTab(self.create_preview_tab(), '👁️ معاينة')
-        self.tabs.addTab(self.create_export_tab(), '📤 تصدير')
-        main_layout.addWidget(self.tabs)
-        
-        # شريط الحالة
-        self.status_bar = QStatusBar()
-        self.setStatusBar(self.status_bar)
-        self.update_status()
-        
-        # شريط الحقوق
-        credits = QLabel('تطوير: عبدالكريم العبود | abo.saleh.g@gmail.com')
-        credits.setAlignment(Qt.AlignCenter)
-        credits.setStyleSheet('color: #888; padding: 5px;')
-        main_layout.addWidget(credits)
-    
-    def create_toolbar(self):
-        """إنشاء شريط الأدوات"""
-        layout = QHBoxLayout()
-        
-        # زر فتح ملف
-        btn_open = QPushButton('📂 فتح ملف وورد')
-        btn_open.clicked.connect(self.open_word_file)
-        layout.addWidget(btn_open)
-        
-        # زر حفظ المشروع
-        btn_save = QPushButton('💾 حفظ المشروع')
-        btn_save.clicked.connect(self.save_project)
-        layout.addWidget(btn_save)
-        
-        # زر تحميل المشروع
-        btn_load = QPushButton('📁 تحميل مشروع')
-        btn_load.clicked.connect(self.load_project)
-        layout.addWidget(btn_load)
-        
-        layout.addStretch()
-        
-        # زر الوضع الليلي
-        self.btn_theme = QPushButton('🌙 الوضع الليلي')
-        self.btn_theme.clicked.connect(self.toggle_theme)
-        layout.addWidget(self.btn_theme)
-        
-        return layout
-    
-    def create_import_tab(self):
-        """تبويب الاستيراد من وورد"""
-        widget = QWidget()
-        layout = QVBoxLayout(widget)
-        
-        # معلومات الملف
-        file_group = QGroupBox('ملف الوورد')
-        file_layout = QHBoxLayout(file_group)
-        
-        self.lbl_file = QLabel('لم يتم اختيار ملف')
-        file_layout.addWidget(self.lbl_file)
-        
-        btn_browse = QPushButton('استعراض...')
-        btn_browse.clicked.connect(self.open_word_file)
-        file_layout.addWidget(btn_browse)
-        
-        layout.addWidget(file_group)
-        
-        # جدول الجداول المستخرجة
-        tables_group = QGroupBox('الجداول المكتشفة')
-        tables_layout = QVBoxLayout(tables_group)
-        
-        self.tables_list = QListWidget()
-        self.tables_list.itemClicked.connect(self.on_table_selected)
-        tables_layout.addWidget(self.tables_list)
-        
-        layout.addWidget(tables_group)
-        
-        # معاينة الجدول المحدد
-        preview_group = QGroupBox('محتوى الجدول')
-        preview_layout = QVBoxLayout(preview_group)
-        
-        self.table_preview = QTableWidget()
-        self.table_preview.setLayoutDirection(Qt.RightToLeft)
-        preview_layout.addWidget(self.table_preview)
-        
-        # أزرار الاستيراد
-        import_layout = QHBoxLayout()
-        
-        self.cmb_import_category = QComboBox()
-        self.cmb_import_category.addItems(self.DEFAULT_CATEGORIES)
-        import_layout.addWidget(QLabel('التصنيف:'))
-        import_layout.addWidget(self.cmb_import_category)
-        
-        btn_import = QPushButton('📥 استيراد الجدول المحدد')
-        btn_import.clicked.connect(self.import_selected_table)
-        import_layout.addWidget(btn_import)
-        
-        btn_import_all = QPushButton('📥 استيراد الكل (تلقائي)')
-        btn_import_all.clicked.connect(self.import_all_tables)
-        import_layout.addWidget(btn_import_all)
-        
-        preview_layout.addLayout(import_layout)
-        layout.addWidget(preview_group)
-        
-        return widget
-    
-    def create_manual_tab(self):
-        """تبويب الإضافة اليدوية"""
-        widget = QWidget()
-        layout = QHBoxLayout(widget)
-        
-        # القائمة الجانبية - التصنيفات والنماذج
-        sidebar = QWidget()
-        sidebar_layout = QVBoxLayout(sidebar)
-        sidebar.setMaximumWidth(350)
-        
-        # التصنيفات
-        cat_group = QGroupBox('التصنيفات')
-        cat_layout = QVBoxLayout(cat_group)
-        
-        self.categories_list = QListWidget()
-        self.categories_list.addItems(self.DEFAULT_CATEGORIES)
-        self.categories_list.currentRowChanged.connect(self.on_category_changed)
-        cat_layout.addWidget(self.categories_list)
-        
-        cat_buttons = QHBoxLayout()
-        btn_add_cat = QPushButton('➕')
-        btn_add_cat.setToolTip('إضافة تصنيف')
-        btn_add_cat.clicked.connect(self.add_category)
-        cat_buttons.addWidget(btn_add_cat)
-        
-        btn_del_cat = QPushButton('➖')
-        btn_del_cat.setToolTip('حذف تصنيف')
-        btn_del_cat.clicked.connect(self.delete_category)
-        cat_buttons.addWidget(btn_del_cat)
-        cat_layout.addLayout(cat_buttons)
-        
-        sidebar_layout.addWidget(cat_group)
-        
-        # النماذج في التصنيف
-        templates_group = QGroupBox('النماذج')
-        templates_layout = QVBoxLayout(templates_group)
-        
-        self.templates_list = QListWidget()
-        self.templates_list.currentRowChanged.connect(self.on_template_selected)
-        self.templates_list.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.templates_list.customContextMenuRequested.connect(self.show_template_context_menu)
-        templates_layout.addWidget(self.templates_list)
-        
-        tmpl_buttons = QHBoxLayout()
-        btn_add_tmpl = QPushButton('➕ إضافة نموذج')
-        btn_add_tmpl.clicked.connect(self.add_template)
-        tmpl_buttons.addWidget(btn_add_tmpl)
-        
-        btn_del_tmpl = QPushButton('🗑️ حذف')
-        btn_del_tmpl.clicked.connect(self.delete_template)
-        tmpl_buttons.addWidget(btn_del_tmpl)
-        templates_layout.addLayout(tmpl_buttons)
-        
-        sidebar_layout.addWidget(templates_group)
-        layout.addWidget(sidebar)
-        
-        # منطقة التحرير
-        editor = QWidget()
-        editor_layout = QVBoxLayout(editor)
-        
-        form_group = QGroupBox('تحرير النموذج')
-        form_layout = QFormLayout(form_group)
-        
-        self.txt_num = QLineEdit()
-        self.txt_num.setPlaceholderText('مثال: 1، 2، 30')
-        form_layout.addRow('الرقم:', self.txt_num)
-        
-        self.txt_keyword = QLineEdit()
-        self.txt_keyword.setPlaceholderText('مثال: لدي1، قائم، أدعى')
-        form_layout.addRow('الكلمة المفتاحية:', self.txt_keyword)
-        
-        self.txt_content = QTextEdit()
-        self.txt_content.setPlaceholderText('محتوى النموذج...')
-        self.txt_content.setMinimumHeight(300)
-        form_layout.addRow('المحتوى:', self.txt_content)
-        
-        editor_layout.addWidget(form_group)
-        
-        # أزرار الحفظ
-        save_layout = QHBoxLayout()
-        btn_save_template = QPushButton('💾 حفظ التعديلات')
-        btn_save_template.clicked.connect(self.save_current_template)
-        save_layout.addWidget(btn_save_template)
-        
-        btn_clear = QPushButton('🔄 مسح الحقول')
-        btn_clear.clicked.connect(self.clear_editor)
-        save_layout.addWidget(btn_clear)
-        
-        editor_layout.addLayout(save_layout)
-        layout.addWidget(editor)
-        
-        return widget
-    
-    def create_preview_tab(self):
-        """تبويب المعاينة"""
-        widget = QWidget()
-        layout = QVBoxLayout(widget)
-        
-        # إحصائيات
-        stats_group = QGroupBox('📊 إحصائيات')
-        stats_layout = QHBoxLayout(stats_group)
-        
-        self.lbl_total_templates = QLabel('إجمالي النماذج: 0')
-        stats_layout.addWidget(self.lbl_total_templates)
-        
-        self.lbl_total_categories = QLabel('التصنيفات: 0')
-        stats_layout.addWidget(self.lbl_total_categories)
-        
-        layout.addWidget(stats_group)
-        
-        # معاينة الكود
-        preview_group = QGroupBox('معاينة الكود')
-        preview_layout = QVBoxLayout(preview_group)
-        
-        format_layout = QHBoxLayout()
-        format_layout.addWidget(QLabel('الصيغة:'))
-        
-        self.cmb_format = QComboBox()
-        self.cmb_format.addItems(['JavaScript (templatesData)', 'JSON'])
-        self.cmb_format.currentIndexChanged.connect(self.update_preview)
-        format_layout.addWidget(self.cmb_format)
-        
-        btn_refresh = QPushButton('🔄 تحديث المعاينة')
-        btn_refresh.clicked.connect(self.update_preview)
-        format_layout.addWidget(btn_refresh)
-        
-        format_layout.addStretch()
-        preview_layout.addLayout(format_layout)
-        
-        self.preview_text = QTextEdit()
-        self.preview_text.setReadOnly(True)
-        self.preview_text.setFont(QFont('Courier New', 10))
-        self.preview_text.setLayoutDirection(Qt.LeftToRight)
-        preview_layout.addWidget(self.preview_text)
-        
-        # أزرار النسخ
-        copy_layout = QHBoxLayout()
-        btn_copy = QPushButton('📋 نسخ للحافظة')
-        btn_copy.clicked.connect(self.copy_to_clipboard)
-        copy_layout.addWidget(btn_copy)
-        preview_layout.addLayout(copy_layout)
-        
-        layout.addWidget(preview_group)
-        
-        return widget
-    
-    def create_export_tab(self):
-        """تبويب التصدير"""
-        widget = QWidget()
-        layout = QVBoxLayout(widget)
-        
-        # خيارات التصدير
-        options_group = QGroupBox('خيارات التصدير')
-        options_layout = QFormLayout(options_group)
-        
-        self.cmb_export_format = QComboBox()
-        self.cmb_export_format.addItems([
-            'JavaScript (.js) - للاستخدام في HTML',
-            'JSON (.json) - بيانات خام'
-        ])
-        options_layout.addRow('الصيغة:', self.cmb_export_format)
-        
-        self.chk_minify = QCheckBox('ضغط الكود (minify)')
-        options_layout.addRow('', self.chk_minify)
-        
-        layout.addWidget(options_group)
-        
-        # أزرار التصدير
-        export_group = QGroupBox('تصدير')
-        export_layout = QVBoxLayout(export_group)
-        
-        btn_export_file = QPushButton('💾 حفظ كملف')
-        btn_export_file.clicked.connect(self.export_to_file)
-        btn_export_file.setMinimumHeight(50)
-        export_layout.addWidget(btn_export_file)
-        
-        btn_export_clipboard = QPushButton('📋 نسخ للحافظة')
-        btn_export_clipboard.clicked.connect(self.copy_to_clipboard)
-        btn_export_clipboard.setMinimumHeight(50)
-        export_layout.addWidget(btn_export_clipboard)
-        
-        layout.addWidget(export_group)
-        layout.addStretch()
-        
-        return widget
-    
-    # ==================== وظائف الاستيراد ====================
-    
-    def open_word_file(self):
-        """فتح ملف وورد"""
-        file_path, _ = QFileDialog.getOpenFileName(
-            self, 'اختر ملف وورد', '', 'Word Files (*.docx *.doc);;All Files (*)'
+
+        central = QWidget()
+        central.setObjectName("mainContainer")
+        self.setCentralWidget(central)
+
+        root = QVBoxLayout(central)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(0)
+
+        # شريط العنوان
+        root.addWidget(self._build_header())
+
+        # المحتوى الرئيسي
+        body = QWidget()
+        body_layout = QVBoxLayout(body)
+        body_layout.setContentsMargins(20, 16, 20, 20)
+        body_layout.setSpacing(14)
+
+        # Splitter أفقي يفصل بين قسم الملفات وقسم المعاينة
+        splitter = QSplitter(Qt.Horizontal)
+        # في RTL، نضع المعاينة على اليسار والملفات على اليمين بشكل طبيعي
+        splitter.addWidget(self._build_files_panel())
+        splitter.addWidget(self._build_preview_panel())
+        splitter.setStretchFactor(0, 0)
+        splitter.setStretchFactor(1, 1)
+        splitter.setSizes([380, 700])
+
+        body_layout.addWidget(splitter, 1)
+
+        # شريط الحالة السفلي
+        body_layout.addWidget(self._build_status_bar())
+
+        root.addWidget(body, 1)
+
+    def _build_header(self):
+        header = QFrame()
+        header.setObjectName("headerBar")
+        header.setFixedHeight(64)
+
+        h = QHBoxLayout(header)
+        h.setContentsMargins(20, 8, 20, 8)
+        h.setSpacing(12)
+
+        # شعار + عنوان
+        title_box = QVBoxLayout()
+        title_box.setSpacing(0)
+
+        title = QLabel("⚖️  محول قوالب الجلسات")
+        title.setObjectName("appTitle")
+        subtitle = QLabel("Word → templates.js")
+        subtitle.setObjectName("appSubtitle")
+
+        title_box.addWidget(title)
+        title_box.addWidget(subtitle)
+
+        h.addLayout(title_box)
+        h.addStretch(1)
+
+        # زر تبديل الوضع
+        self.theme_btn = QToolButton()
+        self.theme_btn.setObjectName("themeToggle")
+        self.theme_btn.clicked.connect(self._toggle_theme)
+        self._update_theme_btn()
+
+        h.addWidget(self.theme_btn)
+        return header
+
+    def _build_files_panel(self):
+        panel = QWidget()
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(10)
+
+        # عنوان القسم
+        title = QLabel("📂  الملفات")
+        title.setObjectName("sectionLabel")
+        layout.addWidget(title)
+
+        # منطقة السحب والإفلات
+        self.drop_zone = DropZone(self._add_files)
+        layout.addWidget(self.drop_zone)
+
+        # أزرار الإضافة والمسح
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(8)
+
+        self.browse_btn = QPushButton("📁  استعراض الملفات")
+        self.browse_btn.clicked.connect(self._browse_files)
+        btn_row.addWidget(self.browse_btn)
+
+        self.clear_btn = QPushButton("🗑️  مسح الكل")
+        self.clear_btn.setObjectName("dangerBtn")
+        self.clear_btn.clicked.connect(self._clear_files)
+        btn_row.addWidget(self.clear_btn)
+
+        layout.addLayout(btn_row)
+
+        # قائمة الملفات
+        self.files_list = QListWidget()
+        self.files_list.setSelectionMode(QListWidget.ExtendedSelection)
+        self.files_list.setMinimumHeight(180)
+        layout.addWidget(self.files_list, 1)
+
+        # زر إزالة المحدد
+        self.remove_btn = QPushButton("➖  إزالة المحدد")
+        self.remove_btn.clicked.connect(self._remove_selected)
+        layout.addWidget(self.remove_btn)
+
+        # زر التحويل
+        self.convert_btn = QPushButton("🔄  تحويل ومعاينة")
+        self.convert_btn.setObjectName("primaryBtn")
+        self.convert_btn.clicked.connect(self._convert)
+        self.convert_btn.setMinimumHeight(40)
+        layout.addWidget(self.convert_btn)
+
+        return panel
+
+    def _build_preview_panel(self):
+        panel = QWidget()
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(10)
+
+        # شريط أدوات المعاينة
+        tools = QHBoxLayout()
+        tools.setSpacing(8)
+
+        title = QLabel("📄  معاينة الإخراج (templates.js)")
+        title.setObjectName("sectionLabel")
+        tools.addWidget(title)
+        tools.addStretch(1)
+
+        self.edit_btn = QPushButton("✏️  تفعيل التعديل")
+        self.edit_btn.setCheckable(True)
+        self.edit_btn.clicked.connect(self._toggle_edit)
+        self.edit_btn.setEnabled(False)
+        tools.addWidget(self.edit_btn)
+
+        self.copy_btn = QPushButton("📋  نسخ")
+        self.copy_btn.clicked.connect(self._copy_to_clipboard)
+        self.copy_btn.setEnabled(False)
+        tools.addWidget(self.copy_btn)
+
+        self.save_btn = QPushButton("💾  حفظ كـ .js")
+        self.save_btn.setObjectName("successBtn")
+        self.save_btn.clicked.connect(self._save_file)
+        self.save_btn.setEnabled(False)
+        self.save_btn.setMinimumHeight(36)
+        tools.addWidget(self.save_btn)
+
+        layout.addLayout(tools)
+
+        # محرر المعاينة
+        self.preview = QTextEdit()
+        self.preview.setReadOnly(True)
+        self.preview.setLineWrapMode(QTextEdit.NoWrap)
+        self.preview.setLayoutDirection(Qt.LeftToRight)
+        # خط مونوسبيس للكود
+        mono_font = QFont("Consolas", 11)
+        mono_font.setStyleHint(QFont.Monospace)
+        self.preview.setFont(mono_font)
+        self.preview.setPlaceholderText(
+            "اختر ملفات Word ثم اضغط «تحويل ومعاينة»\nستظهر النتيجة هنا قبل الحفظ، ويمكن تعديلها يدوياً"
         )
-        if file_path:
-            self.current_file = file_path
-            self.lbl_file.setText(os.path.basename(file_path))
-            
-            # إذا كان الملف .doc (قديم) نحوله إلى .docx
-            if file_path.lower().endswith('.doc') and not file_path.lower().endswith('.docx'):
-                converted_path = self.convert_doc_to_docx(file_path)
-                if converted_path:
-                    self.extract_tables_from_word(converted_path)
-                else:
-                    QMessageBox.critical(self, 'خطأ', 
-                        'لم يتم التحويل. جرّب:\n'
-                        '1. تحويل الملف يدوياً إلى .docx من Word\n'
-                        '2. أو تثبيت LibreOffice')
-            else:
-                self.extract_tables_from_word(file_path)
-    
-    def convert_doc_to_docx(self, doc_path):
-        """تحويل ملف .doc إلى .docx"""
-        import subprocess
-        import tempfile
-        
-        # المسار المؤقت للملف المحول
-        temp_dir = tempfile.gettempdir()
-        docx_path = os.path.join(temp_dir, os.path.basename(doc_path) + 'x')
-        
-        # محاولة 1: استخدام LibreOffice
-        try:
-            # البحث عن LibreOffice
-            libreoffice_paths = [
-                r'C:\Program Files\LibreOffice\program\soffice.exe',
-                r'C:\Program Files (x86)\LibreOffice\program\soffice.exe',
-                '/usr/bin/libreoffice',
-                '/usr/bin/soffice',
-                'libreoffice',
-                'soffice'
-            ]
-            
-            soffice = None
-            for path in libreoffice_paths:
-                if os.path.exists(path) or self.command_exists(path):
-                    soffice = path
-                    break
-            
-            if soffice:
-                self.status_bar.showMessage('جاري تحويل الملف...', 0)
-                QApplication.processEvents()
-                
-                result = subprocess.run([
-                    soffice,
-                    '--headless',
-                    '--convert-to', 'docx',
-                    '--outdir', temp_dir,
-                    doc_path
-                ], capture_output=True, timeout=60)
-                
-                if os.path.exists(docx_path):
-                    self.status_bar.showMessage('تم تحويل الملف بنجاح', 3000)
-                    return docx_path
-        except Exception as e:
-            print(f"LibreOffice error: {e}")
-        
-        # محاولة 2: استخدام Word COM (Windows فقط)
-        if sys.platform == 'win32':
-            try:
-                import win32com.client
-                word = win32com.client.Dispatch('Word.Application')
-                word.Visible = False
-                doc = word.Documents.Open(os.path.abspath(doc_path))
-                doc.SaveAs2(docx_path, FileFormat=16)  # 16 = docx
-                doc.Close()
-                word.Quit()
-                
-                if os.path.exists(docx_path):
-                    self.status_bar.showMessage('تم تحويل الملف بنجاح', 3000)
-                    return docx_path
-            except ImportError:
-                QMessageBox.warning(self, 'تنبيه', 
-                    'لتحويل ملفات .doc، ثبّت:\n'
-                    'pip install pywin32\n\n'
-                    'أو استخدم LibreOffice')
-            except Exception as e:
-                print(f"Word COM error: {e}")
-        
-        return None
-    
-    def command_exists(self, cmd):
-        """التحقق من وجود أمر"""
-        import shutil
-        return shutil.which(cmd) is not None
-    
-    def extract_tables_from_word(self, file_path):
-        """استخراج الجداول من ملف وورد"""
-        try:
-            doc = Document(file_path)
-            self.word_tables = []
-            self.tables_list.clear()
-            
-            for i, table in enumerate(doc.tables):
-                rows = []
-                for row in table.rows:
-                    cells = [cell.text.strip() for cell in row.cells]
-                    rows.append(cells)
-                
-                if rows:
-                    self.word_tables.append(rows)
-                    # تحديد اسم الجدول من أول خلية
-                    first_text = rows[0][0] if rows[0] else f'جدول {i+1}'
-                    preview = first_text[:50] + '...' if len(first_text) > 50 else first_text
-                    self.tables_list.addItem(f'جدول {i+1}: {preview} ({len(rows)} صف)')
-            
-            self.status_bar.showMessage(f'تم استخراج {len(self.word_tables)} جدول', 5000)
-            
-        except Exception as e:
-            QMessageBox.critical(self, 'خطأ', f'فشل في قراءة الملف:\n{str(e)}')
-    
-    def on_table_selected(self, item):
-        """عند اختيار جدول"""
-        idx = self.tables_list.currentRow()
-        if idx >= 0 and idx < len(self.word_tables):
-            self.show_table_preview(self.word_tables[idx])
-    
-    def show_table_preview(self, table_data):
-        """عرض معاينة الجدول"""
-        self.table_preview.clear()
-        if not table_data:
-            return
-        
-        # تحديد عدد الأعمدة
-        max_cols = max(len(row) for row in table_data)
-        self.table_preview.setRowCount(len(table_data))
-        self.table_preview.setColumnCount(max_cols)
-        
-        for i, row in enumerate(table_data):
-            for j, cell in enumerate(row):
-                item = QTableWidgetItem(cell[:100])  # اقتصار النص
-                self.table_preview.setItem(i, j, item)
-        
-        self.table_preview.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-    
-    def import_selected_table(self):
-        """استيراد الجدول المحدد"""
-        idx = self.tables_list.currentRow()
-        if idx < 0:
-            QMessageBox.warning(self, 'تنبيه', 'اختر جدولاً أولاً')
-            return
-        
-        category = self.cmb_import_category.currentText()
-        table_data = self.word_tables[idx]
-        
-        imported = 0
-        for row in table_data[1:]:  # تخطي الصف الأول (العنوان غالباً)
-            if len(row) >= 3:
-                num = row[0].strip()
-                keyword = row[1].strip()
-                content = row[2].strip()
-                
-                if content and len(content) > 10:
-                    template = Template(num, keyword, content, category)
-                    self.templates[category].append(template)
-                    imported += 1
-        
-        self.update_templates_list()
-        self.update_status()
-        QMessageBox.information(self, 'تم', f'تم استيراد {imported} نموذج إلى "{category}"')
-    
-    def import_all_tables(self):
-        """استيراد كل الجداول تلقائياً"""
-        if not hasattr(self, 'word_tables') or not self.word_tables:
-            QMessageBox.warning(self, 'تنبيه', 'لا توجد جداول للاستيراد')
-            return
-        
-        # قاموس لربط أسماء الجداول بالتصنيفات
-        category_mapping = {
-            'الدعوى': 'الدعوى',
-            'صندوق الدعوى': 'الدعوى',
-            'الإجابة': 'الإجابة',
-            'صندوق الإجابة': 'الإجابة',
-            'المرافعة': 'المرافعة',
-            'صندوق المرافعة': 'المرافعة',
-            'الأسباب': 'الأسباب',
-            'صندوق الأسباب': 'الأسباب',
-            'الحكم': 'الحكم',
-            'صندوق الحكم': 'الحكم',
-            'الشهادة': 'الشهادة',
-            'الصلح': 'الصلح',
-            'اليمين': 'اليمين',
-            'النكول': 'النكول',
-            'الكفالة': 'الكفالة',
-            'الالتماس': 'الالتماس',
-            'الشطب': 'الشطب',
-            'الغياب': 'الغياب',
-            'الاختصاص': 'الاختصاص',
-            'التمويل': 'التمويل',
-            'العقارات': 'العقارات',
-            'المشاكل': 'المشاكل_التقنية',
-        }
-        
-        total_imported = 0
-        
-        for table_data in self.word_tables:
-            if not table_data:
+
+        layout.addWidget(self.preview, 1)
+        return panel
+
+    def _build_status_bar(self):
+        self.status_label = QLabel("جاهز — اسحب ملفات .docx أو استعرضها للبدء")
+        self.status_label.setObjectName("statusLabel")
+        self.status_label.setProperty("type", "default")
+        return self.status_label
+
+    # ---------- إجراءات الملفات ----------
+    def _browse_files(self):
+        files, _ = QFileDialog.getOpenFileNames(
+            self,
+            "اختر ملفات Word",
+            "",
+            "ملفات Word (*.docx);;كل الملفات (*)"
+        )
+        if files:
+            self._add_files(files)
+
+    def _add_files(self, paths):
+        added = 0
+        for p in paths:
+            if not p.lower().endswith('.docx'):
                 continue
-            
-            # محاولة تحديد التصنيف من أول صف
-            first_cell = table_data[0][0] if table_data[0] else ''
-            category = 'الدعوى'  # افتراضي
-            
-            for key, cat in category_mapping.items():
-                if key in first_cell:
-                    category = cat
-                    break
-            
-            # استيراد الصفوف
-            for row in table_data[1:]:
-                if len(row) >= 3:
-                    num = row[0].strip()
-                    keyword = row[1].strip()
-                    content = row[2].strip()
-                    
-                    if content and len(content) > 10:
-                        template = Template(num, keyword, content, category)
-                        self.templates[category].append(template)
-                        total_imported += 1
-        
-        self.update_templates_list()
-        self.update_status()
-        QMessageBox.information(self, 'تم', f'تم استيراد {total_imported} نموذج')
-    
-    # ==================== وظائف التحرير اليدوي ====================
-    
-    def on_category_changed(self, index):
-        """عند تغيير التصنيف"""
-        self.update_templates_list()
-    
-    def update_templates_list(self):
-        """تحديث قائمة النماذج"""
-        self.templates_list.clear()
-        
-        current_row = self.categories_list.currentRow()
-        if current_row < 0:
+            if p in self.files:
+                continue
+            self.files.append(p)
+            added += 1
+            item = QListWidgetItem(f"📄  {os.path.basename(p)}")
+            item.setData(Qt.UserRole, p)
+            item.setToolTip(p)
+            self.files_list.addItem(item)
+        if added:
+            self._set_status(f"تمت إضافة {added} ملف — الإجمالي: {len(self.files)}")
+
+    def _remove_selected(self):
+        items = self.files_list.selectedItems()
+        if not items:
+            self._set_status("لم يتم تحديد أي ملف للإزالة", level="error")
             return
-        
-        category = self.categories_list.item(current_row).text()
-        
-        if category in self.templates:
-            for i, tmpl in enumerate(self.templates[category]):
-                display = f"[{tmpl.num}] {tmpl.keyword}: {tmpl.content[:40]}..."
-                self.templates_list.addItem(display)
-    
-    def on_template_selected(self, index):
-        """عند اختيار نموذج"""
-        if index < 0:
+        for it in items:
+            path = it.data(Qt.UserRole)
+            if path in self.files:
+                self.files.remove(path)
+            self.files_list.takeItem(self.files_list.row(it))
+        self._set_status(f"تمت الإزالة — الإجمالي: {len(self.files)}")
+
+    def _clear_files(self):
+        if not self.files:
             return
-        
-        current_cat = self.categories_list.currentItem()
-        if not current_cat:
-            return
-        
-        category = current_cat.text()
-        
-        if category in self.templates and index < len(self.templates[category]):
-            tmpl = self.templates[category][index]
-            self.txt_num.setText(tmpl.num)
-            self.txt_keyword.setText(tmpl.keyword)
-            self.txt_content.setPlainText(tmpl.content)
-    
-    def add_category(self):
-        """إضافة تصنيف جديد"""
-        name, ok = QInputDialog.getText(self, 'تصنيف جديد', 'اسم التصنيف:')
-        if ok and name:
-            if name not in self.templates:
-                self.templates[name] = []
-                self.categories_list.addItem(name)
-                self.cmb_import_category.addItem(name)
-    
-    def delete_category(self):
-        """حذف التصنيف المحدد"""
-        current = self.categories_list.currentItem()
-        if not current:
-            return
-        
-        name = current.text()
-        reply = QMessageBox.question(
-            self, 'تأكيد الحذف',
-            f'هل تريد حذف التصنيف "{name}" وجميع نماذجه؟',
-            QMessageBox.Yes | QMessageBox.No
+        ok = QMessageBox.question(
+            self,
+            "تأكيد المسح",
+            f"هل تريد مسح {len(self.files)} ملف من القائمة؟",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
         )
-        
-        if reply == QMessageBox.Yes:
-            if name in self.templates:
-                del self.templates[name]
-            self.categories_list.takeItem(self.categories_list.currentRow())
-            
-            # حذف من القائمة المنسدلة
-            idx = self.cmb_import_category.findText(name)
-            if idx >= 0:
-                self.cmb_import_category.removeItem(idx)
-    
-    def add_template(self):
-        """إضافة نموذج جديد"""
-        current_cat = self.categories_list.currentItem()
-        if not current_cat:
-            QMessageBox.warning(self, 'تنبيه', 'اختر تصنيفاً أولاً')
+        if ok == QMessageBox.Yes:
+            self.files.clear()
+            self.files_list.clear()
+            self._set_status("تم مسح القائمة")
+
+    # ---------- التحويل والمعاينة ----------
+    def _convert(self):
+        if not self.files:
+            QMessageBox.warning(
+                self,
+                "لا توجد ملفات",
+                "الرجاء إضافة ملف واحد على الأقل قبل التحويل."
+            )
             return
-        
-        category = current_cat.text()
-        
-        # إنشاء نموذج فارغ
-        tmpl = Template('', '', '', category)
-        self.templates[category].append(tmpl)
-        self.update_templates_list()
-        
-        # تحديد النموذج الجديد
-        self.templates_list.setCurrentRow(len(self.templates[category]) - 1)
-        self.clear_editor()
-    
-    def delete_template(self):
-        """حذف النموذج المحدد"""
-        current_cat = self.categories_list.currentItem()
-        current_tmpl = self.templates_list.currentRow()
-        
-        if not current_cat or current_tmpl < 0:
-            return
-        
-        category = current_cat.text()
-        
-        reply = QMessageBox.question(
-            self, 'تأكيد الحذف',
-            'هل تريد حذف هذا النموذج؟',
-            QMessageBox.Yes | QMessageBox.No
-        )
-        
-        if reply == QMessageBox.Yes:
-            if category in self.templates:
-                del self.templates[category][current_tmpl]
-                self.update_templates_list()
-                self.clear_editor()
-                self.update_status()
-    
-    def save_current_template(self):
-        """حفظ التعديلات على النموذج الحالي"""
-        current_cat = self.categories_list.currentItem()
-        current_idx = self.templates_list.currentRow()
-        
-        if not current_cat or current_idx < 0:
-            QMessageBox.warning(self, 'تنبيه', 'اختر نموذجاً أولاً')
-            return
-        
-        category = current_cat.text()
-        
-        if category in self.templates and current_idx < len(self.templates[category]):
-            tmpl = self.templates[category][current_idx]
-            tmpl.num = self.txt_num.text().strip()
-            tmpl.keyword = self.txt_keyword.text().strip()
-            tmpl.content = self.txt_content.toPlainText().strip()
-            
-            self.update_templates_list()
-            self.templates_list.setCurrentRow(current_idx)
-            self.update_status()
-            self.status_bar.showMessage('تم حفظ التعديلات', 3000)
-    
-    def clear_editor(self):
-        """مسح حقول التحرير"""
-        self.txt_num.clear()
-        self.txt_keyword.clear()
-        self.txt_content.clear()
-    
-    def show_template_context_menu(self, pos):
-        """قائمة السياق للنماذج"""
-        menu = QMenu(self)
-        
-        action_copy = menu.addAction('📋 نسخ المحتوى')
-        action_copy.triggered.connect(self.copy_template_content)
-        
-        action_delete = menu.addAction('🗑️ حذف')
-        action_delete.triggered.connect(self.delete_template)
-        
-        menu.exec_(self.templates_list.mapToGlobal(pos))
-    
-    def copy_template_content(self):
-        """نسخ محتوى النموذج"""
-        content = self.txt_content.toPlainText()
-        if content:
-            QApplication.clipboard().setText(content)
-            self.status_bar.showMessage('تم النسخ للحافظة', 3000)
-    
-    # ==================== وظائف المعاينة والتصدير ====================
-    
-    def update_preview(self):
-        """تحديث المعاينة"""
-        format_type = self.cmb_format.currentIndex()
-        
-        # حساب الإحصائيات
-        total = sum(len(tmpls) for tmpls in self.templates.values())
-        non_empty_cats = sum(1 for tmpls in self.templates.values() if tmpls)
-        
-        self.lbl_total_templates.setText(f'إجمالي النماذج: {total}')
-        self.lbl_total_categories.setText(f'التصنيفات: {non_empty_cats}')
-        
-        # إنشاء الكود
-        if format_type == 0:  # JavaScript
-            code = self.generate_js_code()
-        else:  # JSON
-            code = self.generate_json_code()
-        
-        self.preview_text.setPlainText(code)
-    
-    def generate_js_code(self, minify=False):
-        """إنشاء كود JavaScript"""
-        data = {}
-        for cat, tmpls in self.templates.items():
-            if tmpls:
-                data[cat] = [t.to_dict() for t in tmpls]
-        
-        if minify:
-            json_str = json.dumps(data, ensure_ascii=False, separators=(',', ':'))
+
+        self._set_status("جاري التحويل…")
+        QApplication.processEvents()
+
+        try:
+            self.parsed_data = parse_files(self.files)
+            js_text = build_js_content(self.parsed_data)
+            self.preview.setPlainText(js_text)
+            # تفعيل الأزرار
+            self.save_btn.setEnabled(True)
+            self.copy_btn.setEnabled(True)
+            self.edit_btn.setEnabled(True)
+
+            total_items = sum(len(v) for v in self.parsed_data.values())
+            sessions = len(self.parsed_data)
+            self._set_status(
+                f"✓ تم التحويل بنجاح — {sessions} جلسة، {total_items} عنصر إجمالاً",
+                level="success"
+            )
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "خطأ في التحويل",
+                f"حدث خطأ أثناء قراءة الملفات:\n\n{str(e)}"
+            )
+            self._set_status(f"خطأ: {str(e)}", level="error")
+
+    def _toggle_edit(self):
+        is_editing = self.edit_btn.isChecked()
+        self.preview.setReadOnly(not is_editing)
+        if is_editing:
+            self.edit_btn.setText("🔒  قفل التعديل")
+            self._set_status("وضع التعديل: مفعّل — يمكنك تعديل المعاينة قبل الحفظ")
         else:
-            json_str = json.dumps(data, ensure_ascii=False, indent=4)
-        
-        return f"const templatesData = {json_str};"
-    
-    def generate_json_code(self, minify=False):
-        """إنشاء كود JSON"""
-        data = {}
-        for cat, tmpls in self.templates.items():
-            if tmpls:
-                data[cat] = [t.to_dict() for t in tmpls]
-        
-        if minify:
-            return json.dumps(data, ensure_ascii=False, separators=(',', ':'))
-        else:
-            return json.dumps(data, ensure_ascii=False, indent=4)
-    
-    def copy_to_clipboard(self):
-        """نسخ للحافظة"""
-        format_type = self.cmb_format.currentIndex() if hasattr(self, 'cmb_format') else 0
-        minify = self.chk_minify.isChecked() if hasattr(self, 'chk_minify') else False
-        
-        if format_type == 0:
-            code = self.generate_js_code(minify)
-        else:
-            code = self.generate_json_code(minify)
-        
-        QApplication.clipboard().setText(code)
-        self.status_bar.showMessage('تم النسخ للحافظة ✓', 3000)
-        QMessageBox.information(self, 'تم', 'تم نسخ الكود للحافظة بنجاح')
-    
-    def export_to_file(self):
-        """تصدير كملف"""
-        format_idx = self.cmb_export_format.currentIndex()
-        minify = self.chk_minify.isChecked()
-        
-        if format_idx == 0:  # JavaScript
-            ext = 'js'
-            code = self.generate_js_code(minify)
-        else:  # JSON
-            ext = 'json'
-            code = self.generate_json_code(minify)
-        
-        file_path, _ = QFileDialog.getSaveFileName(
-            self, 'حفظ الملف', f'templatesData.{ext}',
-            f'{ext.upper()} Files (*.{ext});;All Files (*)'
+            self.edit_btn.setText("✏️  تفعيل التعديل")
+            self._set_status("وضع التعديل: مقفل")
+
+    def _copy_to_clipboard(self):
+        text = self.preview.toPlainText()
+        if not text:
+            return
+        QApplication.clipboard().setText(text)
+        self._set_status("✓ تم نسخ المحتوى إلى الحافظة", level="success")
+
+    def _save_file(self):
+        text = self.preview.toPlainText()
+        if not text:
+            QMessageBox.warning(self, "لا يوجد محتوى", "لا توجد معاينة قابلة للحفظ.")
+            return
+
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            "حفظ الملف",
+            "templates.js",
+            "ملفات JavaScript (*.js);;كل الملفات (*)"
         )
-        
-        if file_path:
-            try:
-                with open(file_path, 'w', encoding='utf-8') as f:
-                    f.write(code)
-                QMessageBox.information(self, 'تم', f'تم حفظ الملف:\n{file_path}')
-            except Exception as e:
-                QMessageBox.critical(self, 'خطأ', f'فشل في الحفظ:\n{str(e)}')
-    
-    # ==================== حفظ/تحميل المشروع ====================
-    
-    def save_project(self):
-        """حفظ المشروع"""
-        file_path, _ = QFileDialog.getSaveFileName(
-            self, 'حفظ المشروع', 'templates_project.json',
-            'JSON Files (*.json);;All Files (*)'
-        )
-        
-        if file_path:
-            try:
-                data = {
-                    'version': '1.0',
-                    'templates': {cat: [t.to_dict() for t in tmpls] for cat, tmpls in self.templates.items()}
-                }
-                with open(file_path, 'w', encoding='utf-8') as f:
-                    json.dump(data, f, ensure_ascii=False, indent=2)
-                self.status_bar.showMessage('تم حفظ المشروع', 3000)
-            except Exception as e:
-                QMessageBox.critical(self, 'خطأ', f'فشل في الحفظ:\n{str(e)}')
-    
-    def load_project(self):
-        """تحميل مشروع"""
-        file_path, _ = QFileDialog.getOpenFileName(
-            self, 'تحميل مشروع', '', 'JSON Files (*.json);;All Files (*)'
-        )
-        
-        if file_path:
-            try:
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                
-                self.templates = {}
-                for cat, tmpls in data.get('templates', {}).items():
-                    self.templates[cat] = [
-                        Template(t.get('num', ''), t.get('keyword', ''), t.get('content', ''), cat)
-                        for t in tmpls
-                    ]
-                
-                # تحديث القوائم
-                self.categories_list.clear()
-                self.categories_list.addItems(list(self.templates.keys()))
-                
-                self.cmb_import_category.clear()
-                self.cmb_import_category.addItems(list(self.templates.keys()))
-                
-                self.update_status()
-                self.status_bar.showMessage('تم تحميل المشروع', 3000)
-                
-            except Exception as e:
-                QMessageBox.critical(self, 'خطأ', f'فشل في التحميل:\n{str(e)}')
-    
-    # ==================== المظهر ====================
-    
-    def toggle_theme(self):
-        """تبديل الوضع الليلي"""
-        self.is_dark_mode = not self.is_dark_mode
-        if self.is_dark_mode:
-            self.apply_dark_theme()
-            self.btn_theme.setText('☀️ الوضع النهاري')
+        if not path:
+            return
+
+        try:
+            with open(path, 'w', encoding='utf-8') as f:
+                f.write(text)
+            self._set_status(f"✓ تم الحفظ في: {path}", level="success")
+            QMessageBox.information(
+                self,
+                "تم الحفظ",
+                f"تم حفظ الملف بنجاح في:\n\n{path}"
+            )
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "خطأ في الحفظ",
+                f"تعذّر حفظ الملف:\n\n{str(e)}"
+            )
+
+    # ---------- الوضع الليلي/النهاري ----------
+    def _toggle_theme(self):
+        self.is_dark = not self.is_dark
+        self.settings.setValue("darkMode", self.is_dark)
+        self._apply_theme()
+        self._update_theme_btn()
+
+    def _apply_theme(self):
+        theme = DARK_THEME if self.is_dark else LIGHT_THEME
+        self.setStyleSheet(build_stylesheet(theme))
+
+    def _update_theme_btn(self):
+        if self.is_dark:
+            self.theme_btn.setText("☀️  الوضع النهاري")
         else:
-            self.apply_light_theme()
-            self.btn_theme.setText('🌙 الوضع الليلي')
-    
-    def apply_light_theme(self):
-        """تطبيق المظهر الفاتح"""
-        self.setStyleSheet("""
-            QMainWindow, QWidget {
-                background-color: #f8f6f1;
-                color: #2c2c2c;
-                font-family: 'Tajawal', 'Segoe UI', sans-serif;
-                font-size: 14px;
-            }
-            QGroupBox {
-                font-weight: bold;
-                border: 2px solid #e0ddd5;
-                border-radius: 8px;
-                margin-top: 10px;
-                padding-top: 10px;
-                background-color: #ffffff;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                subcontrol-position: top right;
-                padding: 0 10px;
-                color: #1a5f4a;
-            }
-            QPushButton {
-                background-color: #1a5f4a;
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 6px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #2d8b6e;
-            }
-            QPushButton:pressed {
-                background-color: #0d3d2f;
-            }
-            QLineEdit, QTextEdit, QComboBox, QSpinBox {
-                border: 2px solid #e0ddd5;
-                border-radius: 6px;
-                padding: 8px;
-                background-color: #ffffff;
-            }
-            QLineEdit:focus, QTextEdit:focus, QComboBox:focus {
-                border-color: #1a5f4a;
-            }
-            QListWidget, QTableWidget {
-                border: 2px solid #e0ddd5;
-                border-radius: 6px;
-                background-color: #ffffff;
-            }
-            QListWidget::item:selected, QTableWidget::item:selected {
-                background-color: #1a5f4a;
-                color: white;
-            }
-            QTabWidget::pane {
-                border: 2px solid #e0ddd5;
-                border-radius: 8px;
-                background-color: #ffffff;
-            }
-            QTabBar::tab {
-                background-color: #e0ddd5;
-                padding: 10px 20px;
-                margin-right: 2px;
-                border-top-left-radius: 6px;
-                border-top-right-radius: 6px;
-            }
-            QTabBar::tab:selected {
-                background-color: #1a5f4a;
-                color: white;
-            }
-            QStatusBar {
-                background-color: #1a5f4a;
-                color: white;
-            }
-            QHeaderView::section {
-                background-color: #1a5f4a;
-                color: white;
-                padding: 8px;
-                border: none;
-            }
-        """)
-    
-    def apply_dark_theme(self):
-        """تطبيق المظهر الداكن"""
-        self.setStyleSheet("""
-            QMainWindow, QWidget {
-                background-color: #1a1a1a;
-                color: #f0f0f0;
-                font-family: 'Tajawal', 'Segoe UI', sans-serif;
-                font-size: 14px;
-            }
-            QGroupBox {
-                font-weight: bold;
-                border: 2px solid #404040;
-                border-radius: 8px;
-                margin-top: 10px;
-                padding-top: 10px;
-                background-color: #2d2d2d;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                subcontrol-position: top right;
-                padding: 0 10px;
-                color: #2d8b6e;
-            }
-            QPushButton {
-                background-color: #2d8b6e;
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 6px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #3da37f;
-            }
-            QPushButton:pressed {
-                background-color: #1a5f4a;
-            }
-            QLineEdit, QTextEdit, QComboBox, QSpinBox {
-                border: 2px solid #404040;
-                border-radius: 6px;
-                padding: 8px;
-                background-color: #2d2d2d;
-                color: #f0f0f0;
-            }
-            QLineEdit:focus, QTextEdit:focus, QComboBox:focus {
-                border-color: #2d8b6e;
-            }
-            QListWidget, QTableWidget {
-                border: 2px solid #404040;
-                border-radius: 6px;
-                background-color: #2d2d2d;
-                color: #f0f0f0;
-            }
-            QListWidget::item:selected, QTableWidget::item:selected {
-                background-color: #2d8b6e;
-                color: white;
-            }
-            QTabWidget::pane {
-                border: 2px solid #404040;
-                border-radius: 8px;
-                background-color: #2d2d2d;
-            }
-            QTabBar::tab {
-                background-color: #404040;
-                color: #f0f0f0;
-                padding: 10px 20px;
-                margin-right: 2px;
-                border-top-left-radius: 6px;
-                border-top-right-radius: 6px;
-            }
-            QTabBar::tab:selected {
-                background-color: #2d8b6e;
-                color: white;
-            }
-            QStatusBar {
-                background-color: #2d8b6e;
-                color: white;
-            }
-            QHeaderView::section {
-                background-color: #2d8b6e;
-                color: white;
-                padding: 8px;
-                border: none;
-            }
-            QComboBox QAbstractItemView {
-                background-color: #2d2d2d;
-                color: #f0f0f0;
-                selection-background-color: #2d8b6e;
-            }
-        """)
-    
-    def update_status(self):
-        """تحديث شريط الحالة"""
-        total = sum(len(tmpls) for tmpls in self.templates.values())
-        self.status_bar.showMessage(f'إجمالي النماذج: {total}')
+            self.theme_btn.setText("🌙  الوضع الليلي")
+
+    # ---------- شريط الحالة ----------
+    def _set_status(self, msg, level="default"):
+        self.status_label.setText(msg)
+        self.status_label.setProperty("type", level)
+        self.status_label.style().unpolish(self.status_label)
+        self.status_label.style().polish(self.status_label)
+
+
+# ====================== التشغيل ======================
+
+def setup_high_dpi():
+    """يهيّئ دعم الشاشات عالية الدقة قبل إنشاء QApplication."""
+    if hasattr(Qt, 'AA_EnableHighDpiScaling'):
+        QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+    if hasattr(Qt, 'AA_UseHighDpiPixmaps'):
+        QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
 
 
 def main():
+    setup_high_dpi()
     app = QApplication(sys.argv)
-    app.setLayoutDirection(Qt.RightToLeft)
-    
-    # تعيين الخط
-    font = QFont('Tajawal', 11)
-    app.setFont(font)
-    
-    window = TemplateConverter()
-    window.show()
-    
+    app.setApplicationName("محول قوالب الجلسات")
+    app.setOrganizationName("DocxToJsTool")
+
+    # خط افتراضي مناسب للعربية
+    default_font = QFont("Segoe UI", 10)
+    app.setFont(default_font)
+
+    win = MainWindow()
+    win.show()
     sys.exit(app.exec_())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
