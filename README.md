@@ -109,7 +109,7 @@ python wordtotemplates.py
 ```
 
 أو حمّل **نسخة EXE** جاهزة من:  
-[Google Drive Link](https://drive.google.com/file/d/1RRLDvRrMKzXxz3SV8b5HKvo-j_Mb22mw/view?usp=sharing)
+[Google Drive Link](https://drive.google.com/file/d/1k0iJO7CsKqQ_XZwldvmK--oQBtwbI4g4/view)
 
 ---
 
