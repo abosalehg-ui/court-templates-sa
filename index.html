@@ -1165,6 +1165,10 @@
         <span class="dropdown-item-icon">📜</span>
         <span>الديات والشجاج</span>
         </div>
+        <div class="dropdown-item" onclick="selectCalc('eosModal')">
+        <span class="dropdown-item-icon">💰</span>
+        <span>مكافأة نهاية الخدمة</span>
+        </div>
     </div>
 </div>
                 <button class="btn btn-icon btn-secondary" onclick="toggleTheme()" title="الوضع الليلي">🌙</button>
@@ -1609,9 +1613,13 @@
                 <span class="dropdown-item-icon">🚗</span>
                 <span>الأضرار المرورية</span>
             </div>
-            <div class="dropdown-item" style="border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem;" onclick="selectMobileCalc('diyatModal')">
+            <div class="dropdown-item" style="border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 0.75rem; padding: 1rem 1.25rem;" onclick="selectMobileCalc('diyatModal')">
                 <span class="dropdown-item-icon">📜</span>
                 <span>الديات والشجاج</span>
+            </div>
+            <div class="dropdown-item" style="border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem;" onclick="selectMobileCalc('eosModal')">
+                <span class="dropdown-item-icon">💰</span>
+                <span>مكافأة نهاية الخدمة</span>
             </div>
         </div>
     </div>
@@ -1669,6 +1677,90 @@
 
             <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); text-align: center; color: var(--text-light); font-size: 0.85rem;">
                 إعداد: عبدالعزيز بن عبدالرزاق الغديان التميمي - قاضي استئناف متقاعد
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- End of Service Benefit Calculator Modal -->
+<div class="modal-overlay" id="eosModal">
+    <div class="modal" style="max-width: 700px;">
+        <div class="modal-header">
+            <h2>💰 حاسبة مكافأة نهاية الخدمة</h2>
+            <button class="modal-close" onclick="closeModal('eosModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>سبب انتهاء العلاقة العمالية</label>
+                <select class="form-control" id="eosReason" onchange="calculateEOS()">
+                    <option value="employer">انتهاء مدة العقد أو فسخه من قبل صاحب العمل (المادة 84)</option>
+                    <option value="resignation">استقالة العامل (المادة 85)</option>
+                    <option value="art81">فسخ العامل للعقد لإحدى حالات المادة (81)</option>
+                    <option value="force">ترك العامل العمل نتيجة قوة قاهرة (المادة 87)</option>
+                    <option value="marriage">إنهاء العاملة للعقد خلال 6 أشهر من الزواج أو 3 أشهر من الوضع (المادة 87)</option>
+                    <option value="art80">فسخ صاحب العمل للعقد لإحدى حالات المادة (80)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>الأجر الشهري الأخير (ريال)</label>
+                <input type="number" class="form-control" id="eosWage" min="0" placeholder="الأجر الفعلي الأخير (الأساسي + البدلات الثابتة)" oninput="calculateEOS()">
+            </div>
+
+            <div class="option-group" style="margin-bottom: 1rem;">
+                <label>طريقة إدخال مدة الخدمة</label>
+                <div class="option-buttons">
+                    <button class="option-btn active" data-value="dates" onclick="setEosDurationMode(this)">بالتواريخ</button>
+                    <button class="option-btn" data-value="manual" onclick="setEosDurationMode(this)">إدخال يدوي</button>
+                </div>
+            </div>
+
+            <div id="eosDatesInputs">
+                <div class="heirs-grid">
+                    <div class="heir-input">
+                        <label>تاريخ بداية الخدمة</label>
+                        <input type="date" id="eosStartDate" onchange="calculateEOS()">
+                    </div>
+                    <div class="heir-input">
+                        <label>تاريخ انتهاء الخدمة</label>
+                        <input type="date" id="eosEndDate" onchange="calculateEOS()">
+                    </div>
+                </div>
+            </div>
+
+            <div id="eosManualInputs" style="display: none;">
+                <div class="heirs-grid">
+                    <div class="heir-input">
+                        <label>سنوات</label>
+                        <input type="number" id="eosYears" min="0" value="0" oninput="calculateEOS()">
+                    </div>
+                    <div class="heir-input">
+                        <label>أشهر</label>
+                        <input type="number" id="eosMonths" min="0" max="11" value="0" oninput="calculateEOS()">
+                    </div>
+                    <div class="heir-input">
+                        <label>أيام</label>
+                        <input type="number" id="eosDays" min="0" max="29" value="0" oninput="calculateEOS()">
+                    </div>
+                </div>
+            </div>
+
+            <div id="eosResult" style="margin-top: 1.5rem;">
+                <div class="result-box">أدخل البيانات لحساب المكافأة</div>
+            </div>
+
+            <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;" onclick="copyEOSResult()">
+                📋 نسخ النتيجة
+            </button>
+
+            <div style="margin-top: 1rem; padding: 0.75rem; background: var(--bg-main); border-radius: var(--radius); font-size: 0.85rem; color: var(--text-secondary); border-right: 4px solid var(--secondary);">
+                <strong>📌 آلية الاحتساب (المادة 84 من نظام العمل):</strong><br>
+                • أجر نصف شهر عن كل سنة من السنوات الخمس الأولى، وأجر شهر كامل عن كل سنة من السنوات التالية<br>
+                • يُحتسب كسر السنة بنسبته، والعبرة بالأجر الأخير<br>
+                • <strong>في حال الاستقالة (المادة 85):</strong> أقل من سنتين لا يستحق شيئاً، من سنتين إلى خمس يستحق الثلث، من خمس إلى عشر يستحق الثلثين، عشر سنوات فأكثر يستحق المكافأة كاملة<br>
+                • <strong>المادة (87):</strong> يستحق العامل المكافأة كاملة في حالات فسخ المادة (81)، وترك العمل لقوة قاهرة، وإنهاء العاملة للعقد خلال ستة أشهر من الزواج أو ثلاثة أشهر من الوضع<br>
+                • <strong>المادة (80):</strong> فسخ صاحب العمل للعقد لإحدى حالاتها يكون دون مكافأة<br>
+                • المرجع: <a href="https://www.hrsd.gov.sa/ministry-services/services/end-service-benefit-calculator" target="_blank" rel="noopener" style="color: var(--secondary);">حاسبة مكافأة نهاية الخدمة – وزارة الموارد البشرية والتنمية الاجتماعية</a>
             </div>
         </div>
     </div>
@@ -3443,6 +3535,199 @@ function copyTrafficResult() {
     
     copyToClipboard(text);
 }
+
+// ==================== END OF SERVICE BENEFIT CALCULATOR ====================
+function setEosDurationMode(btn) {
+    btn.parentElement.querySelectorAll('.option-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const isDates = btn.dataset.value === 'dates';
+    document.getElementById('eosDatesInputs').style.display = isDates ? '' : 'none';
+    document.getElementById('eosManualInputs').style.display = isDates ? 'none' : '';
+    calculateEOS();
+}
+
+function getEosServiceDuration() {
+    const datesMode = document.getElementById('eosDatesInputs').style.display !== 'none';
+    if (datesMode) {
+        const startVal = document.getElementById('eosStartDate').value;
+        const endVal = document.getElementById('eosEndDate').value;
+        if (!startVal || !endVal) return null;
+        const start = new Date(startVal);
+        const end = new Date(endVal);
+        if (end <= start) return { error: 'تاريخ انتهاء الخدمة يجب أن يكون بعد تاريخ بدايتها' };
+        let y = end.getFullYear() - start.getFullYear();
+        let m = end.getMonth() - start.getMonth();
+        let d = end.getDate() - start.getDate();
+        if (d < 0) { d += 30; m--; }
+        if (m < 0) { m += 12; y--; }
+        return { years: y, months: m, days: d };
+    }
+    const y = parseInt(document.getElementById('eosYears').value) || 0;
+    const m = parseInt(document.getElementById('eosMonths').value) || 0;
+    const d = parseInt(document.getElementById('eosDays').value) || 0;
+    if (y === 0 && m === 0 && d === 0) return null;
+    return { years: y + Math.floor(m / 12), months: m % 12, days: d };
+}
+
+function computeEOS() {
+    const wage = parseFloat(document.getElementById('eosWage').value) || 0;
+    const reason = document.getElementById('eosReason').value;
+    const duration = getEosServiceDuration();
+
+    if (wage <= 0 || !duration) return null;
+    if (duration.error) return { error: duration.error };
+
+    // إجمالي المدة بالسنوات (كسر السنة بنسبته: الشهر 1/12 واليوم 1/360)
+    const totalYears = duration.years + duration.months / 12 + duration.days / 360;
+
+    // المادة 84: نصف شهر عن كل سنة من الخمس الأولى، وشهر عن كل سنة تالية
+    const firstFive = Math.min(totalYears, 5) * 0.5 * wage;
+    const afterFive = Math.max(totalYears - 5, 0) * wage;
+    const fullAward = firstFive + afterFive;
+
+    let ratio = 1;
+    let ratioLabel = 'كاملة (100%)';
+    let ruleNote = 'يستحق العامل المكافأة كاملة (المادة 84 من نظام العمل)';
+
+    if (reason === 'resignation') {
+        if (totalYears < 2) {
+            ratio = 0;
+            ratioLabel = 'لا يستحق';
+            ruleNote = 'لا يستحق العامل المستقيل مكافأة لأن مدة خدمته أقل من سنتين (المادة 85)';
+        } else if (totalYears < 5) {
+            ratio = 1 / 3;
+            ratioLabel = 'الثلث (33.33%)';
+            ruleNote = 'يستحق العامل المستقيل ثلث المكافأة لأن مدة خدمته من سنتين إلى خمس سنوات (المادة 85)';
+        } else if (totalYears < 10) {
+            ratio = 2 / 3;
+            ratioLabel = 'الثلثان (66.67%)';
+            ruleNote = 'يستحق العامل المستقيل ثلثي المكافأة لأن مدة خدمته من خمس إلى عشر سنوات (المادة 85)';
+        } else {
+            ruleNote = 'يستحق العامل المستقيل المكافأة كاملة لأن مدة خدمته عشر سنوات فأكثر (المادة 85)';
+        }
+    } else if (reason === 'art80') {
+        ratio = 0;
+        ratioLabel = 'لا يستحق';
+        ruleNote = 'فسخ صاحب العمل للعقد لإحدى حالات المادة (80) يكون دون مكافأة';
+    } else if (reason === 'art81') {
+        ruleNote = 'يستحق العامل المكافأة كاملة لفسخه العقد لإحدى حالات المادة (81) — المادة 87';
+    } else if (reason === 'force') {
+        ruleNote = 'يستحق العامل المكافأة كاملة لتركه العمل نتيجة قوة قاهرة (المادة 87)';
+    } else if (reason === 'marriage') {
+        ruleNote = 'تستحق العاملة المكافأة كاملة لإنهائها العقد خلال ستة أشهر من الزواج أو ثلاثة أشهر من الوضع (المادة 87)';
+    }
+
+    return {
+        wage, duration, totalYears, firstFive, afterFive, fullAward,
+        ratio, ratioLabel, ruleNote,
+        dueAward: fullAward * ratio,
+        reasonText: document.getElementById('eosReason').selectedOptions[0].textContent
+    };
+}
+
+function formatEosDuration(d) {
+    const parts = [];
+    if (d.years > 0) parts.push(d.years + (d.years === 1 ? ' سنة' : d.years === 2 ? ' سنتان' : d.years <= 10 ? ' سنوات' : ' سنة'));
+    if (d.months > 0) parts.push(d.months + (d.months === 1 ? ' شهر' : d.months === 2 ? ' شهران' : ' أشهر'));
+    if (d.days > 0) parts.push(d.days + (d.days === 1 ? ' يوم' : d.days === 2 ? ' يومان' : d.days <= 10 ? ' أيام' : ' يوماً'));
+    return parts.length ? parts.join(' و ') : 'صفر';
+}
+
+function calculateEOS() {
+    const container = document.getElementById('eosResult');
+    const result = computeEOS();
+
+    if (!result) {
+        container.innerHTML = '<div class="result-box">أدخل البيانات لحساب المكافأة</div>';
+        return;
+    }
+
+    if (result.error) {
+        container.innerHTML = `<div class="result-box" style="background: #fef3c7; border-color: #f59e0b;">${result.error}</div>`;
+        return;
+    }
+
+    const formatNum = (n) => n.toLocaleString('ar-SA', { maximumFractionDigits: 2 });
+
+    // التفقيط
+    const intDue = Math.floor(result.dueAward);
+    let words = numberToArabicWords(intDue);
+    if (intDue === 1) words += ' ريال سعودي';
+    else if (intDue === 2) words = words.replace('اثنان', '') + 'ريالان سعوديان';
+    else if (intDue >= 3 && intDue <= 10) words += ' ريالات سعودية';
+    else words += ' ريال سعودي';
+    words += ' فقط لا غير';
+
+    container.innerHTML = `
+        <div class="result-header">📊 نتيجة الاحتساب</div>
+        <table class="result-table">
+            <tr>
+                <td><strong>مدة الخدمة</strong></td>
+                <td>${formatEosDuration(result.duration)}</td>
+            </tr>
+            <tr>
+                <td><strong>الأجر الشهري الأخير</strong></td>
+                <td>${formatNum(result.wage)} ريال</td>
+            </tr>
+            <tr>
+                <td><strong>مكافأة السنوات الخمس الأولى (نصف شهر عن كل سنة)</strong></td>
+                <td>${formatNum(result.firstFive)} ريال</td>
+            </tr>
+            <tr>
+                <td><strong>مكافأة السنوات التالية (شهر عن كل سنة)</strong></td>
+                <td>${formatNum(result.afterFive)} ريال</td>
+            </tr>
+            <tr>
+                <td><strong>إجمالي المكافأة الكاملة</strong></td>
+                <td>${formatNum(result.fullAward)} ريال</td>
+            </tr>
+            <tr>
+                <td><strong>النسبة المستحقة</strong></td>
+                <td>${result.ratioLabel}</td>
+            </tr>
+            <tr style="background: rgba(26, 95, 74, 0.1);">
+                <td><strong>المكافأة المستحقة</strong></td>
+                <td><strong>${formatNum(result.dueAward)} ريال</strong></td>
+            </tr>
+        </table>
+        ${result.dueAward > 0 ? `
+        <div class="evidence-box" style="margin-top: 1rem;">
+            <strong>تفقيط المكافأة:</strong> ${words}
+        </div>` : ''}
+        <div class="result-box" style="margin-top: 1rem;">
+            ⚖️ ${result.ruleNote}
+        </div>
+    `;
+}
+
+function copyEOSResult() {
+    const result = computeEOS();
+
+    if (!result || result.error) {
+        showToast('أدخل البيانات أولاً', '');
+        return;
+    }
+
+    const formatNum = (n) => n.toLocaleString('ar-SA', { maximumFractionDigits: 2 });
+
+    const text = `حاسبة مكافأة نهاية الخدمة
+سبب انتهاء العلاقة العمالية: ${result.reasonText}
+مدة الخدمة: ${formatEosDuration(result.duration)}
+الأجر الشهري الأخير: ${formatNum(result.wage)} ريال
+
+النتيجة:
+- مكافأة السنوات الخمس الأولى: ${formatNum(result.firstFive)} ريال
+- مكافأة السنوات التالية: ${formatNum(result.afterFive)} ريال
+- إجمالي المكافأة الكاملة: ${formatNum(result.fullAward)} ريال
+- النسبة المستحقة: ${result.ratioLabel}
+- المكافأة المستحقة: ${formatNum(result.dueAward)} ريال
+
+${result.ruleNote}
+(وفق المواد 84، 85، 87 من نظام العمل السعودي)`;
+
+    copyToClipboard(text);
+}
+
 function viewSearchResult(category, idx) {
     currentCategory = category;
     viewTemplate(idx);
