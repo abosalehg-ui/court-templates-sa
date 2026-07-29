@@ -525,11 +525,6 @@ function toggleSidebar() {
     document.getElementById('sidebar').classList.toggle('show');
 }
 
-// ==================== TOOLS PANEL (درج الأدوات على الشاشات الصغيرة) ====================
-function toggleToolsPanel() {
-    document.getElementById('toolsPanel').classList.toggle('show');
-}
-
 // ==================== MODALS (مع إدارة التركيز للوصولية) ====================
 let lastFocusedElement = null;
 
@@ -569,10 +564,7 @@ document.addEventListener('keydown', function (e) {
         const dropdown = document.getElementById('calcDropdown');
         if (dropdown && dropdown.classList.contains('show')) {
             dropdown.classList.remove('show');
-            return;
         }
-        const tools = document.querySelector('.tools-panel.show');
-        if (tools) tools.classList.remove('show');
         return;
     }
 
