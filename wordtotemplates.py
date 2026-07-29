@@ -127,9 +127,12 @@ def parse_docx(filepath):
 
 
 def filename_to_key(filepath):
-    """'الجلسة الأولى.docx' -> 'الجلسة_الأولى'"""
-    name = os.path.splitext(os.path.basename(filepath))[0]
-    return name.replace(' ', '_')
+    """'الجلسة الأولى.docx' -> 'الجلسة الأولى'
+
+    يُبقي اسم الملف كما هو (بالمسافات) ليطابق صيغة المفاتيح
+    المستخدمة فعلياً في data/templates.js وتظهر التصنيفات بشكل صحيح.
+    """
+    return os.path.splitext(os.path.basename(filepath))[0]
 
 
 def build_js_content(data):
