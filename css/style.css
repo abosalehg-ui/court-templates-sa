@@ -183,22 +183,7 @@
             .main-container {
                 grid-template-columns: 250px 1fr;
             }
-            /* على الشاشات الصغيرة تتحول لوحة الأدوات إلى درج جانبي يُفتح عند الطلب */
             .tools-panel { display: none; }
-            .tools-panel.show {
-                display: flex;
-                position: fixed;
-                top: 0;
-                right: 0;
-                width: min(340px, 92vw);
-                height: 100vh;
-                z-index: 300;
-                overflow-y: auto;
-                background: var(--bg-main);
-                padding: 1rem;
-                box-shadow: -8px 0 30px rgba(0, 0, 0, 0.25);
-            }
-            .tools-panel .tools-panel-close { display: inline-flex; }
         }
 
         @media (max-width: 768px) {
@@ -1187,26 +1172,6 @@ button.mobile-nav-item {
 .favorite-item .fav-open {
     flex: 1;
     padding: 0;
-}
-
-/* زر إغلاق درج الأدوات — يظهر فقط عندما تكون اللوحة درجاً */
-.tools-panel-close {
-    display: none;
-    align-self: flex-start;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 0.4rem 0.9rem;
-    cursor: pointer;
-    font-family: inherit;
-    color: var(--text-primary);
-}
-
-/* زر فتح درج الأدوات في الهيدر — يظهر تحت 1200px فقط */
-.tools-toggle { display: none; }
-
-@media (max-width: 1200px) and (min-width: 769px) {
-    .header-actions .tools-toggle { display: inline-flex; }
 }
 
 /* مؤشر تركيز واضح للتنقل بلوحة المفاتيح */
