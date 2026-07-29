@@ -1803,41 +1803,15 @@
         const list = document.getElementById('categoryList');
         list.innerHTML = '';
 
-        const categoryNames = {
-            'الدعوى': '📝 الدعوى',
-            'الإجابة': '💬 الإجابة',
-            'المرافعة': '⚖️ المرافعة',
-            'الأسباب': '📋 الأسباب',
-            'الحكم': '🔨 الحكم',
-            'الشهادة': '👁️ الشهادة',
-            'الصلح': '🤝 الصلح',
-            'اليمين': '✋ اليمين',
-            'النكول': '🚫 النكول',
-            'اليمين والنكول': '✋ اليمين والنكول',
-            'الكفالة': '📜 الكفالة',
-            'الالتماس': '📨 الالتماس',
-            'الشطب': '✂️ الشطب',
-            'الغياب': '👤 الغياب',
-            'الاختصاص': '📍 الاختصاص',
-            'التمويل': '💰 التمويل',
-            'العقارات': '🏠 العقارات',
-            'التنازل وترك الخصومة': '🕊️ التنازل وترك الخصومة',
-            'تصحيح الحكم': '✏️ تصحيح الحكم',
-            'المنع من السفر': '✈️ المنع من السفر',
-            'المشاكل_التقنية': '🔧 المشاكل التقنية'
-        };
-
         for (let cat in templatesData) {
             if (templatesData[cat].length === 0) continue;
 
             const li = document.createElement('li');
             li.className = 'category-item';
-            
-            const displayName = categoryNames[cat] || cat;
-            
+
             li.innerHTML = `
                 <div class="category-header" onclick="selectCategory('${cat}', event)">
-                    <span>${displayName}</span>
+                    <span>${cat}</span>
                     <span class="category-count">${templatesData[cat].length}</span>
                 </div>
             `;
