@@ -110,10 +110,10 @@ python -m http.server 8000
 
 ```bash
 # تثبيت الاعتماديات (مرة واحدة)
-pip install -r requirements.txt
+pip install -r tools/requirements.txt
 
 # تشغيل أداة Python
-python wordtotemplates.py
+python tools/wordtotemplates.py
 ```
 
 النسخ التنفيذية الجاهزة (EXE) تُنشر عبر صفحة  
@@ -130,6 +130,31 @@ python wordtotemplates.py
 # يتطلب Node.js 18 فأحدث — بلا أي اعتماديات خارجية
 npm test
 ```
+
+---
+
+## 🚢 النشر
+
+الموقع **static بالكامل** بلا خطوة بناء وبلا خادم، لذا يعمل على أي استضافة ملفات ثابتة.
+
+### GitHub Pages (الرابط الرسمي)
+
+ينشر تلقائياً مع كل دفعة إلى `main` عبر `.github/workflows/deploy-pages.yml`.
+
+### Vercel (اختياري — للمعاينة قبل الدمج)
+
+يُقرأ الإعداد من `vercel.json` مباشرة، ولا يحتاج أي أمر بناء:
+
+1. من لوحة Vercel: **Add New → Project** ثم اختر هذا المستودع.
+2. اترك **Framework Preset** على `Other` — الإعداد في `vercel.json` يتكفّل بالباقي.
+3. **Deploy**.
+
+ما يضيفه `vercel.json`:
+
+- تخزين دائم لملفات الخطوط (`immutable`) بدل إعادة تنزيلها مع كل زيارة.
+- رؤوس أمان: `Content-Security-Policy` و `X-Content-Type-Options` و `Referrer-Policy` و `Permissions-Policy` — وهي رؤوس **لا يمكن ضبطها على GitHub Pages**.
+
+> **ملاحظة:** ملفات أداة Python موضوعة في `tools/` قصداً. وجود `requirements.txt` في جذر المستودع يجعل Vercel يصنّف المشروع تطبيق Python فيفشل النشر برسالة `No python entrypoint found`.
 
 ---
 
@@ -230,8 +255,8 @@ court-templates-sa/
 ├── README.md               # هذا الملف
 ├── LICENSE                 # رخصة MIT
 ├── package.json            # سكربت الاختبارات (npm test)
-├── requirements.txt        # اعتماديات أداة Python مثبتة الإصدارات
-├── wordtotemplates.py      # أداة تحويل جداول الورد إلى بيانات JS
+├── vercel.json             # إعداد النشر على Vercel (static + رؤوس أمان وتخزين)
+├── .vercelignore           # ملفات مستثناة من النشر
 ├── css/
 │   ├── style.css           # التنسيقات
 │   └── fonts.css           # تعريفات الخطوط المحلية
@@ -244,6 +269,9 @@ court-templates-sa/
 ├── fonts/                  # ملفات خطوط Tajawal و Amiri (woff2)
 ├── tests/
 │   └── calc.test.js        # اختبارات دوال الحساب
+├── tools/
+│   ├── wordtotemplates.py  # أداة تحويل جداول الورد إلى بيانات JS
+│   └── requirements.txt    # اعتماديات أداة Python مثبتة الإصدارات
 └── screenshots/            # لقطات الشاشة
 ```
 
