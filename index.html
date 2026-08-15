@@ -20,12 +20,16 @@
             </div>
             <div class="header-actions">
                 <button class="btn btn-secondary" onclick="openModal('tafqitModal')">🔢 تفقيط</button>
-<button class="btn btn-secondary" onclick="openModal('inheritanceModal')">📊 المواريث</button>
+<a class="btn btn-secondary" href="minutes.html">📝 مولّد الجلسة</a>
 <div class="dropdown" id="calcDropdown">
     <button class="btn btn-secondary" onclick="toggleDropdown(event)">
         🧮 الحاسبات <span class="dropdown-arrow">▼</span>
     </button>
     <div class="dropdown-menu">
+        <button type="button" class="dropdown-item" onclick="selectCalc('inheritanceModal')">
+            <span class="dropdown-item-icon">📊</span>
+            <span>المواريث</span>
+        </button>
         <button type="button" class="dropdown-item" onclick="selectCalc('expertModal')">
             <span class="dropdown-item-icon">💼</span>
             <span>أتعاب الخبرة</span>
@@ -167,7 +171,7 @@
     <nav class="mobile-nav" aria-label="التنقل السفلي">
         <button type="button" class="mobile-nav-item active" onclick="toggleSidebar()">📁<span>التصنيفات</span></button>
         <button type="button" class="mobile-nav-item" onclick="openModal('tafqitModal')">🔢<span>تفقيط</span></button>
-        <button type="button" class="mobile-nav-item" onclick="openModal('inheritanceModal')">📊<span>المواريث</span></button>
+        <button type="button" class="mobile-nav-item" onclick="location.href='minutes.html'">📝<span>مولّد الجلسة</span></button>
         <button type="button" class="mobile-nav-item" onclick="openMobileCalcs()">🧮<span>الحاسبات</span></button>
         <button type="button" class="mobile-nav-item" onclick="toggleTheme()">🌙<span>الوضع</span></button>
     </nav>
@@ -475,6 +479,10 @@
             <button type="button" class="modal-close" aria-label="إغلاق النافذة" onclick="closeModal('mobileCalcsModal')">&times;</button>
         </div>
         <div class="modal-body">
+            <button type="button" class="dropdown-item" style="border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 0.75rem; padding: 1rem 1.25rem;" onclick="selectMobileCalc('inheritanceModal')">
+                <span class="dropdown-item-icon">📊</span>
+                <span>المواريث</span>
+            </button>
             <button type="button" class="dropdown-item" style="border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 0.75rem; padding: 1rem 1.25rem;" onclick="selectMobileCalc('expertModal')">
                 <span class="dropdown-item-icon">💼</span>
                 <span>أتعاب الخبرة</span>

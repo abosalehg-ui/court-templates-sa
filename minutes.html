@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+    <title>مولّد الجلسة — قوالب ضبط القضايا</title>
+    <link rel="stylesheet" href="css/fonts.css">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/minutes.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <div class="logo-icon">📝</div>
+                <div class="logo-text">
+                    <h1>مولّد الجلسة</h1>
+                    <span id="hijriDate"></span>
+                </div>
+            </div>
+            <div class="header-actions">
+                <a class="btn btn-secondary" href="index.html">⚖️ الرئيسية</a>
+                <button class="btn btn-icon btn-secondary" id="darkModeToggle" title="الوضع الليلي" aria-label="تبديل الوضع الليلي">🌙</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- شريط مؤقّت التعبئة -->
+    <div id="fillTimer" style="display:none;">
+        <span id="fillTimerText">⏱ 00:00</span>
+        <button type="button" class="hide-timer-btn" id="hideTimerBtn">إخفاء المؤقّت</button>
+    </div>
+
+    <div class="minutes-container">
+
+        <!-- ===== شاشة البداية ===== -->
+        <div id="landingScreen">
+            <div id="draftBanner" class="notice-box" style="display:none;">
+                يوجد محضر غير مكتمل محفوظ على هذا الجهاز من جلسة سابقة.
+                <div style="display:flex; gap:0.5rem; margin-top:0.75rem;">
+                    <button type="button" class="btn btn-primary" id="restoreDraftBtn">استرجاعه</button>
+                    <button type="button" class="btn btn-secondary" id="discardDraftBtn">تجاهله وابدأ جديد</button>
+                </div>
+            </div>
+
+            <div class="m-card">
+                <h2>نوع الجلسة</h2>
+                <div class="choice-group vertical" data-group="session-landing">
+                    <div class="choice-btn landing-btn" data-value="new">جلسة تحضيرية (جديدة)</div>
+                    <div class="choice-btn landing-btn" data-value="previous">جلسة منظورة سابقًا</div>
+                </div>
+            </div>
+
+            <div class="m-card">
+                <h2>خيارات</h2>
+                <label class="checkbox-row">
+                    <input type="checkbox" id="timerEnabledCheckbox" checked>
+                    تفعيل مؤقّت قياس سرعة تعبئة المحضر
+                </label>
+            </div>
+        </div>
+
+        <!-- ===== التطبيق الرئيسي ===== -->
+        <div id="mainApp" style="display:none;">
+
+            <span class="back-link" id="backLink">→ رجوع لاختيار نوع الجلسة</span>
+            <div id="stepDots"></div>
+
+            <div class="minutes-layout" id="minutesLayout">
+                <div class="form-column">
+
+                    <!-- الخطوة 0: بيانات الافتتاح -->
+                    <div class="step" id="stepWrap0">
+                        <div class="m-card">
+                            <h2>بيانات الافتتاح</h2>
+                            <div class="heirs-grid">
+                                <div class="field">
+                                    <label>اسم القاضي <span class="req">*</span></label>
+                                    <input type="text" class="form-control" id="judgeName" placeholder="اسم ناظر القضية" required>
+                                </div>
+                                <div class="field">
+                                    <label>اسم المحكمة <span class="req">*</span></label>
+                                    <input type="text" class="form-control" id="courtName" placeholder="مثال: المحكمة العامة بالرياض" required>
+                                </div>
+                            </div>
+                            <div class="hint">يُحفظ اسم القاضي والمحكمة تلقائيًا على هذا الجهاز فلا تحتاج لإعادة كتابتهما.</div>
+
+                            <div class="field">
+                                <label>طريقة انعقاد الجلسة</label>
+                                <input type="text" class="form-control" id="sessionMode" value="عبر الاتصال المرئي" disabled>
+                                <div class="hint">تُدرج في المحضر الصيغة الكاملة المستندة لقرار رئيس المجلس الأعلى للقضاء رقم (17388) وتاريخ 5/10/1441هـ.</div>
+                            </div>
+
+                            <div class="field">
+                                <label>وقت افتتاح الجلسة</label>
+                                <div class="time-picker">
+                                    <select class="form-control" id="openHour"></select>
+                                    <span class="colon">:</span>
+                                    <select class="form-control" id="openMinute"></select>
+                                    <select class="form-control period-select" id="openPeriod">
+                                        <option value="ص">☀️ صباحًا (٨-١١)</option>
+                                        <option value="م">🌙 مساءً (١٢-٣)</option>
+                                    </select>
+                                </div>
+                                <div class="hint" id="openPeriodHint"></div>
+                            </div>
+                        </div>
+
+                        <div class="m-card" id="sameJudgeCard" style="display:none;">
+                            <h2>استمرارية نظر القضية</h2>
+                            <label>هل ناظر القضية السابق هو الناظر الحالي (نفس القاضي)؟</label>
+                            <div class="choice-group" data-group="session-sameJudge">
+                                <div class="choice-btn active" data-value="نعم">نعم، نفس القاضي</div>
+                                <div class="choice-btn" data-value="لا">لا، قاضٍ مختلف</div>
+                            </div>
+                            <div class="hint">عند اختيار قاضٍ مختلف تُدرج تلقائيًا صيغة المادة (167) من نظام المرافعات الشرعية ومصادقة الأطراف على الجلسات السابقة.</div>
+                        </div>
+                    </div><!-- /stepWrap0 -->
+
+                    <!-- الخطوة 1: بيانات الأطراف -->
+                    <div class="step" id="stepWrap1" style="display:none;">
+                        <div class="parties-grid">
+
+                            <!-- المدعي -->
+                            <div class="m-card party-block" id="plaintiffBlock">
+                                <div class="party-title">المدعي</div>
+
+                                <label>نوع الطرف</label>
+                                <div class="choice-group" data-group="plaintiff-entityType">
+                                    <div class="choice-btn active" data-value="فرد">فرد</div>
+                                    <div class="choice-btn" data-value="شركة">شركة</div>
+                                </div>
+
+                                <div class="field" id="plaintiff-name-field">
+                                    <label>اسم المدعي <span class="req">*</span></label>
+                                    <input type="text" class="form-control" id="plaintiff-name" placeholder="اسم المدعي" required>
+                                </div>
+
+                                <div class="sub-fields" id="plaintiff-selfIdentity-section">
+                                    <div id="plaintiff-individualId-block">
+                                        <label>الجنسية</label>
+                                        <div class="choice-group" data-group="plaintiff-nationalityType">
+                                            <div class="choice-btn active" data-value="سعودي">سعودي</div>
+                                            <div class="choice-btn" data-value="غير ذلك">غير ذلك</div>
+                                        </div>
+                                        <div class="field" id="plaintiff-saudiId-field">
+                                            <label>رقم الهوية الوطنية <span class="req">*</span></label>
+                                            <input type="text" class="form-control" id="plaintiff-saudiId" placeholder="أدخل 10 أرقام فقط" maxlength="10" inputmode="numeric" data-numeric-only="true" required>
+                                        </div>
+                                        <div id="plaintiff-foreignId-block" style="display:none;">
+                                            <div class="field" style="position:relative;">
+                                                <label>الجنسية <span class="req">*</span></label>
+                                                <input type="text" class="form-control" id="plaintiff-foreignNationality" placeholder="اكتب للبحث عن الجنسية" autocomplete="off" required>
+                                                <div class="nat-dropdown" id="plaintiff-foreignNationality-list" style="display:none;"></div>
+                                            </div>
+                                            <div class="field">
+                                                <label>رقم الإقامة <span class="req">*</span></label>
+                                                <input type="text" class="form-control" id="plaintiff-iqamaNum" placeholder="أدخل 10 أرقام فقط" maxlength="10" inputmode="numeric" data-numeric-only="true" required>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="field" id="plaintiff-crNum-field" style="display:none;">
+                                        <label>رقم السجل التجاري <span class="req">*</span></label>
+                                        <input type="text" class="form-control" id="plaintiff-crNum" placeholder="رقم السجل التجاري" inputmode="numeric" data-numeric-only="true" required>
+                                    </div>
+                                </div>
+
+                                <label id="plaintiff-gender-label">الجنس</label>
+                                <div class="choice-group" data-group="plaintiff-gender">
+                                    <div class="choice-btn active" data-value="م">مذكر</div>
+                                    <div class="choice-btn" data-value="ف">مؤنث</div>
+                                </div>
+
+                                <label>حالة الحضور</label>
+                                <div class="choice-group" data-group="plaintiff-attendance">
+                                    <div class="choice-btn active" data-value="أصالة">حضر أصالة</div>
+                                    <div class="choice-btn" data-value="تمثيل">حضر وكيل / ممثل</div>
+                                    <div class="choice-btn" data-value="لم يحضر">لم يحضر</div>
+                                </div>
+
+                                <div id="plaintiff-accompany-toggle" style="display:none;">
+                                    <label class="checkbox-row">
+                                        <input type="checkbox" id="plaintiff-hasAccompanyingAgent">
+                                        حضر معه الوكيل
+                                    </label>
+                                </div>
+
+                                <div class="sub-fields" id="plaintiff-rep-fields" style="display:none;">
+                                    <div id="plaintiff-repType-chooser">
+                                        <label>صفة من حضر عنه</label>
+                                        <div class="choice-group" data-group="plaintiff-repType">
+                                            <div class="choice-btn active" data-value="وكيل">وكيل</div>
+                                            <div class="choice-btn" data-value="وكيل شركة">وكيل عن الشركة</div>
+                                            <div class="choice-btn" data-value="ممثل">ممثل نظامي</div>
+                                        </div>
+                                    </div>
+
+                                    <div id="plaintiff-wakeel-fields">
+                                        <label>جنس الوكيل</label>
+                                        <div class="choice-group" data-group="plaintiff-agentGender">
+                                            <div class="choice-btn active" data-value="م">ذكر</div>
+                                            <div class="choice-btn" data-value="ف">أنثى</div>
+                                        </div>
+                                        <label id="plaintiff-lawyer-q-label">هل الوكيل محامٍ؟</label>
+                                        <div class="choice-group" data-group="plaintiff-repIsLawyer">
+                                            <div class="choice-btn" data-value="لا">لا</div>
+                                            <div class="choice-btn active" data-value="نعم">نعم</div>
+                                        </div>
+                                        <div class="field">
+                                            <label id="plaintiff-agent-name-label">اسم الوكيل <span class="req">*</span></label>
+                                            <input type="text" class="form-control" id="plaintiff-agent-name" placeholder="اسم الوكيل" required>
+                                        </div>
+                                        <div class="field">
+                                            <label>رقم الهوية / الإقامة <span class="req">*</span></label>
+                                            <input type="text" class="form-control" id="plaintiff-agent-id" placeholder="أدخل 10 أرقام فقط" maxlength="10" inputmode="numeric" data-numeric-only="true" required>
+                                            <div class="field-error" id="plaintiff-agent-id-error" style="display:none;">يجب إدخال رقم الهوية أو الإقامة، ويتكوّن من 10 أرقام بالضبط.</div>
+                                        </div>
+                                        <div class="field">
+                                            <label>رقم الوكالة الشرعية <span class="req">*</span></label>
+                                            <input type="text" class="form-control" id="plaintiff-wakala-num" placeholder="رقم الوكالة الشرعية" inputmode="numeric" data-numeric-only="true" required>
+                                        </div>
+                                        <div class="field" id="plaintiff-license-field">
+                                            <label>رقم رخصة المحاماة <span class="req">*</span></label>
+                                            <input type="text" class="form-control" id="plaintiff-license-num" placeholder="رقم الرخصة" inputmode="numeric" data-numeric-only="true" required>
+                                        </div>
+                                        <div class="field" id="plaintiff-kinship-field" style="display:none;">
+                                            <label>نوع القرابة <span class="req">*</span></label>
+                                            <div class="choice-group" data-group="plaintiff-kinshipType">
+                                                <div class="choice-btn active" data-value="نسب">نسب</div>
+                                                <div class="choice-btn" data-value="أصهار">أصهار (مصاهرة)</div>
+                                            </div>
+                                            <div id="plaintiff-nasab-block">
+                                                <label>صلة القرابة (نسب) بالمدعي <span class="req">*</span></label>
+                                                <select class="form-control" id="plaintiff-kinship" required></select>
+                                            </div>
+                                            <div id="plaintiff-ashar-block" style="display:none;">
+                                                <label>من جهة</label>
+                                                <div class="choice-group" data-group="plaintiff-asharDirection">
+                                                    <div class="choice-btn active" data-value="الزوجة">الزوجة</div>
+                                                    <div class="choice-btn" data-value="الزوج">الزوج</div>
+                                                </div>
+                                                <label>صلة القرابة (أصهار) بالمدعي <span class="req">*</span></label>
+                                                <select class="form-control" id="plaintiff-kinship-ashar" required></select>
+                                            </div>
+                                            <div id="plaintiff-kinship-hint"></div>
+                                        </div>
+                                    </div>
+
+                                    <div class="field" id="plaintiff-repName-field" style="display:none;">
+                                        <label>اسم الممثل النظامي <span class="req">*</span></label>
+                                        <input type="text" class="form-control" id="plaintiff-repName" placeholder="اسم الممثل النظامي" required>
+                                    </div>
+                                    <div class="field" id="plaintiff-rep-num-field" style="display:none;">
+                                        <label>صفة الممثل النظامي <span class="req">*</span></label>
+                                        <input type="text" class="form-control" id="plaintiff-rep-num" placeholder="مثال: المدير العام، الشريك المفوّض" required>
+                                    </div>
+                                </div>
+
+                                <div class="sub-fields" id="plaintiff-absence-fields" style="display:none;">
+                                    <label>هل تبلّغ المدعي بالجلسة؟</label>
+                                    <div class="choice-group" data-group="plaintiff-notifyStatus">
+                                        <div class="choice-btn active" data-value="تبلغ">تبلّغ</div>
+                                        <div class="choice-btn" data-value="لم يتبلغ">لم يتبلّغ</div>
+                                    </div>
+                                    <div id="plaintiff-notified-fields">
+                                        <label>هل هذا غياب المدعي الأول أم الثاني؟</label>
+                                        <div class="choice-group" data-group="plaintiff-occurrence">
+                                            <div class="choice-btn active" data-value="1">غياب أول</div>
+                                            <div class="choice-btn" data-value="2">غياب ثانٍ</div>
+                                        </div>
+                                        <div class="field">
+                                            <label>رقم مهمّة التبليغ <span class="req">*</span></label>
+                                            <input type="text" class="form-control" id="plaintiff-tabligh" placeholder="رقم مهمة التبليغ" inputmode="numeric" data-numeric-only="true" required>
+                                        </div>
+                                        <div class="notice-box">في حال غياب المدعي المتبلّغ سيتولّد محضر "شطب الدعوى" كاملًا تلقائيًا، ولا حاجة لتعبئة بيانات المدعى عليه.</div>
+                                    </div>
+                                    <div id="plaintiff-not-notified-notice" style="display:none;" class="notice-box">
+                                        لم يتبلّغ المدعي: سيُغلق الضبط مباشرة بجملة إعادة التبليغ، بدون قسم الدعوى والبينة، ولا حاجة لتعبئة بيانات المدعى عليه.
+                                    </div>
+                                </div>
+
+                                <div class="sub-fields" id="plaintiff-specialCase-section">
+                                    <label>حالة استثنائية (اختياري — للمدعي فقط)</label>
+                                    <div class="choice-group vertical" data-group="plaintiff-specialCase">
+                                        <div class="choice-btn active" data-value="none">لا يوجد — سير الجلسة طبيعي</div>
+                                        <div class="choice-btn" data-value="systemNoVideo">⚠ تبيّن حضوره بالنظام الإلكتروني، لكنه لم يحضر عبر الاتصال المرئي</div>
+                                        <div class="choice-btn" data-value="leftDuringSession">⚠ غادر المدعي أثناء انعقاد الجلسة ولم يعد للحضور</div>
+                                    </div>
+                                    <div class="hint">عند اختيار أي حالة استثنائية تُستبدل صيغة المحضر بالكامل بفقرتها الخاصة، مع ذكر حضور المدعى عليه إن حضر فقط.</div>
+                                </div>
+
+                                <div id="plaintiffExtraContainer"></div>
+                                <button type="button" class="btn btn-secondary" id="addExtraPlaintiffBtn" style="width:100%; margin-top:0.75rem;">+ إضافة مدعي آخر</button>
+                            </div>
+
+                            <!-- المدعى عليه -->
+                            <div class="m-card party-block" id="defendantBlock">
+                                <div class="party-title">المدعى عليه</div>
+
+                                <label>نوع الطرف</label>
+                                <div class="choice-group" data-group="defendant-entityType">
+                                    <div class="choice-btn active" data-value="فرد">فرد</div>
+                                    <div class="choice-btn" data-value="شركة">شركة</div>
+                                </div>
+
+                                <div class="field" id="defendant-name-field">
+                                    <label>اسم المدعى عليه <span class="req">*</span></label>
+                                    <input type="text" class="form-control" id="defendant-name" placeholder="اسم المدعى عليه" required>
+                                </div>
+
+                                <div class="sub-fields" id="defendant-selfIdentity-section">
+                                    <div id="defendant-individualId-block">
+                                        <label>الجنسية</label>
+                                        <div class="choice-group" data-group="defendant-nationalityType">
+                                            <div class="choice-btn active" data-value="سعودي">سعودي</div>
+                                            <div class="choice-btn" data-value="غير ذلك">غير ذلك</div>
+                                        </div>
+                                        <div class="field" id="defendant-saudiId-field">
+                                            <label>رقم الهوية الوطنية <span class="req">*</span></label>
+                                            <input type="text" class="form-control" id="defendant-saudiId" placeholder="أدخل 10 أرقام فقط" maxlength="10" inputmode="numeric" data-numeric-only="true" required>
+                                        </div>
+                                        <div id="defendant-foreignId-block" style="display:none;">
+                                            <div class="field" style="position:relative;">
+                                                <label>الجنسية <span class="req">*</span></label>
+                                                <input type="text" class="form-control" id="defendant-foreignNationality" placeholder="اكتب للبحث عن الجنسية" autocomplete="off" required>
+                                                <div class="nat-dropdown" id="defendant-foreignNationality-list" style="display:none;"></div>
+                                            </div>
+                                            <div class="field">
+                                                <label>رقم الإقامة <span class="req">*</span></label>
+                                                <input type="text" class="form-control" id="defendant-iqamaNum" placeholder="أدخل 10 أرقام فقط" maxlength="10" inputmode="numeric" data-numeric-only="true" required>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="field" id="defendant-crNum-field" style="display:none;">
+                                        <label>رقم السجل التجاري <span class="req">*</span></label>
+                                        <input type="text" class="form-control" id="defendant-crNum" placeholder="رقم السجل التجاري" inputmode="numeric" data-numeric-only="true" required>
+                                    </div>
+                                </div>
+
+                                <label id="defendant-gender-label">الجنس</label>
+                                <div class="choice-group" data-group="defendant-gender">
+                                    <div class="choice-btn active" data-value="م">مذكر</div>
+                                    <div class="choice-btn" data-value="ف">مؤنث</div>
+                                </div>
+
+                                <label>حالة الحضور</label>
+                                <div class="choice-group" data-group="defendant-attendance">
+                                    <div class="choice-btn active" data-value="أصالة">حضر أصالة</div>
+                                    <div class="choice-btn" data-value="تمثيل">حضر وكيل / ممثل</div>
+                                    <div class="choice-btn" data-value="لم يحضر">لم يحضر</div>
+                                </div>
+
+                                <div id="defendant-accompany-toggle" style="display:none;">
+                                    <label class="checkbox-row">
+                                        <input type="checkbox" id="defendant-hasAccompanyingAgent">
+                                        حضر معه الوكيل
+                                    </label>
+                                </div>
+
+                                <div class="sub-fields" id="defendant-rep-fields" style="display:none;">
+                                    <div id="defendant-repType-chooser">
+                                        <label>صفة من حضر عنه</label>
+                                        <div class="choice-group" data-group="defendant-repType">
+                                            <div class="choice-btn active" data-value="وكيل">وكيل</div>
+                                            <div class="choice-btn" data-value="وكيل شركة">وكيل عن الشركة</div>
+                                            <div class="choice-btn" data-value="ممثل">ممثل نظامي</div>
+                                        </div>
+                                    </div>
+
+                                    <div id="defendant-wakeel-fields">
+                                        <label>جنس الوكيل</label>
+                                        <div class="choice-group" data-group="defendant-agentGender">
+                                            <div class="choice-btn active" data-value="م">ذكر</div>
+                                            <div class="choice-btn" data-value="ف">أنثى</div>
+                                        </div>
+                                        <label id="defendant-lawyer-q-label">هل الوكيل محامٍ؟</label>
+                                        <div class="choice-group" data-group="defendant-repIsLawyer">
+                                            <div class="choice-btn" data-value="لا">لا</div>
+                                            <div class="choice-btn active" data-value="نعم">نعم</div>
+                                        </div>
+                                        <div class="field">
+                                            <label id="defendant-agent-name-label">اسم الوكيل <span class="req">*</span></label>
+                                            <input type="text" class="form-control" id="defendant-agent-name" placeholder="اسم الوكيل" required>
+                                        </div>
+                                        <div class="field">
+                                            <label>رقم الهوية / الإقامة <span class="req">*</span></label>
+                                            <input type="text" class="form-control" id="defendant-agent-id" placeholder="أدخل 10 أرقام فقط" maxlength="10" inputmode="numeric" data-numeric-only="true" required>
+                                            <div class="field-error" id="defendant-agent-id-error" style="display:none;">يجب إدخال رقم الهوية أو الإقامة، ويتكوّن من 10 أرقام بالضبط.</div>
+                                        </div>
+                                        <div class="field">
+                                            <label>رقم الوكالة الشرعية <span class="req">*</span></label>
+                                            <input type="text" class="form-control" id="defendant-wakala-num" placeholder="رقم الوكالة الشرعية" inputmode="numeric" data-numeric-only="true" required>
+                                        </div>
+                                        <div class="field" id="defendant-license-field">
+                                            <label>رقم رخصة المحاماة <span class="req">*</span></label>
+                                            <input type="text" class="form-control" id="defendant-license-num" placeholder="رقم الرخصة" inputmode="numeric" data-numeric-only="true" required>
+                                        </div>
+                                        <div class="field" id="defendant-kinship-field" style="display:none;">
+                                            <label>نوع القرابة <span class="req">*</span></label>
+                                            <div class="choice-group" data-group="defendant-kinshipType">
+                                                <div class="choice-btn active" data-value="نسب">نسب</div>
+                                                <div class="choice-btn" data-value="أصهار">أصهار (مصاهرة)</div>
+                                            </div>
+                                            <div id="defendant-nasab-block">
+                                                <label>صلة القرابة (نسب) بالمدعى عليه <span class="req">*</span></label>
+                                                <select class="form-control" id="defendant-kinship" required></select>
+                                            </div>
+                                            <div id="defendant-ashar-block" style="display:none;">
+                                                <label>من جهة</label>
+                                                <div class="choice-group" data-group="defendant-asharDirection">
+                                                    <div class="choice-btn active" data-value="الزوجة">الزوجة</div>
+                                                    <div class="choice-btn" data-value="الزوج">الزوج</div>
+                                                </div>
+                                                <label>صلة القرابة (أصهار) بالمدعى عليه <span class="req">*</span></label>
+                                                <select class="form-control" id="defendant-kinship-ashar" required></select>
+                                            </div>
+                                            <div id="defendant-kinship-hint"></div>
+                                        </div>
+                                    </div>
+
+                                    <div class="field" id="defendant-repName-field" style="display:none;">
+                                        <label>اسم الممثل النظامي <span class="req">*</span></label>
+                                        <input type="text" class="form-control" id="defendant-repName" placeholder="اسم الممثل النظامي" required>
+                                    </div>
+                                    <div class="field" id="defendant-rep-num-field" style="display:none;">
+                                        <label>صفة الممثل النظامي <span class="req">*</span></label>
+                                        <input type="text" class="form-control" id="defendant-rep-num" placeholder="مثال: المدير العام، الشريك المفوّض" required>
+                                    </div>
+                                </div>
+
+                                <div class="sub-fields" id="defendant-absence-fields" style="display:none;">
+                                    <div id="defendant-oathAbsence-field" style="display:none;">
+                                        <label>هل تبلّغ المدعى عليه باليمين؟</label>
+                                        <div class="choice-group" data-group="defendant-oathAbsence">
+                                            <div class="choice-btn active" data-value="لا">لا</div>
+                                            <div class="choice-btn" data-value="نعم">نعم</div>
+                                        </div>
+                                        <div class="field" id="defendant-oathTabligh-field" style="display:none;">
+                                            <label>رقم التبليغ باليمين <span class="req">*</span></label>
+                                            <input type="text" class="form-control" id="defendant-oathTablighNum" placeholder="رقم إفادة التبليغ الإلكتروني" inputmode="numeric" data-numeric-only="true" required>
+                                        </div>
+                                        <div class="notice-box" id="defendant-oathAbsence-notice" style="display:none;">
+                                            سيُدرَج تلقائيًا نص غياب المدعى عليه عن أداء اليمين (النكول)، ولا حاجة لتعبئة رقم تبليغ الحضور العادي.
+                                        </div>
+                                    </div>
+                                    <div id="defendant-normal-absence-block">
+                                        <label>هل تبلّغ المدعى عليه بالجلسة؟</label>
+                                        <div class="choice-group" data-group="defendant-notifyStatus">
+                                            <div class="choice-btn active" data-value="تبلغ">تبلّغ</div>
+                                            <div class="choice-btn" data-value="لم يتبلغ">لم يتبلّغ</div>
+                                        </div>
+                                        <div class="field" id="defendant-notified-fields">
+                                            <label>رقم تبليغه بالجلسة <span class="req">*</span></label>
+                                            <input type="text" class="form-control" id="defendant-tabligh" placeholder="رقم مهمة التبليغ" inputmode="numeric" data-numeric-only="true" required>
+                                        </div>
+                                        <div id="defendant-not-notified-notice" style="display:none;" class="notice-box">
+                                            لم يتبلّغ المدعى عليه: سيُغلق الضبط مباشرة بجملة إعادة التبليغ، بدون قسم الدعوى والبينة.
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="sub-fields" id="defendant-oathPerformance-section" style="display:none;">
+                                    <label>هل هذه الجلسة جلسة أداء يمين من قبل المدعى عليه؟</label>
+                                    <div class="choice-group" data-group="defendant-oathPerformanceSession">
+                                        <div class="choice-btn" data-value="نعم">نعم</div>
+                                        <div class="choice-btn active" data-value="لا">لا</div>
+                                    </div>
+                                    <div class="field" id="defendant-oathAnswer-field" style="display:none;">
+                                        <label>إجابة المدعى عليه عند سؤاله عن الاستعداد لأداء اليمين <span class="req">*</span></label>
+                                        <textarea class="form-control" id="defendant-oathAnswerText" rows="3" placeholder="اكتب إجابة المدعى عليه" required></textarea>
+                                    </div>
+                                </div>
+
+                                <div id="defendantExtraContainer"></div>
+                                <button type="button" class="btn btn-secondary" id="addExtraDefendantBtn" style="width:100%; margin-top:0.75rem;">+ إضافة مدعى عليه آخر</button>
+                            </div>
+
+                        </div>
+                    </div><!-- /stepWrap1 -->
+
+                    <!-- الخطوة 2: الدعوى والبينة (الجلسة التحضيرية فقط) -->
+                    <div class="m-card step" id="claimEvidenceCard" style="display:none;">
+                        <h2>أقوال المدعي والبينة</h2>
+
+                        <div class="field">
+                            <label>وبالاطلاع على دعوى المدعي وجدت نصها: <span class="req">*</span></label>
+                            <textarea class="form-control" id="claimText" rows="4" placeholder="......." required></textarea>
+                        </div>
+
+                        <label>وبسؤاله عن بينته قرر قائلاً:</label>
+                        <div class="choice-group" data-group="evidence-choice">
+                            <div class="choice-btn active" data-value="none">لا بينة لدي</div>
+                            <div class="choice-btn" data-value="has">بينتي هي:</div>
+                        </div>
+                        <div class="field" id="evidenceTextField" style="display:none;">
+                            <label>البينة (اختر كل ما ينطبق) <span class="req">*</span></label>
+                            <div id="evidenceChecklist" class="evidence-checklist"></div>
+                            <div class="field" id="otherDocumentField" style="display:none; margin-top:0.5rem;">
+                                <label>ما هو المستند؟</label>
+                                <input type="text" class="form-control" id="otherDocumentText" placeholder="اكتب اسم المستند">
+                            </div>
+                            <div class="sub-fields" id="witnessSection" style="display:none;">
+                                <label>بيانات الشهود</label>
+                                <div id="witnessContainer"></div>
+                                <button type="button" class="btn btn-secondary" id="addWitnessBtn" style="width:100%;">+ إضافة شاهد آخر</button>
+                            </div>
+                        </div>
+
+                        <div class="sub-fields" id="moreEvidenceSection" style="display:none;">
+                            <label>وبسؤاله هل لديه مزيد بينة؟</label>
+                            <div class="choice-group" data-group="more-evidence">
+                                <div class="choice-btn active" data-value="نعم">نعم</div>
+                                <div class="choice-btn" data-value="لا">لا</div>
+                            </div>
+                            <div class="field" id="moreEvidenceTextField">
+                                <label>البينة الإضافية <span class="req">*</span></label>
+                                <input type="text" class="form-control" id="moreEvidenceText" placeholder="اكتب البينة الإضافية" required>
+                            </div>
+                        </div>
+
+                        <div class="sub-fields" id="oathSection">
+                            <label>طلب يمين المدعى عليه</label>
+                            <label class="checkbox-row">
+                                <input type="checkbox" id="requestOathCheckbox">
+                                أرغب
+                            </label>
+                            <label class="checkbox-row">
+                                <input type="checkbox" id="declineOathCheckbox">
+                                لا أرغب
+                            </label>
+                            <div id="oathDefendantStatus" style="display:none;">
+                                <div class="hint" id="oathDefendantStatusHint"></div>
+                            </div>
+                        </div>
+
+                        <div class="sub-fields" id="defendantResponseSection">
+                            <label>إجابة المدعى عليه على الدعوى <span class="req">*</span></label>
+                            <textarea class="form-control" id="defendantResponseText" rows="3" placeholder="اكتب إجابة المدعى عليه" required></textarea>
+                            <div class="hint">سيُضاف تلقائيًا: "وبعرض دعوى المدعي على المدعى عليه أجاب قائلاً: [إجابته] هكذا أجاب."</div>
+                        </div>
+                    </div><!-- /claimEvidenceCard -->
+
+                    <div id="stepNavBar" style="display:none;">
+                        <span id="stepLabel"></span>
+                        <div style="display:flex; gap:0.5rem; align-items:center;">
+                            <button type="button" class="btn btn-secondary" id="newSessionBtnStep">بدء محضر جديد</button>
+                            <button type="button" class="btn btn-secondary" id="prevStepBtn">→ السابق</button>
+                            <button type="button" class="btn btn-primary" id="nextStepBtn">التالي ←</button>
+                        </div>
+                    </div>
+                    <div id="stepValidationMsg" class="warning-box" style="display:none;">
+                        يرجى تعبئة جميع الحقول الإلزامية (المؤشَّرة بـ *) في هذه الخطوة قبل المتابعة.
+                    </div>
+
+                </div><!-- /form-column -->
+
+                <div class="preview-column">
+                    <div class="m-card" id="previewCard">
+                        <h2>معاينة المحضر</h2>
+                        <button type="button" class="btn btn-secondary" id="backToEditBtn" style="display:none; margin-bottom:0.75rem;">→ رجوع للتعديل</button>
+                        <div id="missingFieldsWarning"></div>
+                        <div class="output-toolbar">
+                            <button type="button" class="btn btn-secondary" id="editOutputBtn" title="تعديل النص يدويًا">✏️ تعديل</button>
+                            <span class="reset-manual-link" id="resetManualEditLink" style="display:none;">↺ استعادة النص التلقائي</span>
+                            <button type="button" class="btn btn-secondary" id="fontDecreaseBtn" title="تصغير الخط">A-</button>
+                            <button type="button" class="btn btn-secondary" id="fontIncreaseBtn" title="تكبير الخط">A+</button>
+                        </div>
+                        <div class="output-text" id="outputText">...</div>
+                        <div class="preview-actions">
+                            <button type="button" class="btn btn-primary" id="copyBtn">📋 نسخ النص</button>
+                            <button type="button" class="btn btn-secondary" id="printBtn">🖨️ طباعة</button>
+                            <button type="button" class="btn btn-secondary" id="newSessionBtn">بدء محضر جديد</button>
+                        </div>
+                        <div class="hint preview-hint">تتحدّث المعاينة تلقائيًا مع كل تعبئة.</div>
+                    </div>
+                </div><!-- /preview-column -->
+
+            </div><!-- /minutes-layout -->
+        </div><!-- /mainApp -->
+    </div><!-- /minutes-container -->
+
+    <!-- التذييل -->
+    <div class="minutes-credits">
+        فكرة المولّد وإعداد الصياغ القضائية: <strong>القاضي/ زياد بن محمد البابطين</strong>
+        <br>
+        هذه الأداة مساعدة وإرشادية وليست بديلاً عن الاجتهاد القضائي.
+    </div>
+
+    <!-- نافذة تأكيد محضر جديد -->
+    <div class="modal-overlay" id="confirmModal" role="dialog" aria-modal="true" aria-labelledby="confirmModalTitle">
+        <div class="modal" style="max-width: 420px;">
+            <div class="modal-header">
+                <h2 id="confirmModalTitle">بدء محضر جديد</h2>
+                <button type="button" class="modal-close" aria-label="إغلاق النافذة" id="confirmModalClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>هل أنت متأكد من بدء محضر جديد؟ سيتم حذف كل البيانات الحالية ولن يمكن التراجع.</p>
+                <div style="display:flex; gap:0.5rem; margin-top:1rem;">
+                    <button type="button" class="btn btn-primary" id="confirmModalYes">نعم، ابدأ من جديد</button>
+                    <button type="button" class="btn btn-secondary" id="confirmModalNo">إلغاء</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- تنبيه التحقق من الوكالة -->
+    <div class="modal-overlay" id="wakalaModal" role="dialog" aria-modal="true" aria-labelledby="wakalaModalTitle">
+        <div class="modal" style="max-width: 420px;">
+            <div class="modal-header">
+                <h2 id="wakalaModalTitle">⚠️ تنبيه مهم</h2>
+                <button type="button" class="modal-close" aria-label="إغلاق النافذة" id="wakalaModalClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>يرجى التحقق من رقم الوكالة الشرعية <strong>فورًا</strong> عبر <a href="https://attorneysportal.moj.gov.sa/v2/portalinquiries/index/#/AttorneyInquiry" target="_blank" rel="noopener noreferrer" style="color: var(--primary); font-weight:700;">بوابة التحقق من الوكالة</a> قبل المتابعة.</p>
+                <button type="button" class="btn btn-primary" style="width:100%; margin-top:1rem;" id="wakalaModalOk">حسنًا، سأتحقق الآن</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- تنويه كاتب الضبط -->
+    <div class="modal-overlay" id="clerkModal" role="dialog" aria-modal="true" aria-labelledby="clerkModalTitle">
+        <div class="modal" style="max-width: 460px;">
+            <div class="modal-header">
+                <h2 id="clerkModalTitle">⚠️ تنويه لكاتب الضبط</h2>
+                <button type="button" class="modal-close" aria-label="إغلاق النافذة" id="clerkModalClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>🚫 لا بد من إلزام أطراف الدعوى بضرورة <strong>فتح الكاميرا</strong> والالتزام <strong>بالزي الرسمي</strong> للسعوديين أثناء الجلسة، وذلك استنادًا للدليل الإجرائي لخدمة التقاضي الإلكتروني.</p>
+                <button type="button" class="btn btn-primary" style="width:100%; margin-top:1rem;" id="clerkModalOk">فهمت، متابعة</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- نتيجة مؤقّت التعبئة -->
+    <div class="modal-overlay" id="timerResultModal" role="dialog" aria-modal="true" aria-labelledby="timerResultTitle">
+        <div class="modal" style="max-width: 360px; text-align:center;">
+            <div class="modal-header">
+                <h2 id="timerResultTitle">⏱ زمن تعبئة المحضر</h2>
+                <button type="button" class="modal-close" aria-label="إغلاق النافذة" id="timerResultClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="timerResultTime" style="font-size:2rem; font-weight:800; margin-bottom:0.5rem;"></p>
+                <p id="timerResultLabel" style="font-size:1.1rem; font-weight:700; margin-bottom:1rem;"></p>
+                <button type="button" class="btn btn-primary" style="width:100%;" id="timerResultOk">حسنًا</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script src="js/minutes.js"></script>
+    <script src="js/minutes-app.js"></script>
+</body>
+</html>
