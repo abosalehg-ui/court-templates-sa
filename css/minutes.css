@@ -1,0 +1,489 @@
+/* ==================== أنماط صفحة مولّد الجلسة ==================== */
+/* تعتمد على متغيرات التصميم في css/style.css */
+
+.minutes-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 1.5rem;
+    padding-bottom: 6rem;
+}
+
+/* ---------- شريط مؤقّت التعبئة ---------- */
+#fillTimer {
+    position: sticky;
+    top: 0;
+    z-index: 150;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    background: var(--success);
+    color: #fff;
+    font-weight: 700;
+    font-size: 1rem;
+    padding: 0.4rem 1rem;
+    box-shadow: var(--shadow);
+}
+
+#fillTimer.warn { background: #b8863b; }
+#fillTimer.late { background: #a33a2e; }
+
+#fillTimer .hide-timer-btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: inherit;
+    font-family: inherit;
+    font-size: 0.75rem;
+    padding: 0.15rem 0.6rem;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+/* صفحة المولّد بلا شريط سفلي — تبقى أزرار الهيدر ظاهرة على الجوال */
+@media (max-width: 768px) {
+    body .header-actions .btn { display: inline-flex; }
+}
+
+/* أزرار btn-secondary داخل البطاقات والنوافذ (خارج الهيدر الداكن) */
+.minutes-container .btn-secondary,
+.modal .btn-secondary {
+    background: var(--bg-card);
+    color: var(--primary);
+    border: 1px solid var(--primary-light);
+}
+
+.minutes-container .btn-secondary:hover,
+.modal .btn-secondary:hover {
+    background: rgba(26, 95, 74, 0.08);
+}
+
+/* ---------- البطاقات ---------- */
+.m-card {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    padding: 1.5rem;
+    margin-bottom: 1.25rem;
+}
+
+.m-card h2 {
+    color: var(--primary);
+    font-size: 1.15rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.6rem;
+    border-bottom: 2px solid var(--secondary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* ---------- شاشة البداية ---------- */
+#landingScreen {
+    max-width: 640px;
+    margin: 1.5rem auto;
+}
+
+.landing-btn {
+    display: block;
+    width: 100%;
+    text-align: right;
+    padding: 1.1rem 1.25rem;
+    margin-bottom: 0.75rem;
+    font-size: 1.05rem;
+    font-weight: 700;
+}
+
+/* ---------- تخطيط النموذج والمعاينة ---------- */
+.minutes-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 430px;
+    gap: 1.25rem;
+    align-items: start;
+}
+
+.minutes-layout.review-mode .form-column { display: none; }
+.minutes-layout.review-mode { grid-template-columns: 1fr; }
+.minutes-layout.review-mode .preview-column { max-width: 900px; margin: 0 auto; width: 100%; }
+
+.preview-column {
+    position: sticky;
+    top: 1rem;
+}
+
+.back-link {
+    display: inline-block;
+    color: var(--primary);
+    cursor: pointer;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+}
+
+/* ---------- الحقول وأزرار الاختيار ---------- */
+.field { margin-bottom: 0.9rem; }
+
+.field label,
+.form-column label {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 0.4rem;
+}
+
+.field .req { color: #b91c1c; }
+
+.choice-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 0.9rem;
+}
+
+.choice-group.vertical { flex-direction: column; }
+
+.choice-btn {
+    flex: 1;
+    min-width: fit-content;
+    padding: 0.55rem 0.8rem;
+    border: 2px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.9rem;
+    text-align: center;
+    transition: all 0.2s;
+    user-select: none;
+}
+
+.choice-btn:hover { border-color: var(--primary-light); }
+
+.choice-btn.active {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+}
+
+.sub-fields {
+    border-right: 3px solid var(--secondary-light);
+    padding-right: 0.9rem;
+    margin: 0.75rem 0;
+}
+
+.checkbox-row {
+    display: flex !important;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    font-weight: 500 !important;
+    color: var(--text-primary) !important;
+}
+
+.checkbox-row input { accent-color: var(--primary); width: 1.05rem; height: 1.05rem; }
+
+/* ---------- كتل الأطراف ---------- */
+.parties-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+}
+
+.party-block { border-right: 4px solid var(--primary); }
+
+.party-title {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--primary);
+    margin-bottom: 0.75rem;
+}
+
+.extra-party-block {
+    background: var(--bg-main);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem;
+    margin-top: 0.75rem;
+}
+
+.remove-line-btn {
+    background: none;
+    border: none;
+    color: #b91c1c;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.85rem;
+}
+
+/* ---------- الملاحظات والتحذيرات ---------- */
+.notice-box {
+    background: rgba(201, 162, 39, 0.12);
+    border: 1px solid var(--secondary);
+    border-radius: var(--radius);
+    padding: 0.75rem 1rem;
+    font-size: 0.88rem;
+    margin: 0.75rem 0;
+}
+
+.warning-box {
+    background: rgba(192, 86, 33, 0.1);
+    border: 1px solid var(--warning);
+    color: var(--warning);
+    border-radius: var(--radius);
+    padding: 0.75rem 1rem;
+    font-size: 0.88rem;
+    margin: 0.75rem 0;
+}
+
+.warning-box ul { margin: 0.5rem 1.25rem 0 0; }
+
+.ok-box {
+    background: rgba(39, 103, 73, 0.1);
+    border: 1px solid var(--success);
+    color: var(--success);
+    border-radius: var(--radius);
+    padding: 0.6rem 1rem;
+    font-size: 0.88rem;
+    margin: 0.75rem 0;
+}
+
+.hint {
+    font-size: 0.8rem;
+    color: var(--text-light);
+    margin: 0.35rem 0 0.75rem;
+}
+
+.field-error {
+    color: #b91c1c;
+    font-size: 0.8rem;
+    margin-top: 0.3rem;
+}
+
+.form-control.invalid,
+select.invalid,
+textarea.invalid,
+input.invalid {
+    border-color: #b91c1c !important;
+}
+
+.kinship-degree-hint {
+    border-radius: var(--radius);
+    padding: 0.55rem 0.9rem;
+    font-size: 0.85rem;
+    margin: 0.5rem 0;
+}
+
+.kinship-degree-hint.ok {
+    background: rgba(39, 103, 73, 0.1);
+    color: var(--success);
+    border: 1px solid var(--success);
+}
+
+.kinship-degree-hint.bad {
+    background: rgba(185, 28, 28, 0.08);
+    color: #b91c1c;
+    border: 1px solid #b91c1c;
+}
+
+/* ---------- قائمة الجنسيات ---------- */
+.nat-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    left: 0;
+    z-index: 50;
+    max-height: 220px;
+    overflow-y: auto;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+}
+
+.nat-dropdown-item {
+    padding: 0.5rem 0.9rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.nat-dropdown-item:hover,
+.nat-dropdown-item.highlighted {
+    background: rgba(26, 95, 74, 0.1);
+}
+
+.nat-dropdown-empty {
+    padding: 0.5rem 0.9rem;
+    color: var(--text-light);
+    font-size: 0.85rem;
+}
+
+/* ---------- قائمة البينات ---------- */
+.evidence-checklist {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 0.4rem;
+    margin-bottom: 0.5rem;
+}
+
+.evidence-checklist .checkbox-row {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.45rem 0.7rem;
+    font-size: 0.88rem !important;
+}
+
+/* ---------- وقت الافتتاح ---------- */
+.time-picker {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.time-picker select { max-width: 110px; }
+.time-picker .period-select { max-width: 170px; }
+.time-picker .colon { font-weight: 800; }
+
+/* ---------- مؤشر الخطوات ---------- */
+#stepDots {
+    display: flex;
+    justify-content: center;
+    gap: 2.5rem;
+    margin: 0.75rem 0 1.25rem;
+}
+
+.step-item { text-align: center; }
+
+.step-dot {
+    width: 34px;
+    height: 34px;
+    margin: 0 auto 0.3rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    background: var(--bg-card);
+    border: 2px solid var(--border);
+    color: var(--text-secondary);
+}
+
+.step-dot.current {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+}
+
+.step-dot.done {
+    background: var(--success);
+    border-color: var(--success);
+    color: #fff;
+}
+
+.step-label { font-size: 0.78rem; color: var(--text-secondary); }
+
+/* ---------- شريط التنقل بين الخطوات ---------- */
+#stepNavBar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    padding: 0.75rem 1.25rem;
+    margin-top: 0.5rem;
+}
+
+#stepLabel { font-weight: 700; color: var(--text-secondary); font-size: 0.9rem; }
+
+/* ---------- بطاقة المعاينة ---------- */
+.output-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.75rem;
+}
+
+.output-toolbar .btn { padding: 0.4rem 0.8rem; font-size: 0.85rem; }
+
+.output-text {
+    background: var(--bg-main);
+    padding: 1.25rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    font-family: 'Amiri', serif;
+    line-height: 2.2;
+    font-size: 1.1rem;
+    white-space: pre-wrap;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.output-text.editing {
+    outline: 2px dashed var(--secondary);
+    background: var(--bg-card);
+}
+
+.reset-manual-link {
+    color: var(--warning);
+    cursor: pointer;
+    font-size: 0.83rem;
+    font-weight: 600;
+}
+
+.preview-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+/* ---------- التذييل ---------- */
+.minutes-credits {
+    text-align: center;
+    color: var(--text-light);
+    font-size: 0.85rem;
+    padding: 1.5rem 1rem 5rem;
+}
+
+.minutes-credits strong { color: var(--primary); }
+
+/* ---------- استجابة الجوال ---------- */
+@media (max-width: 1024px) {
+    .minutes-layout { grid-template-columns: 1fr; }
+    .preview-column { position: static; }
+}
+
+@media (max-width: 640px) {
+    .minutes-container { padding: 0.75rem; padding-bottom: 6rem; }
+    .m-card { padding: 1rem; }
+    #stepDots { gap: 1.25rem; }
+    #stepNavBar {
+        position: sticky;
+        bottom: 0;
+        z-index: 120;
+        flex-wrap: wrap;
+        border-radius: var(--radius) var(--radius) 0 0;
+    }
+}
+
+/* ---------- الطباعة: النص الناتج فقط ---------- */
+@media print {
+    .header, #fillTimer, .form-column, #stepDots, #stepNavBar, .back-link,
+    .output-toolbar, .preview-actions, #missingFieldsWarning, .minutes-credits,
+    .modal-overlay, .toast, .preview-hint, #backToEditBtn { display: none !important; }
+    .minutes-container { padding: 0; }
+    .minutes-layout { display: block; }
+    .m-card { border: none; box-shadow: none; padding: 0; }
+    .m-card h2 { display: none; }
+    .output-text {
+        border: none;
+        background: #fff;
+        max-height: none;
+        overflow: visible;
+        font-size: 14pt;
+    }
+}

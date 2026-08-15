@@ -147,6 +147,8 @@
             transform: translateY(-2px);
         }
 
+        a.btn { text-decoration: none; }
+
         .btn-secondary {
             background: rgba(255,255,255,0.15);
             color: white;
