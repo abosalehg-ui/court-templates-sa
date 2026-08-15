@@ -3010,3 +3010,9 @@ const templatesData = {
         }
     ]
 };
+
+
+// تصدير للاختبارات وللمحرك في بيئة Node (لا يؤثر على المتصفح)
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = templatesData;
+}

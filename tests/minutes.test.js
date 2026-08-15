@@ -195,12 +195,168 @@ test('buildOathBlock: لا أرغب / أرغب مع مدعى عليه غائب',
     assert.match(absent, /عُدَّ ناكلاً/);
 });
 
-test('buildWitnessSection: يتضمن مادتي (71) و(78) وبيانات الشاهد', () => {
-    const witnesses = [{ name: 'صالح', age: '30', job: 'موظف', residence: 'الرياض', relation: 'جار', interest: 'لا مصلحة', testimony: 'المبلغ في ذمة المدعى عليه' }];
-    const text = M.buildWitnessSection(witnesses, 'م', 'ه', 'المدعي');
+const SAMPLE_WITNESS = { name: 'صالح', age: '30', job: 'موظف', residence: 'الرياض', relation: 'جار', interest: 'لا مصلحة', testimony: 'المبلغ في ذمة المدعى عليه' };
+
+function witnessCtx(overrides = {}) {
+    return Object.assign({
+        speakerGender: 'م', speakerSuffix: 'ه',
+        presenterLabel: 'المدعي', presenterGender: 'م',
+        opposingLabel: 'المدعى عليه', opposingPresent: true,
+        tazkiya: 'none', tazkiyaNames: '',
+        objection: 'لا', objectionText: ''
+    }, overrides);
+}
+
+test('buildWitnessSection: يتضمن مادتي (71) و(78) وتحليف الشاهد وبياناته', () => {
+    const text = M.buildWitnessSection([SAMPLE_WITNESS], witnessCtx());
     assert.match(text, /\(الحادية والسبعين\) و\(الثامنة والسبعين\)/);
+    assert.match(text, /جرى سماع كل شاهد على انفراد/);
     assert.match(text, /اسمي الكامل: \( صالح \)/);
+    assert.match(text, /ثم جرى تحليفه اليمين على أن يشهد بالحق، فحلف/);
     assert.match(text, /أشهد بالله العظيم أن \( المبلغ في ذمة المدعى عليه \)/);
+});
+
+test('buildWitnessSection: مطابقة التذكير والتأنيث في مقدّم الشهود والمتكلم', () => {
+    const masc = M.buildWitnessSection([SAMPLE_WITNESS], witnessCtx());
+    assert.match(masc, /فقرر قائلاً: نعم/);
+    assert.match(masc, /ثم أحضر المدعي للشهادة/);
+
+    const fem = M.buildWitnessSection([SAMPLE_WITNESS], witnessCtx({
+        speakerGender: 'ف', speakerSuffix: 'ها', presenterLabel: 'المدعية', presenterGender: 'ف'
+    }));
+    assert.match(fem, /فقررت قائلة: نعم/);
+    assert.match(fem, /ثم أحضرت المدعية للشهادة/);
+    assert.ok(!fem.includes('قررت قائلاً'));
+    assert.ok(!fem.includes('أحضر المدعية'));
+});
+
+test('buildWitnessSection: عرض الشهود على الخصم لسؤاله عن مطعنه', () => {
+    const none = M.buildWitnessSection([SAMPLE_WITNESS], witnessCtx());
+    assert.match(none, /وبعرض الشهود وشهادتهم على المدعى عليه قرر قائلاً: لا مطعن لي فيهم/);
+
+    const objecting = M.buildWitnessSection([SAMPLE_WITNESS], witnessCtx({ objection: 'نعم', objectionText: 'الشاهد شريك للمدعي' }));
+    assert.match(objecting, /قرر قائلاً: الشاهد شريك للمدعي/);
+
+    // الخصم الغائب لا يُسأل عن المطعن
+    const absent = M.buildWitnessSection([SAMPLE_WITNESS], witnessCtx({ opposingPresent: false }));
+    assert.ok(!absent.includes('وبعرض الشهود وشهادتهم'));
+});
+
+test('buildWitnessSection: تعديل الشهود وتزكيتهم', () => {
+    const delayed = M.buildWitnessSection([SAMPLE_WITNESS], witnessCtx({ tazkiya: 'delay' }));
+    assert.match(delayed, /هل لديه معدِّلون للشهود\؟ فأجاب قائلاً: أطلب إمهالي/);
+
+    const presented = M.buildWitnessSection([SAMPLE_WITNESS], witnessCtx({ tazkiya: 'presented', tazkiyaNames: 'محمد وعبدالله' }));
+    assert.match(presented, /ثم أحضر المدعي المعدِّلين: \( محمد وعبدالله \)/);
+    assert.match(presented, /عدول ثقات مقبولو الشهادة/);
+});
+
+// ==================== الترتيب الإجرائي ====================
+
+test('التسلسل: عرض الدعوى على المدعى عليه يسبق سؤال المدعي عن بينته', () => {
+    const text = M.composeMinutes(readyState());
+    const answerAt = text.indexOf('وبعرض دعوى المدعي على المدعى عليه');
+    const evidenceAt = text.indexOf('عن بينته');
+    assert.ok(answerAt > -1 && evidenceAt > -1);
+    assert.ok(answerAt < evidenceAt, 'جواب المدعى عليه يجب أن يسبق سؤال المدعي عن البينة');
+});
+
+test('التسلسل: الإنكار يُتبع بتكليف المدعي بالبينة', () => {
+    const text = M.composeMinutes(readyState());
+    assert.match(text, /ولمَّا كانت إجابة المدعى عليه إنكاراً لما جاء في الدعوى، وأن البينة على المدعي، فقد جرى تكليف المدعي بإحضار بينته/);
+});
+
+test('التسلسل: الإقرار يُسقط سؤال البينة واليمين', () => {
+    const state = readyState();
+    state.claim.defendantStance = 'إقرار';
+    state.claim.defendantResponseText = 'أقر بما جاء في الدعوى';
+    state.claim.requestOath = true;
+    const text = M.composeMinutes(state);
+    assert.match(text, /فلا موجب لتكليف المدعي بالبينة؛ إذ إنما تُطلب البينة عند الإنكار/);
+    assert.ok(!text.includes('عن بينته'));
+    assert.ok(!text.includes('وأطلب يمين'));
+    assert.match(text, /قفل باب المرافعة/);
+});
+
+test('التسلسل: الدفع الشكلي يُعرض على المدعي وقد يُوقف النظر في الموضوع', () => {
+    const state = readyState();
+    state.claim.defendantStance = 'دفع شكلي';
+    state.claim.formalPleaText = 'أدفع بعدم الاختصاص المكاني';
+    state.claim.plaintiffReplyText = 'المحكمة مختصة لأن التنفيذ بالرياض';
+    state.claim.answeredOnMerits = 'لا';
+    const text = M.composeMinutes(state);
+    assert.match(text, /عن دفعه الشكلي قرر قائلاً: أدفع بعدم الاختصاص المكاني/);
+    assert.match(text, /وبعرض هذا الدفع على المدعي أجاب قائلاً: المحكمة مختصة/);
+    assert.match(text, /النظر في الدفع الشكلي قبل الخوض في موضوع الدعوى/);
+    assert.ok(!text.includes('عن بينته'));
+
+    state.claim.answeredOnMerits = 'نعم';
+    assert.match(M.composeMinutes(state), /عن بينته/);
+});
+
+test('التسلسل: غياب المدعى عليه يُبقي سؤال البينة مباشرة بلا عرض', () => {
+    const state = readyState();
+    state.defendant.attendance = 'لم يحضر';
+    state.defendant.tabligh = '789';
+    const text = M.composeMinutes(state);
+    assert.match(text, /عن بينته/);
+    assert.ok(!text.includes('وبعرض دعوى المدعي على'));
+    assert.ok(!text.includes('جرى تكليف المدعي بإحضار بينته'));
+});
+
+// ==================== بينة المدعى عليه ====================
+
+test('buildDefendantEvidenceText: لا تُدرج إلا عند طلبها ولا مع غياب المدعى عليه', () => {
+    const state = readyState();
+    assert.equal(M.buildDefendantEvidenceText(state), '');
+
+    state.claim.askDefendantEvidence = 'نعم';
+    assert.match(M.buildDefendantEvidenceText(state), /وبسؤاله عن بينته/);
+
+    state.defendant.attendance = 'لم يحضر';
+    assert.equal(M.buildDefendantEvidenceText(state), '');
+});
+
+test('buildDefendantEvidenceText: الدفوع والبينة وشهود المدعى عليه', () => {
+    const state = readyState();
+    state.claim.askDefendantEvidence = 'نعم';
+    state.claim.defendantPleasText = 'أدفع بالوفاء';
+    state.claim.defendantEvidence.choice = 'has';
+    state.claim.defendantEvidence.items = ['إيصال استلام', 'شهادة شهود'];
+    state.claim.defendantEvidence.witnesses = [SAMPLE_WITNESS];
+    const text = M.buildDefendantEvidenceText(state);
+    assert.match(text, /وبسؤال المدعى عليه عن دفوعه قرر قائلاً: أدفع بالوفاء/);
+    assert.match(text, /بينتي هي: إيصال استلام، وشهادة شهود/);
+    assert.match(text, /ثم أحضر المدعى عليه للشهادة الشاهد الأول/);
+    // المطعن يُعرض على الخصم الآخر وهو المدعي
+    assert.match(text, /وبعرض الشهود وشهادتهم على المدعي قرر/);
+});
+
+// ==================== الجلسة التالية ====================
+
+test('composeMinutes: سماع بينة المدعي وشهوده في الجلسة التالية', () => {
+    const state = readyState();
+    state.sessionType = 'previous';
+    state.followUp.plaintiffEvidence = true;
+    state.claim.evidenceChoice = 'has';
+    state.claim.evidenceItems = ['شهادة شهود'];
+    state.claim.hasMoreEvidence = 'لا';
+    state.claim.witnesses = [SAMPLE_WITNESS];
+    const text = M.composeMinutes(state);
+    assert.match(text, /وتنفيذاً لما تقرر في الجلسة السابقة من تكليف المدعي بالبينة/);
+    assert.match(text, /ثم أحضر المدعي للشهادة الشاهد الأول/);
+    // نص الدعوى لا يُعاد عرضه في الجلسة التالية
+    assert.ok(!text.includes('وبالاطلاع على دعوى'));
+});
+
+test('composeMinutes: سماع دفوع المدعى عليه وبينته في الجلسة التالية', () => {
+    const state = readyState();
+    state.sessionType = 'previous';
+    state.followUp.defendantEvidence = true;
+    state.claim.defendantPleasText = 'أدفع بالإبراء';
+    const text = M.composeMinutes(state);
+    assert.match(text, /ثم انتقلت الدائرة لسماع دفوع المدعى عليه وبينته/);
+    assert.match(text, /أدفع بالإبراء/);
 });
 
 // ==================== التوليد الكامل ====================
@@ -297,6 +453,128 @@ test('collectWarnings: محضر الشطب لا يطالب ببيانات الم
     state.defendant = M.freshPartyState(); // بيانات المدعى عليه فارغة
     const w = M.collectWarnings(state);
     assert.deepEqual(w.filter(x => x.includes('المدعى عليه')), []);
+});
+
+// ==================== الأسباب والحكم والإفهام ====================
+
+function rulingState() {
+    const s = readyState();
+    s.ruling.pronounce = 'نعم';
+    s.ruling.reasonsText = 'فبناء على ما تقدم من الدعوى والإجابة';
+    s.ruling.rulingText = 'حكمت الدائرة بإلزام المدعى عليه بدفع المبلغ';
+    return s;
+}
+
+test('findTemplate: الوصول لمكتبة النماذج في data/templates.js', () => {
+    assert.ok(M.findTemplate('إفهامات بعد النطق', 'ف1'));
+    assert.ok(M.findTemplate('إفهامات بعد النطق', 'واجب التدقيق'));
+    assert.equal(M.findTemplate('تصنيف غير موجود', 'ف1'), null);
+    assert.ok(M.templatesOfCategory('أسباب الحكم').length > 100);
+    assert.equal(M.templatesOfCategory('تصنيف غير موجود').length, 0);
+});
+
+test('noticeKindFor: يُشتق نوع الإفهام من قيمة المطالبة', () => {
+    const state = rulingState();
+    state.ruling.claimValue = '45000';
+    assert.equal(M.noticeKindFor(state), 'final');
+    state.ruling.claimValue = String(M.YASEERA_CLAIM_LIMIT);
+    assert.equal(M.noticeKindFor(state), 'final');
+    state.ruling.claimValue = '50001';
+    assert.equal(M.noticeKindFor(state), 'appealable');
+    // بلا قيمة يُحتاط بالقابلية للاستئناف
+    state.ruling.claimValue = '';
+    assert.equal(M.noticeKindFor(state), 'appealable');
+    // التحديد اليدوي يتقدم على الاشتقاق
+    state.ruling.noticeKind = 'sulh';
+    assert.equal(M.noticeKindFor(state), 'sulh');
+});
+
+test('buildNoticeText: النص مأخوذ من مكتبة النماذج لا مكتوب هنا', () => {
+    const state = rulingState();
+    state.ruling.claimValue = '10000';
+    assert.equal(M.buildNoticeText(state), M.findTemplate('إفهامات بعد النطق', 'ف1'));
+
+    state.ruling.claimValue = '900000';
+    assert.equal(M.buildNoticeText(state), M.findTemplate('إفهامات بعد النطق', 'ف2'));
+
+    // حضور الطرفين وكالةً يستدعي صيغة إفهام الوكلاء (المادة 165)
+    state.plaintiff.attendance = 'تمثيل';
+    state.defendant.attendance = 'تمثيل';
+    assert.equal(M.buildNoticeText(state), M.findTemplate('إفهامات بعد النطق', 'ف3'));
+
+    state.ruling.noticeKind = 'sulh';
+    assert.equal(M.buildNoticeText(state), M.findTemplate('إفهامات بعد النطق', 'صلح1'));
+});
+
+test('buildMandatoryReviewText: نصا التدقيق الوجوبي من المكتبة', () => {
+    assert.equal(M.buildMandatoryReviewText({ mandatoryReview: 'لا' }), '');
+    assert.equal(M.buildMandatoryReviewText({ mandatoryReview: 'نعم' }), M.findTemplate('إفهامات بعد النطق', 'واجب التدقيق'));
+    assert.equal(M.buildMandatoryReviewText({ mandatoryReview: 'إعادة' }), M.findTemplate('إفهامات بعد النطق', 'واجب التدقيق /إعادة القضية'));
+});
+
+test('composeMinutes: مرحلة الحكم تُلحق بالضبط بعد قفل باب المرافعة', () => {
+    const state = rulingState();
+    state.ruling.claimValue = '900000';
+    state.ruling.mandatoryReview = 'نعم';
+    const text = M.composeMinutes(state);
+    const closeAt = text.indexOf('قفل باب المرافعة');
+    const reasonsAt = text.indexOf('\n\nالأسباب:\n');
+    const rulingAt = text.indexOf('\n\nالحكم:\n');
+    const endAt = text.indexOf('وختمت الجلسة');
+    assert.ok(closeAt < reasonsAt && reasonsAt < rulingAt && rulingAt < endAt);
+    assert.match(text, /وهذا الحكم حضوري في حق طرفي الدعوى/);
+    assert.match(text, /قابل للاستئناف/);
+    assert.match(text, /واجب التدقيق/);
+    assert.match(text, /وختمت الجلسة عند الساعة التاسعة والنصف صباحًا\.$/);
+});
+
+test('composeMinutes: بلا نطق بالحكم لا تُلحق الأسباب', () => {
+    const text = M.composeMinutes(readyState());
+    assert.ok(!text.includes('الأسباب:'));
+    assert.ok(!text.includes('الحكم:'));
+});
+
+test('composeMinutes: صفة الحكم غيابية في حق المدعى عليه', () => {
+    const state = rulingState();
+    state.ruling.presence = 'غيابي';
+    assert.match(M.composeMinutes(state), /وهذا الحكم غيابي في حق المدعى عليه/);
+});
+
+test('collectWarnings: نواقص مرحلة الحكم', () => {
+    const state = readyState();
+    state.ruling.pronounce = 'نعم';
+    const w = M.collectWarnings(state);
+    assert.ok(w.some(x => x.includes('أسباب الحكم')));
+    assert.ok(w.some(x => x.includes('منطوق الحكم')));
+    assert.ok(w.some(x => x.includes('قيمة المطالبة')));
+});
+
+test('collectWarnings: نواقص بينة المدعى عليه وشهوده', () => {
+    const state = readyState();
+    state.claim.askDefendantEvidence = 'نعم';
+    state.claim.defendantEvidence.choice = 'has';
+    state.claim.defendantEvidence.items = ['شهادة شهود'];
+    state.claim.defendantEvidence.witnesses = [M.freshWitness()];
+    state.claim.defendantEvidence.tazkiya = 'presented';
+    const w = M.collectWarnings(state);
+    assert.ok(w.some(x => x.includes('لشاهد المدعى عليه الأول')));
+    assert.ok(w.some(x => x.includes('أسماء معدِّلي شهود المدعى عليه')));
+});
+
+test('collectWarnings: الإقرار لا يطالب ببينة المدعي', () => {
+    const state = readyState();
+    state.claim.defendantStance = 'إقرار';
+    state.claim.evidenceChoice = 'has'; // بيانات مهملة لا تُفحص
+    const w = M.collectWarnings(state);
+    assert.deepEqual(w.filter(x => x.includes('بينة المدعي')), []);
+});
+
+test('collectWarnings: الدفع الشكلي يستلزم نصه ورد المدعي', () => {
+    const state = readyState();
+    state.claim.defendantStance = 'دفع شكلي';
+    const w = M.collectWarnings(state);
+    assert.ok(w.some(x => x.includes('نص الدفع الشكلي')));
+    assert.ok(w.some(x => x.includes('رد المدعي على الدفع الشكلي')));
 });
 
 test('collectWarnings: وكيل غير محامٍ خارج الدرجات الأربع', () => {
