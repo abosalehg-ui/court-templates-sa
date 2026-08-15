@@ -347,6 +347,71 @@ function updateOathDefendantStatusHint() {
         : 'المدعى عليه حاضر حاليًا (حسب حالة حضوره في بيانات الأطراف).';
 }
 
+// ==================== الخطوة 2: التسلسل الإجرائي ====================
+// عرض الدعوى على المدعى عليه يسبق سؤال المدعي عن بينته، وتفريع الإقرار/الإنكار/الدفع
+
+const STANCE_HINTS = {
+    'إنكار': 'الإنكار يوجب تكليف المدعي بالبينة، فتظهر بطاقة بينة المدعي.',
+    'إقرار': 'الإقرار يُغني عن البينة، فلا يُسأل المدعي عن بينته ولا عن اليمين، ويُقفل باب المرافعة مباشرة.',
+    'دفع شكلي': 'يُثبت الدفع ويُعرض على المدعي للرد عليه، ثم يُنظر قبل الخوض في الموضوع.'
+};
+
+// هل بُلغ الضبط مرحلة الموضوع (فتُسأل البينات)؟
+function meritsReached() {
+    const c = state.claim;
+    if (state.defendant.attendance === 'لم يحضر') return true;
+    if (c.defendantStance === 'إقرار') return false;
+    if (c.defendantStance === 'دفع شكلي' && c.answeredOnMerits !== 'نعم') return false;
+    return true;
+}
+
+function updateStanceVisibility() {
+    if (!state.sessionType) return;
+    const isNew = state.sessionType === 'new';
+    const defendantPresent = state.defendant.attendance !== 'لم يحضر';
+
+    $('claimTextField').style.display = isNew ? 'block' : 'none';
+    $('defendantResponseSection').style.display = (isNew && defendantPresent) ? 'block' : 'none';
+    $('followUpSection').style.display = isNew ? 'none' : 'block';
+    $('defendantStanceHint').textContent = STANCE_HINTS[state.claim.defendantStance] || '';
+    $('formalPleaBlock').style.display = (isNew && defendantPresent && state.claim.defendantStance === 'دفع شكلي') ? 'block' : 'none';
+
+    const showPlaintiffEvidence = isNew ? meritsReached() : !!state.followUp.plaintiffEvidence;
+    $('plaintiffEvidenceCard').style.display = showPlaintiffEvidence ? 'block' : 'none';
+    $('evidenceOrderNotice').style.display = defendantPresent ? 'block' : 'none';
+
+    const showDefendantEvidence = isNew
+        ? (defendantPresent && meritsReached())
+        : !!state.followUp.defendantEvidence;
+    $('defendantEvidenceCard').style.display = showDefendantEvidence ? 'block' : 'none';
+    // في الجلسة التالية يكون السؤال مُختارًا من قائمة الإجراءات، فلا يُكرَّر
+    $('askDefendantEvidenceBlock').style.display = isNew ? 'block' : 'none';
+    $('defendantEvidenceFields').style.display =
+        (isNew ? state.claim.askDefendantEvidence === 'نعم' : true) ? 'block' : 'none';
+
+    // مطعن الخصم لا يُسأل عنه إن كان غائبًا
+    $('plaintiffWitnessObjectionBlock').style.display = defendantPresent ? 'block' : 'none';
+    $('defendantWitnessObjectionBlock').style.display = state.plaintiff.attendance !== 'لم يحضر' ? 'block' : 'none';
+}
+
+function updateClaimValueHint() {
+    const r = state.ruling;
+    const hint = $('claimValueHint');
+    if (!hint) return;
+    if (r.noticeKind !== 'auto') {
+        hint.textContent = 'نوع الإفهام محدَّد يدويًا، فلا أثر لقيمة المطالبة.';
+        return;
+    }
+    const value = Number(String(r.claimValue).replace(/[^0-9.]/g, ''));
+    if (!value) {
+        hint.textContent = `لم تُدخل قيمة المطالبة — سيُعتمد "قابل للاستئناف". حدّ الدعاوى اليسيرة: ${YASEERA_CLAIM_LIMIT.toLocaleString('en-US')} ريال.`;
+        return;
+    }
+    hint.textContent = value <= YASEERA_CLAIM_LIMIT
+        ? `دعوى يسيرة (${value.toLocaleString('en-US')} ≤ ${YASEERA_CLAIM_LIMIT.toLocaleString('en-US')}) — الحكم نهائي مكتسب للقطعية.`
+        : `تتجاوز حدّ الدعاوى اليسيرة (${YASEERA_CLAIM_LIMIT.toLocaleString('en-US')}) — الحكم قابل للاستئناف.`;
+}
+
 function updateVisibility(party) {
     const s = state[party];
     $(`${party}-accompany-toggle`).style.display = s.attendance === 'أصالة' ? 'block' : 'none';
@@ -365,11 +430,11 @@ function updateVisibility(party) {
         $('defendantBlock').style.display = s.attendance === 'لم يحضر' ? 'none' : 'block';
     } else {
         $('defendant-absence-fields').style.display = s.attendance === 'لم يحضر' ? 'block' : 'none';
-        $('defendantResponseSection').style.display = s.attendance !== 'لم يحضر' ? 'block' : 'none';
         $('defendant-oathPerformance-section').style.display = (state.sessionType === 'previous' && s.attendance !== 'لم يحضر') ? 'block' : 'none';
         updateOathAbsenceFieldVisibility();
         updateOathDefendantStatusHint();
     }
+    updateStanceVisibility();
     if ($('mainApp').style.display !== 'none') showStep();
 }
 
@@ -389,6 +454,67 @@ function handleChoice(key, value) {
         return;
     }
     if (key === 'session-sameJudge') { state.sameJudge = value; return; }
+
+    // ===== تكييف جواب المدعى عليه =====
+    if (key === 'defendant-stance') {
+        state.claim.defendantStance = value;
+        $('formalPleaBlock').style.display = value === 'دفع شكلي' ? 'block' : 'none';
+        updateStanceVisibility();
+        return;
+    }
+    if (key === 'answered-on-merits') {
+        state.claim.answeredOnMerits = value;
+        updateStanceVisibility();
+        return;
+    }
+
+    // ===== تزكية الشهود والمطعن فيهم =====
+    if (key === 'plaintiff-tazkiya') {
+        state.claim.tazkiya = value;
+        $('plaintiffTazkiyaNamesField').style.display = value === 'presented' ? 'block' : 'none';
+        return;
+    }
+    if (key === 'plaintiff-witnessObjection') {
+        state.claim.witnessObjection = value;
+        $('plaintiffWitnessObjectionField').style.display = value === 'نعم' ? 'block' : 'none';
+        return;
+    }
+    if (key === 'defendant-tazkiya') {
+        state.claim.defendantEvidence.tazkiya = value;
+        $('defendantTazkiyaNamesField').style.display = value === 'presented' ? 'block' : 'none';
+        return;
+    }
+    if (key === 'defendant-witnessObjection') {
+        state.claim.defendantEvidence.objection = value;
+        $('defendantWitnessObjectionField').style.display = value === 'نعم' ? 'block' : 'none';
+        return;
+    }
+
+    // ===== دفوع المدعى عليه وبينته =====
+    if (key === 'ask-defendant-evidence') {
+        state.claim.askDefendantEvidence = value;
+        $('defendantEvidenceFields').style.display = value === 'نعم' ? 'block' : 'none';
+        return;
+    }
+    if (key === 'defendant-evidence-choice') {
+        state.claim.defendantEvidence.choice = value;
+        $('defendantEvidenceTextField').style.display = value === 'has' ? 'block' : 'none';
+        return;
+    }
+
+    // ===== الأسباب والحكم =====
+    if (key === 'ruling-pronounce') {
+        state.ruling.pronounce = value;
+        $('rulingFields').style.display = value === 'نعم' ? 'block' : 'none';
+        return;
+    }
+    if (key === 'ruling-presence') { state.ruling.presence = value; return; }
+    if (key === 'ruling-noticeKind') {
+        state.ruling.noticeKind = value;
+        updateClaimValueHint();
+        return;
+    }
+    if (key === 'ruling-mandatoryReview') { state.ruling.mandatoryReview = value; return; }
 
     const dashIdx = key.indexOf('-');
     const party = key.slice(0, dashIdx);
@@ -494,6 +620,7 @@ document.querySelectorAll('.choice-group[data-group="session-landing"] .choice-b
         $('sameJudgeCard').style.display = btn.dataset.value === 'previous' ? 'block' : 'none';
         updateOathAbsenceFieldVisibility();
         updateVisibility('defendant');
+        updateStanceVisibility();
         uiState.currentStep = 0;
         showStep();
         render();
@@ -665,8 +792,9 @@ $('claimText').addEventListener('input', e => {
     render();
 });
 
-function renderEvidenceChecklist() {
-    const box = $('evidenceChecklist');
+// قائمة البينة — مشتركة بين المدعي والمدعى عليه
+function setupEvidenceChecklist(cfg) {
+    const box = $(cfg.checklistId);
     box.innerHTML = EVIDENCE_OPTIONS.map(opt =>
         `<label class="checkbox-row"><input type="checkbox" data-evidence-item="${opt}"> ${opt}</label>`
     ).join('');
@@ -674,29 +802,29 @@ function renderEvidenceChecklist() {
     box.querySelectorAll('[data-evidence-item]').forEach(cb => {
         cb.addEventListener('change', e => {
             const item = e.target.dataset.evidenceItem;
+            const block = cfg.block();
             if (e.target.checked) {
-                if (!state.claim.evidenceItems.includes(item)) state.claim.evidenceItems.push(item);
+                if (!block.items.includes(item)) block.items.push(item);
                 if (item === 'شهادة شهود') {
-                    $('witnessSection').style.display = 'block';
-                    if (state.claim.witnesses.length === 0) {
-                        state.claim.witnesses.push(freshWitness());
-                        renderWitnesses();
+                    $(cfg.witnessSectionId).style.display = 'block';
+                    if (block.witnesses.length === 0) {
+                        block.witnesses.push(freshWitness());
+                        cfg.renderWitnesses();
                     }
                 }
-                if (item === 'مستند رسمي آخر') $('otherDocumentField').style.display = 'block';
+                if (item === 'مستند رسمي آخر') $(cfg.otherDocFieldId).style.display = 'block';
             } else {
-                state.claim.evidenceItems = state.claim.evidenceItems.filter(x => x !== item);
-                if (item === 'شهادة شهود') $('witnessSection').style.display = 'none';
-                if (item === 'مستند رسمي آخر') $('otherDocumentField').style.display = 'none';
+                block.items = block.items.filter(x => x !== item);
+                if (item === 'شهادة شهود') $(cfg.witnessSectionId).style.display = 'none';
+                if (item === 'مستند رسمي آخر') $(cfg.otherDocFieldId).style.display = 'none';
             }
             render();
         });
     });
 }
-renderEvidenceChecklist();
 
 // ==================== الشهود ====================
-function witnessCardHTML(idx, w) {
+function witnessCardHTML(prefix, idx, w) {
     const ordinal = ordinalWord(idx + 1, 'م');
     const fields = [
         ['name', 'الاسم الكامل'], ['age', 'تاريخ الميلاد / العمر'], ['job', 'المهنة'],
@@ -707,45 +835,100 @@ function witnessCardHTML(idx, w) {
     <div class="extra-party-block">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
             <div class="party-title" style="margin-bottom:0;">الشاهد ${ordinal}</div>
-            ${idx > 0 ? `<button type="button" class="remove-line-btn remove-witness-btn" data-idx="${idx}">✕ إزالة</button>` : ''}
+            ${idx > 0 ? `<button type="button" class="remove-line-btn remove-witness-btn" data-prefix="${prefix}" data-idx="${idx}">✕ إزالة</button>` : ''}
         </div>
         ${fields.map(([key, label]) => `
         <div class="field">
             <label>${label} <span class="req">*</span></label>
-            <input type="text" class="form-control" data-witness-idx="${idx}" data-witness-field="${key}" value="${escapeHtml(w[key])}" placeholder="${label}" required>
+            <input type="text" class="form-control" data-witness-prefix="${prefix}" data-witness-idx="${idx}" data-witness-field="${key}" value="${escapeHtml(w[key])}" placeholder="${label}" required>
         </div>`).join('')}
     </div>`;
 }
 
+// كتلتا البينة: المدعي (حقول مسطّحة في claim) والمدعى عليه (كتلة مستقلة)
+const plaintiffEvidenceBlock = () => ({
+    get items() { return state.claim.evidenceItems; },
+    set items(v) { state.claim.evidenceItems = v; },
+    get witnesses() { return state.claim.witnesses; }
+});
+const defendantEvidenceBlock = () => state.claim.defendantEvidence;
+
 function renderWitnesses() {
-    $('witnessContainer').innerHTML = state.claim.witnesses.map((w, i) => witnessCardHTML(i, w)).join('');
+    $('witnessContainer').innerHTML = state.claim.witnesses.map((w, i) => witnessCardHTML('plaintiff', i, w)).join('');
+}
+function renderDefendantWitnesses() {
+    $('defendantWitnessContainer').innerHTML = state.claim.defendantEvidence.witnesses.map((w, i) => witnessCardHTML('defendant', i, w)).join('');
 }
 
-$('witnessContainer').addEventListener('input', e => {
-    const el = e.target;
-    if (el.dataset && el.dataset.witnessField) {
-        const wit = state.claim.witnesses[Number(el.dataset.witnessIdx)];
-        if (wit) wit[el.dataset.witnessField] = el.value;
-        render();
-    }
+function witnessListOf(prefix) {
+    return prefix === 'plaintiff' ? state.claim.witnesses : state.claim.defendantEvidence.witnesses;
+}
+
+[['witnessContainer', 'plaintiff', renderWitnesses], ['defendantWitnessContainer', 'defendant', renderDefendantWitnesses]].forEach(([containerId, prefix, rerender]) => {
+    $(containerId).addEventListener('input', e => {
+        const el = e.target;
+        if (el.dataset && el.dataset.witnessField) {
+            const wit = witnessListOf(el.dataset.witnessPrefix)[Number(el.dataset.witnessIdx)];
+            if (wit) wit[el.dataset.witnessField] = el.value;
+            render();
+        }
+    });
+    $(containerId).addEventListener('click', e => {
+        const btn = e.target.closest('.remove-witness-btn');
+        if (btn) {
+            witnessListOf(btn.dataset.prefix).splice(Number(btn.dataset.idx), 1);
+            rerender();
+            render();
+        }
+    });
 });
-$('witnessContainer').addEventListener('click', e => {
-    const btn = e.target.closest('.remove-witness-btn');
-    if (btn) {
-        state.claim.witnesses.splice(Number(btn.dataset.idx), 1);
-        renderWitnesses();
-        render();
-    }
+
+setupEvidenceChecklist({
+    checklistId: 'evidenceChecklist', witnessSectionId: 'witnessSection', otherDocFieldId: 'otherDocumentField',
+    block: plaintiffEvidenceBlock, renderWitnesses
 });
+setupEvidenceChecklist({
+    checklistId: 'defendantEvidenceChecklist', witnessSectionId: 'defendantWitnessSection', otherDocFieldId: 'defendantOtherDocumentField',
+    block: defendantEvidenceBlock, renderWitnesses: renderDefendantWitnesses
+});
+
 $('addWitnessBtn').addEventListener('click', () => {
     state.claim.witnesses.push(freshWitness());
     renderWitnesses();
     render();
 });
+$('addDefendantWitnessBtn').addEventListener('click', () => {
+    state.claim.defendantEvidence.witnesses.push(freshWitness());
+    renderDefendantWitnesses();
+    render();
+});
 
-$('otherDocumentText').addEventListener('input', e => { state.claim.otherDocumentText = e.target.value; render(); });
-$('moreEvidenceText').addEventListener('input', e => { state.claim.moreEvidenceText = e.target.value; render(); });
-$('defendantResponseText').addEventListener('input', e => { state.claim.defendantResponseText = e.target.value; render(); });
+// ربط الحقول النصية بالحالة
+[
+    ['otherDocumentText', c => v => { c.otherDocumentText = v; }],
+    ['moreEvidenceText', c => v => { c.moreEvidenceText = v; }],
+    ['defendantResponseText', c => v => { c.defendantResponseText = v; }],
+    ['formalPleaText', c => v => { c.formalPleaText = v; }],
+    ['plaintiffReplyText', c => v => { c.plaintiffReplyText = v; }],
+    ['plaintiffTazkiyaNames', c => v => { c.tazkiyaNames = v; }],
+    ['plaintiffWitnessObjectionText', c => v => { c.witnessObjectionText = v; }],
+    ['defendantPleasText', c => v => { c.defendantPleasText = v; }],
+    ['defendantOtherDocumentText', c => v => { c.defendantEvidence.otherDocumentText = v; }],
+    ['defendantTazkiyaNames', c => v => { c.defendantEvidence.tazkiyaNames = v; }],
+    ['defendantWitnessObjectionText', c => v => { c.defendantEvidence.objectionText = v; }]
+].forEach(([id, setterFor]) => {
+    $(id).addEventListener('input', e => { setterFor(state.claim)(e.target.value); render(); });
+});
+
+// إجراءات الجلسة التالية
+[['followUpPlaintiffEvidence', 'plaintiffEvidence'], ['followUpDefendantEvidence', 'defendantEvidence']].forEach(([id, key]) => {
+    $(id).addEventListener('change', e => {
+        state.followUp[key] = e.target.checked;
+        updateStanceVisibility();
+        showStep();
+        render();
+    });
+});
 
 // ==================== طلب اليمين ====================
 $('requestOathCheckbox').addEventListener('change', e => {
@@ -767,6 +950,86 @@ $('declineOathCheckbox').addEventListener('change', e => {
     }
     render();
 });
+
+// ==================== مرحلة الأسباب والحكم ====================
+// النماذج تُستهلك من مكتبة النماذج في data/templates.js فلا تُكرَّر هنا
+
+// عدد نماذج التسبيب المنسّقة في مقدمة التصنيف
+const CURATED_REASONS_COUNT = 31;
+
+function setupTemplatePicker(cfg) {
+    const input = $(cfg.searchId);
+    const list = $(cfg.listId);
+    const target = $(cfg.targetId);
+    let filtered = [];
+    let highlightedIdx = -1;
+
+    function pool() {
+        const all = templatesOfCategory(cfg.category);
+        return cfg.curatedOnly && cfg.curatedOnly() ? all.slice(0, CURATED_REASONS_COUNT) : all;
+    }
+
+    function renderList() {
+        const q = input.value.trim();
+        const source = pool();
+        filtered = q
+            ? source.filter(t => (t.keyword + ' ' + t.content).includes(q))
+            : source;
+        list.innerHTML = filtered.length === 0
+            ? '<div class="nat-dropdown-empty">لا توجد نماذج مطابقة</div>'
+            : filtered.slice(0, 60).map((t, i) =>
+                `<div class="nat-dropdown-item" data-idx="${i}">${escapeHtml(String(t.keyword).replace(/\s+/g, ' '))}</div>`
+            ).join('');
+        highlightedIdx = -1;
+        list.style.display = 'block';
+    }
+
+    function choose(tpl) {
+        if (!tpl) return;
+        target.value = tpl.content;
+        target.dispatchEvent(new Event('input', { bubbles: true }));
+        list.style.display = 'none';
+        input.value = '';
+        showToast('أُدرج النموذج، ويمكن تعديله', 'success');
+    }
+
+    input.addEventListener('focus', renderList);
+    input.addEventListener('input', renderList);
+    input.addEventListener('blur', () => { setTimeout(() => { list.style.display = 'none'; }, 150); });
+    input.addEventListener('keydown', e => {
+        const items = list.querySelectorAll('.nat-dropdown-item');
+        if (e.key === 'ArrowDown') { e.preventDefault(); highlightedIdx = Math.min(highlightedIdx + 1, items.length - 1); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); highlightedIdx = Math.max(highlightedIdx - 1, 0); }
+        else if (e.key === 'Enter') {
+            if (highlightedIdx >= 0) { e.preventDefault(); choose(filtered[highlightedIdx]); }
+            return;
+        } else if (e.key === 'Escape') { list.style.display = 'none'; return; }
+        else { return; }
+        items.forEach((el, i) => el.classList.toggle('highlighted', i === highlightedIdx));
+    });
+    list.addEventListener('mousedown', e => {
+        const item = e.target.closest('.nat-dropdown-item');
+        if (item && item.dataset.idx !== undefined) choose(filtered[Number(item.dataset.idx)]);
+    });
+}
+
+setupTemplatePicker({
+    searchId: 'reasonsTemplateSearch', listId: 'reasonsTemplateList', targetId: 'reasonsText',
+    category: 'أسباب الحكم', curatedOnly: () => $('curatedReasonsOnly').checked
+});
+setupTemplatePicker({
+    searchId: 'verdictTemplateSearch', listId: 'verdictTemplateList', targetId: 'rulingText',
+    category: 'اختصارات صندوق الحكم'
+});
+
+$('reasonsText').addEventListener('input', e => { state.ruling.reasonsText = e.target.value; render(); });
+$('rulingText').addEventListener('input', e => { state.ruling.rulingText = e.target.value; render(); });
+$('claimValue').addEventListener('input', e => {
+    state.ruling.claimValue = e.target.value;
+    updateClaimValueHint();
+    render();
+});
+updateClaimValueHint();
 
 // ==================== المعاينة والتحذيرات ====================
 function updateWarningsBox() {
@@ -793,20 +1056,30 @@ function render() {
 }
 
 // ==================== خطوات النموذج ====================
-const stepTitles = { 0: 'بيانات الافتتاح', 1: 'بيانات الأطراف', 2: 'الدعوى والبينة' };
+const stepTitles = { 0: 'بيانات الافتتاح', 1: 'بيانات الأطراف', 2: 'الدعوى والبينات', 3: 'الأسباب والحكم' };
 
 function getStepList() {
     const steps = [0, 1];
-    const plaintiffBlocksClaim = state.plaintiff.attendance === 'لم يحضر' || state.plaintiff.specialCase !== 'none';
-    const defendantBlocksClaim = state.defendant.attendance === 'لم يحضر' && (state.defendant.notifyStatus === 'لم يتبلغ' || (state.sessionType === 'previous' && state.defendant.oathAbsence === 'نعم'));
-    if (!plaintiffBlocksClaim && !defendantBlocksClaim && state.sessionType === 'new') steps.push(2);
+    const plaintiffBlocks = state.plaintiff.attendance === 'لم يحضر' || state.plaintiff.specialCase !== 'none';
+    const defendantBlocks = state.defendant.attendance === 'لم يحضر'
+        && (state.defendant.notifyStatus === 'لم يتبلغ' || (state.sessionType === 'previous' && state.defendant.oathAbsence === 'نعم'));
+    if (plaintiffBlocks || defendantBlocks) return steps;
+
+    // الخطوة 2 متاحة في الجلستين: سماع البينات والشهود يقع في التالية غالبًا
+    steps.push(2);
+
+    // لا يُلحق الحكم إذا تأجلت الجلسة لتوجيه اليمين لمدعى عليه غائب
+    const oathAdjournment = state.sessionType === 'new' && state.claim.requestOath
+        && !state.claim.declineOath && state.defendant.attendance === 'لم يحضر';
+    if (!oathAdjournment) steps.push(3);
     return steps;
 }
 
 function stepElement(n) {
     if (n === 0) return $('stepWrap0');
     if (n === 1) return $('stepWrap1');
-    return $('claimEvidenceCard');
+    if (n === 2) return $('claimEvidenceCard');
+    return $('rulingCard');
 }
 
 function showStep() {
@@ -815,7 +1088,7 @@ function showStep() {
         const candidates = list.filter(n => n <= uiState.currentStep);
         uiState.currentStep = candidates.length ? candidates[candidates.length - 1] : list[0];
     }
-    [0, 1, 2].forEach(n => { stepElement(n).style.display = 'none'; });
+    [0, 1, 2, 3].forEach(n => { stepElement(n).style.display = 'none'; });
     stepElement(uiState.currentStep).style.display = 'block';
     const idx = list.indexOf(uiState.currentStep);
     $('prevStepBtn').disabled = idx === 0;
@@ -1036,7 +1309,10 @@ function collectFormSnapshot() {
         extraDefendants: state.extraDefendants,
         manualText: uiState.manualText,
         evidenceItems: state.claim.evidenceItems,
-        witnesses: state.claim.witnesses
+        witnesses: state.claim.witnesses,
+        defendantEvidenceItems: state.claim.defendantEvidence.items,
+        defendantWitnesses: state.claim.defendantEvidence.witnesses,
+        followUp: state.followUp
     };
     document.querySelectorAll('input[type=text][id], textarea[id]').forEach(el => {
         if (el.disabled) return;
@@ -1072,14 +1348,25 @@ function applySnapshot(snap) {
 
     state.claim.evidenceItems = snap.evidenceItems || [];
     state.claim.witnesses = snap.witnesses || [];
-    state.claim.evidenceItems.forEach(item => {
-        const cb = document.querySelector(`[data-evidence-item="${item}"]`);
-        if (cb) cb.checked = true;
-        if (item === 'شهادة شهود') {
-            $('witnessSection').style.display = 'block';
-            renderWitnesses();
-        }
-        if (item === 'مستند رسمي آخر') $('otherDocumentField').style.display = 'block';
+    state.claim.defendantEvidence.items = snap.defendantEvidenceItems || [];
+    state.claim.defendantEvidence.witnesses = snap.defendantWitnesses || [];
+    state.followUp = Object.assign(freshFollowUpState(), snap.followUp || {});
+    $('followUpPlaintiffEvidence').checked = !!state.followUp.plaintiffEvidence;
+    $('followUpDefendantEvidence').checked = !!state.followUp.defendantEvidence;
+
+    [
+        ['evidenceChecklist', state.claim.evidenceItems, 'witnessSection', 'otherDocumentField', renderWitnesses],
+        ['defendantEvidenceChecklist', state.claim.defendantEvidence.items, 'defendantWitnessSection', 'defendantOtherDocumentField', renderDefendantWitnesses]
+    ].forEach(([checklistId, items, witnessSectionId, otherDocFieldId, rerender]) => {
+        items.forEach(item => {
+            const cb = $(checklistId).querySelector(`[data-evidence-item="${item}"]`);
+            if (cb) cb.checked = true;
+            if (item === 'شهادة شهود') {
+                $(witnessSectionId).style.display = 'block';
+                rerender();
+            }
+            if (item === 'مستند رسمي آخر') $(otherDocFieldId).style.display = 'block';
+        });
     });
 
     state.sessionType = snap.sessionType;
@@ -1108,6 +1395,8 @@ function applySnapshot(snap) {
     $('stepNavBar').style.display = 'flex';
     updateOathAbsenceFieldVisibility();
     updateVisibility('defendant');
+    updateStanceVisibility();
+    updateClaimValueHint();
     showStep();
     render();
 }

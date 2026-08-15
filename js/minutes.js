@@ -19,6 +19,37 @@ const NATIONALITY_OPTIONS = ['آيسلندي', 'أذربيجاني', 'أرجنت
 
 const EVIDENCE_OPTIONS = ['العقد', 'الفاتورة', 'ورقة إقرار', 'سند لأمر', 'إيصال استلام', 'محضر تسليم', 'الحوالة', 'رسالة نصية / واتساب', 'تسجيل صوتي', 'شهادة شهود', 'تقرير خبرة', 'تقدير الأضرار', 'تقرير نجم', 'تقرير المرور', 'عرض سعر', 'صور فوتوغرافية', 'مقاطع فيديو', 'مستند رسمي آخر'];
 
+// حدّ الدعاوى اليسيرة التي تكون أحكامها نهائية غير قابلة للاستئناف.
+// ⚠️ الحد يُحدَّد بقرار من المجلس الأعلى للقضاء وقابل للتعديل — يجب التحقق منه قبل الاعتماد عليه.
+const YASEERA_CLAIM_LIMIT = 50000;
+
+// ==================== الوصول لمكتبة النماذج (data/templates.js) ====================
+// نصوص الإفهام والتدقيق الوجوبي مصدرها الوحيد مكتبة النماذج، فلا تُكرَّر هنا.
+
+function templatesSource() {
+    try {
+        if (typeof templatesData !== 'undefined' && templatesData) return templatesData;
+    } catch (e) { /* لم تُحمَّل بعد */ }
+    if (typeof require !== 'undefined') {
+        try { return require('../data/templates.js'); } catch (e) { /* غير متاحة */ }
+    }
+    return null;
+}
+
+// جلب نص نموذج من المكتبة بتصنيفه وكلمته المفتاحية
+function findTemplate(category, keyword) {
+    const src = templatesSource();
+    if (!src || !Array.isArray(src[category])) return null;
+    const hit = src[category].find(t => t.keyword === keyword);
+    return hit ? hit.content : null;
+}
+
+// قائمة نماذج تصنيف كامل (تستهلكها واجهة مرحلة الأسباب والحكم)
+function templatesOfCategory(category) {
+    const src = templatesSource();
+    return (src && Array.isArray(src[category])) ? src[category] : [];
+}
+
 // ==================== تحويل الوقت إلى كتابة عربية ====================
 
 const hourWords = { 1: 'الواحدة', 2: 'الثانية', 3: 'الثالثة', 4: 'الرابعة', 5: 'الخامسة', 6: 'السادسة', 7: 'السابعة', 8: 'الثامنة', 9: 'التاسعة', 10: 'العاشرة', 11: 'الحادية عشرة', 12: 'الثانية عشرة' };
@@ -158,13 +189,57 @@ function freshWitness() {
     return { name: '', age: '', job: '', residence: '', relation: '', interest: '', testimony: '' };
 }
 
+// بينة أحد الخصمين (يُستعمل للمدعى عليه، وللمدعي عبر plaintiffEvidenceBlock)
+function freshEvidenceBlock() {
+    return {
+        choice: 'none', items: [], otherDocumentText: '',
+        witnesses: [],
+        tazkiya: 'none',        // 'none' لا تزكية | 'delay' طلب الإمهال | 'presented' حضر المعدِّلون
+        tazkiyaNames: '',
+        objection: 'لا',        // مطعن الخصم في الشهود أو في الشهادة
+        objectionText: ''
+    };
+}
+
 function freshClaimState() {
     return {
-        text: '', evidenceChoice: 'none', evidenceItems: [], otherDocumentText: '',
+        text: '',
+        // جواب المدعى عليه — يُعرض عليه قبل تكليف المدعي بالبينة
+        defendantStance: 'إنكار',   // 'إقرار' | 'إنكار' | 'دفع شكلي'
+        defendantResponseText: '',
+        formalPleaText: '',
+        plaintiffReplyText: '',
+        answeredOnMerits: 'نعم',    // مع الدفع الشكلي: هل أجاب في الموضوع أيضًا؟
+        // بينة المدعي
+        evidenceChoice: 'none', evidenceItems: [], otherDocumentText: '',
         hasMoreEvidence: 'نعم', moreEvidenceText: '',
+        witnesses: [],
+        tazkiya: 'none', tazkiyaNames: '',
+        witnessObjection: 'لا', witnessObjectionText: '',
         requestOath: false, declineOath: false,
-        witnesses: [], defendantResponseText: ''
+        // دفوع المدعى عليه وبينته
+        askDefendantEvidence: 'لا',
+        defendantPleasText: '',
+        defendantEvidence: freshEvidenceBlock()
     };
+}
+
+// الأسباب والحكم — مرحلة مستقلة تُستهلك فيها نماذج التسبيب من مكتبة النماذج
+function freshRulingState() {
+    return {
+        pronounce: 'لا',            // هل يُنطق بالحكم في هذه الجلسة؟
+        reasonsText: '',
+        rulingText: '',
+        presence: 'حضوري',          // 'حضوري' | 'غيابي'
+        claimValue: '',             // قيمة المطالبة — يُشتق منها نوع الإفهام
+        noticeKind: 'auto',         // 'auto' | 'final' | 'appealable' | 'sulh'
+        mandatoryReview: 'لا'       // 'لا' | 'نعم' | 'إعادة'
+    };
+}
+
+// إجراءات الجلسة التالية (سماع البينات فيها لا في الجلسة التحضيرية وحدها)
+function freshFollowUpState() {
+    return { plaintiffEvidence: false, defendantEvidence: false };
 }
 
 // الحالة الكاملة للمحضر (تُمرَّر لكل دوال التوليد)
@@ -177,7 +252,9 @@ function freshMinutesState() {
         defendant: freshPartyState(),
         extraPlaintiffs: [],
         extraDefendants: [],
-        claim: freshClaimState()
+        claim: freshClaimState(),
+        followUp: freshFollowUpState(),
+        ruling: freshRulingState()
     };
 }
 
@@ -499,15 +576,43 @@ function buildOathBlock(pGender, dName, addresseeName, requestOath, declineOath,
 }
 
 // قسم سماع الشهود — المادتان (71) و(78) من نظام الإثبات
-function buildWitnessSection(witnesses, speakerGender, speakerSuffix, pName) {
-    const decideShort = speakerGender === 'ف' ? 'قررت' : 'قرر';
-    let out = ` وبسؤال${speakerSuffix} هل من يشهد لك حاضر؟ ف${decideShort} قائلاً نعم. هكذا ${decideShort}. استناداً إلى نظام الإثبات، وتحديداً المادتين (الحادية والسبعين) و(الثامنة والسبعين) منه، يجب على المحكمة قبل أداء الشهادة أن تطلب من الشاهد الإفصاح عن بياناته الشخصية وعلاقته بالدعوى وتدوين ذلك في الضبط.`;
+// ctx: { speakerGender, speakerSuffix, presenterLabel, presenterGender,
+//        opposingLabel, opposingPresent, tazkiya, tazkiyaNames, objection, objectionText }
+function buildWitnessSection(witnesses, ctx) {
+    const decideShort = ctx.speakerGender === 'ف' ? 'قررت' : 'قرر';
+    const saying = ctx.speakerGender === 'ف' ? 'قائلة' : 'قائلاً';
+    const bringVerb = ctx.presenterGender === 'ف' ? 'أحضرت' : 'أحضر';
+
+    let out = ` وبسؤال${ctx.speakerSuffix} هل من يشهد لك حاضر؟ ف${decideShort} ${saying}: نعم. هكذا ${decideShort}. استناداً إلى نظام الإثبات، وتحديداً المادتين (الحادية والسبعين) و(الثامنة والسبعين) منه، يجب على المحكمة قبل أداء الشهادة أن تطلب من الشاهد الإفصاح عن بياناته الشخصية وعلاقته بالدعوى وتدوين ذلك في الضبط، وقد جرى سماع كل شاهد على انفراد.`;
 
     witnesses.forEach((w, i) => {
         const ordinal = ordinalWordsMasc[i + 1] || `رقم ${i + 1}`;
-        out += ` ثم أحضر ${pName} للشهادة الشاهد ${ordinal}، وبسؤاله عن بياناته الشخصية وعلاقته بأطراف الدعوى أجاب قائلاً: اسمي الكامل: ( ${orDots(w.name)} )، وتاريخ ميلادي/عمري: ( ${orDots(w.age)} )، وأعمل في مهنة: ( ${orDots(w.job)} )، ومكان إقامتي في: ( ${orDots(w.residence)} )، ووجه اتصالي بأطراف الدعوى هو: ( ${orDots(w.relation)} )، ومصلحتي في هذه الدعوى هي: ( ${orDots(w.interest)} )، ثم جرى سؤاله عما لديه من شهادة، فأجاب قائلاً: أشهد بالله العظيم أن ( ${orDots(w.testimony)} ) هكذا أجاب وشهد.`;
+        out += ` ثم ${bringVerb} ${ctx.presenterLabel} للشهادة الشاهد ${ordinal}، وبسؤاله عن بياناته الشخصية وعلاقته بأطراف الدعوى أجاب قائلاً: اسمي الكامل: ( ${orDots(w.name)} )، وتاريخ ميلادي/عمري: ( ${orDots(w.age)} )، وأعمل في مهنة: ( ${orDots(w.job)} )، ومكان إقامتي في: ( ${orDots(w.residence)} )، ووجه اتصالي بأطراف الدعوى هو: ( ${orDots(w.relation)} )، ومصلحتي في هذه الدعوى هي: ( ${orDots(w.interest)} )، ثم جرى تحليفه اليمين على أن يشهد بالحق، فحلف، ثم جرى سؤاله عما لديه من شهادة، فأجاب قائلاً: أشهد بالله العظيم أن ( ${orDots(w.testimony)} ) هكذا أجاب وشهد.`;
     });
+
+    out += buildTazkiyaClause(ctx, bringVerb);
+    out += buildWitnessObjectionClause(ctx);
     return out;
+}
+
+// تعديل الشهود وتزكيتهم
+function buildTazkiyaClause(ctx, bringVerb) {
+    if (ctx.tazkiya === 'delay') {
+        return ` ثم جرى سؤال ${ctx.presenterLabel} هل لدي${ctx.speakerSuffix} معدِّلون للشهود؟ فأجاب قائلاً: أطلب إمهالي لإحضارهم إلى جلسة أخرى. هكذا أجاب.`;
+    }
+    if (ctx.tazkiya === 'presented') {
+        return ` ثم ${bringVerb} ${ctx.presenterLabel} المعدِّلين: ( ${orDots(ctx.tazkiyaNames)} )، وبسؤالهم عما لديهم شهدوا قائلين: نشهد بالله تعالى أن الشهود المذكورين عدول ثقات مقبولو الشهادة. هكذا شهدوا.`;
+    }
+    return '';
+}
+
+// حق الخصم في الطعن في الشهود أو في شهادتهم — لا يُسأل عنه إن كان غائبًا
+function buildWitnessObjectionClause(ctx) {
+    if (!ctx.opposingPresent) return '';
+    if (ctx.objection === 'نعم') {
+        return ` وبعرض الشهود وشهادتهم على ${ctx.opposingLabel} قرر قائلاً: ${orDots(ctx.objectionText)}. هكذا قرر.`;
+    }
+    return ` وبعرض الشهود وشهادتهم على ${ctx.opposingLabel} قرر قائلاً: لا مطعن لي فيهم ولا في شهادتهم. هكذا قرر.`;
 }
 
 // حالة المدعى عليه تجاه اليمين (تُشتق من حالة حضوره)
@@ -515,15 +620,85 @@ function getOathDefendantStatus(state) {
     return state.defendant.attendance === 'لم يحضر' ? 'غائب' : 'حاضر';
 }
 
-// قسم الدعوى والبينة والإجابة (الجلسة التحضيرية)
+// ==================== التسلسل الإجرائي للدعوى ====================
+// الترتيب: عرض الدعوى ← جواب المدعى عليه ← (إقرار: لا بينة | إنكار: تكليف المدعي بالبينة)
+// فلا يُسأل المدعي عن بينته قبل عرض الدعوى على خصمه، إلا إذا كان الخصم غائبًا.
+
+// قسم الدعوى والإجابة والبينات (الجلسة التحضيرية)
 function buildClaimEvidenceText(state) {
+    const pName = partyLabel('plaintiff', state.plaintiff.gender);
+    const claimText = state.claim.text.trim() || '.......';
+    return ` وبالاطلاع على دعوى ${pName} وجدت نصها: "${claimText}" أ.هـ.` + buildProceedingsAfterClaim(state);
+}
+
+// ما يلي عرضَ الدعوى: جواب المدعى عليه ثم ما يترتب عليه من بينات
+function buildProceedingsAfterClaim(state) {
+    const c = state.claim;
+
+    // غياب المدعى عليه: لا جواب يُعرض، فيُكلَّف المدعي ببينته مباشرة
+    if (state.defendant.attendance === 'لم يحضر') {
+        return buildPlaintiffEvidenceText(state);
+    }
+
+    let out = buildDefendantAnswerClause(state);
+
+    if (c.defendantStance === 'إقرار') {
+        return out + buildAdmissionClause(state);
+    }
+    if (c.defendantStance === 'دفع شكلي') {
+        out += buildFormalPleaClause(state);
+        if (c.answeredOnMerits !== 'نعم') return out;
+    }
+
+    out += buildPlaintiffEvidenceText(state);
+    out += buildDefendantEvidenceText(state);
+    return out;
+}
+
+// عرض الدعوى على المدعى عليه وإثبات جوابه
+function buildDefendantAnswerClause(state) {
+    const d = state.defendant;
+    const pName = partyLabel('plaintiff', state.plaintiff.gender);
+    const dName = partyLabel('defendant', d.gender);
+    const isRepresented = d.attendance === 'تمثيل' && (d.repType === 'وكيل' || d.repType === 'وكيل شركة');
+    const speakerGender = isRepresented ? d.agentGender : d.gender;
+    const addressee = isRepresented ? `وكيل${d.agentGender === 'ف' ? 'ة' : ''} ${dName}` : dName;
+    const answerVerb = speakerGender === 'م' ? 'أجاب قائلاً' : 'أجابت قائلة';
+    const answerVerbEnd = speakerGender === 'م' ? 'أجاب' : 'أجابت';
+    return ` وبعرض دعوى ${pName} على ${addressee} ${answerVerb}: ${orDots(state.claim.defendantResponseText)} هكذا ${answerVerbEnd}.`;
+}
+
+// الإقرار يُغني عن البينة: «البينة على المدعي» إنما تُطلب عند الإنكار
+function buildAdmissionClause(state) {
+    const dName = partyLabel('defendant', state.defendant.gender);
+    const pName = partyLabel('plaintiff', state.plaintiff.gender);
+    return ` ولمَّا كانت إجابة ${dName} إقراراً بما جاء في الدعوى، وكان الإقرار حجةً قاصرةً على المُقِرّ، فلا موجب لتكليف ${pName} بالبينة؛ إذ إنما تُطلب البينة عند الإنكار.`;
+}
+
+// الدفع الشكلي وعرضه على المدعي للرد عليه
+function buildFormalPleaClause(state) {
+    const c = state.claim;
+    const d = state.defendant;
+    const dName = partyLabel('defendant', d.gender);
+    const pName = partyLabel('plaintiff', state.plaintiff.gender);
+    const dSuffix = d.gender === 'م' ? 'ه' : 'ها';
+    let out = ` وبسؤال ${dName} عن دفع${dSuffix} الشكلي قرر قائلاً: ${orDots(c.formalPleaText)}. هكذا قرر.`;
+    out += ` وبعرض هذا الدفع على ${pName} أجاب قائلاً: ${orDots(c.plaintiffReplyText)}. هكذا أجاب.`;
+    if (c.answeredOnMerits !== 'نعم') {
+        out += ` ولم يُجب ${dName} في الموضوع، وعليه قررت الدائرة النظر في الدفع الشكلي قبل الخوض في موضوع الدعوى.`;
+    }
+    return out;
+}
+
+// تكليف المدعي بالبينة وعرضها — لا يقع إلا بعد إنكار المدعى عليه أو غيابه
+function buildPlaintiffEvidenceText(state, opts) {
+    const options = opts || {};
     const c = state.claim;
     const s = state.plaintiff;
     const pGender = s.gender;
     const pName = partyLabel('plaintiff', pGender);
     const dName = partyLabel('defendant', state.defendant.gender);
     const pSuffix = pGender === 'م' ? 'ه' : 'ها';
-    const claimText = c.text.trim() || '.......';
 
     const isRepresented = s.attendance === 'تمثيل' && (s.repType === 'وكيل' || s.repType === 'وكيل شركة');
     const speakerGender = isRepresented ? s.agentGender : pGender;
@@ -540,7 +715,12 @@ function buildClaimEvidenceText(state) {
     const addresseeForOath = isRepresented ? `وكيل${s.agentGender === 'ف' ? 'ة' : ''} ${pName}` : pName;
     const oathStatus = getOathDefendantStatus(state);
 
-    let out = ` وبالاطلاع على دعوى ${pName} وجدت نصها: "${claimText}" أ.هـ.`;
+    let out = '';
+    if (options.lead) {
+        out += options.lead;
+    } else if (state.defendant.attendance !== 'لم يحضر' && c.defendantStance !== 'إقرار') {
+        out += ` ولمَّا كانت إجابة ${dName} إنكاراً لما جاء في الدعوى، وأن البينة على المدعي، فقد جرى تكليف ${pName} بإحضار بينت${pSuffix}.`;
+    }
 
     if (isRepresented) {
         out += ` وبسؤال${speakerSuffix} عن بينة ${moakkelThird} ${decideVerb}: `;
@@ -560,7 +740,14 @@ function buildClaimEvidenceText(state) {
         out += ` وقد جرى من الدائرة الاطلاع على بينات ${pName} فوجدتها كما ${speakerGender === 'م' ? 'ذكر' : 'ذكرت'}.`;
 
         if (c.evidenceItems.includes('شهادة شهود') && c.witnesses.length > 0) {
-            out += buildWitnessSection(c.witnesses, speakerGender, speakerSuffix, pName);
+            out += buildWitnessSection(c.witnesses, {
+                speakerGender, speakerSuffix,
+                presenterLabel: pName, presenterGender: pGender,
+                opposingLabel: addresseeLabelOf('defendant', state.defendant),
+                opposingPresent: state.defendant.attendance !== 'لم يحضر',
+                tazkiya: c.tazkiya, tazkiyaNames: c.tazkiyaNames,
+                objection: c.witnessObjection, objectionText: c.witnessObjectionText
+            });
         }
 
         if (c.hasMoreEvidence === 'لا') {
@@ -580,16 +767,115 @@ function buildClaimEvidenceText(state) {
         }
     }
 
-    if (state.defendant.attendance !== 'لم يحضر') {
-        const dState = state.defendant;
-        const dIsRepresented = dState.attendance === 'تمثيل' && (dState.repType === 'وكيل' || dState.repType === 'وكيل شركة');
-        const dSpeakerGender = dIsRepresented ? dState.agentGender : dState.gender;
-        const dAddressee = dIsRepresented ? `وكيل${dState.agentGender === 'ف' ? 'ة' : ''} ${dName}` : dName;
-        const dResponseVerb = dSpeakerGender === 'م' ? 'أجاب قائلاً' : 'أجابت قائلة';
-        const dResponseVerbEnd = dSpeakerGender === 'م' ? 'أجاب' : 'أجابت';
-        out += ` وبعرض دعوى ${pName} على ${dAddressee} ${dResponseVerb}: ${orDots(c.defendantResponseText)} هكذا ${dResponseVerbEnd}.`;
+    return out;
+}
+
+// دفوع المدعى عليه وبينته — يُسأل عنها بعد بينة المدعي، ولا محل لها مع غيابه
+function buildDefendantEvidenceText(state, opts) {
+    const options = opts || {};
+    const c = state.claim;
+    const d = state.defendant;
+    if (d.attendance === 'لم يحضر') return '';
+    if (!options.force && c.askDefendantEvidence !== 'نعم') return '';
+
+    const e = c.defendantEvidence;
+    const dGender = d.gender;
+    const dName = partyLabel('defendant', dGender);
+    const pName = partyLabel('plaintiff', state.plaintiff.gender);
+    const dSuffix = dGender === 'م' ? 'ه' : 'ها';
+
+    const isRepresented = d.attendance === 'تمثيل' && (d.repType === 'وكيل' || d.repType === 'وكيل شركة');
+    const speakerGender = isRepresented ? d.agentGender : dGender;
+    const speakerSuffix = speakerGender === 'م' ? 'ه' : 'ها';
+    const decideVerb = speakerGender === 'م' ? 'قرر قائلاً' : 'قررت قائلة';
+    const moakkelFirst = dGender === 'م' ? 'موكلي' : 'موكلتي';
+    const moakkelThird = dGender === 'م'
+        ? (speakerGender === 'م' ? 'موكله' : 'موكلها')
+        : (speakerGender === 'م' ? 'موكلته' : 'موكلتها');
+
+    let out = options.lead || ' ثم انتقلت الدائرة لسماع دفوع المدعى عليه وبينته.';
+
+    if (c.defendantPleasText.trim()) {
+        out += ` وبسؤال ${addresseeLabelOf('defendant', d)} عن دفوع${isRepresented ? ` ${moakkelThird}` : dSuffix} ${decideVerb}: ${c.defendantPleasText.trim()}. هكذا ${speakerGender === 'م' ? 'قرر' : 'قررت'}.`;
     }
 
+    if (isRepresented) {
+        out += ` وبسؤال${speakerSuffix} عن بينة ${moakkelThird} ${decideVerb}: `;
+    } else {
+        out += ` وبسؤال${dSuffix} عن بينت${dSuffix} ${decideVerb}: `;
+    }
+
+    if (e.choice === 'none') {
+        out += isRepresented ? `لا بينة لدى ${moakkelFirst}.` : `لا بينة لدي.`;
+        return out;
+    }
+
+    const items = e.items.map(item =>
+        item === 'مستند رسمي آخر' ? (e.otherDocumentText.trim() || 'مستند رسمي آخر') : item
+    );
+    const evText = items.length ? items.join('، و') : MINUTES_PLACEHOLDER;
+    out += isRepresented ? `بينة ${moakkelFirst} هي: ${evText}.` : `بينتي هي: ${evText}.`;
+    out += ` وقد جرى من الدائرة الاطلاع على بينات ${dName} فوجدتها كما ${speakerGender === 'م' ? 'ذكر' : 'ذكرت'}.`;
+
+    if (e.items.includes('شهادة شهود') && e.witnesses.length > 0) {
+        out += buildWitnessSection(e.witnesses, {
+            speakerGender, speakerSuffix,
+            presenterLabel: dName, presenterGender: dGender,
+            opposingLabel: addresseeLabelOf('plaintiff', state.plaintiff),
+            opposingPresent: state.plaintiff.attendance !== 'لم يحضر',
+            tazkiya: e.tazkiya, tazkiyaNames: e.tazkiyaNames,
+            objection: e.objection, objectionText: e.objectionText
+        });
+    }
+
+    return out;
+}
+
+// ==================== الأسباب والحكم والإفهام ====================
+
+// نوع الإفهام: يُشتق من قيمة المطالبة ما لم يُحدَّد يدويًا
+function noticeKindFor(state) {
+    const r = state.ruling;
+    if (r.noticeKind && r.noticeKind !== 'auto') return r.noticeKind;
+    const value = Number(String(r.claimValue).replace(/[^0-9.]/g, ''));
+    if (!value) return 'appealable';
+    return value <= YASEERA_CLAIM_LIMIT ? 'final' : 'appealable';
+}
+
+// نص الإفهام مأخوذ من تصنيف (إفهامات بعد النطق) في مكتبة النماذج
+function buildNoticeText(state) {
+    const kind = noticeKindFor(state);
+    if (kind === 'sulh') return findTemplate('إفهامات بعد النطق', 'صلح1') || '';
+    if (kind === 'final') return findTemplate('إفهامات بعد النطق', 'ف1') || '';
+    // ف3 تتضمن إفهام الطرفين وكالةً استناداً للمادة (165)
+    const bothByAgent = state.plaintiff.attendance === 'تمثيل' && state.defendant.attendance === 'تمثيل';
+    return findTemplate('إفهامات بعد النطق', bothByAgent ? 'ف3' : 'ف2') || '';
+}
+
+function buildMandatoryReviewText(ruling) {
+    if (ruling.mandatoryReview === 'نعم') return findTemplate('إفهامات بعد النطق', 'واجب التدقيق') || '';
+    if (ruling.mandatoryReview === 'إعادة') return findTemplate('إفهامات بعد النطق', 'واجب التدقيق /إعادة القضية') || '';
+    return '';
+}
+
+function buildPresenceClause(state) {
+    const dName = partyLabel('defendant', state.defendant.gender);
+    return state.ruling.presence === 'غيابي'
+        ? `وهذا الحكم غيابي في حق ${dName}.`
+        : 'وهذا الحكم حضوري في حق طرفي الدعوى.';
+}
+
+// مرحلة الأسباب والحكم — مستقلة عن ضبط الجلسة، تُلحق به عند النطق بالحكم
+function buildRulingSection(state) {
+    const r = state.ruling;
+    if (r.pronounce !== 'نعم') return '';
+    let out = `\n\nالأسباب:\n${orDots(r.reasonsText)}`;
+    out += `\n\nالحكم:\n${orDots(r.rulingText)}`;
+    out += `\n${buildPresenceClause(state)}`;
+    const notice = buildNoticeText(state);
+    if (notice) out += `\n\n${notice}`;
+    const review = buildMandatoryReviewText(r);
+    if (review) out += `\n\n${review}`;
     return out;
 }
 
@@ -598,8 +884,24 @@ const NEW_JUDGE_CLAUSE = ' واستناداً إلى المادة السابعة
 
 // ==================== التوليد الكامل للمحضر ====================
 
+// إجراءات الجلسة التالية: سماع بينة أحد الخصمين أو كليهما فيها
+function buildFollowUpProceedings(state) {
+    const f = state.followUp || {};
+    let out = '';
+    if (f.plaintiffEvidence) {
+        out += buildPlaintiffEvidenceText(state, {
+            lead: ' وتنفيذاً لما تقرر في الجلسة السابقة من تكليف المدعي بالبينة،'
+        });
+    }
+    if (f.defendantEvidence) {
+        out += buildDefendantEvidenceText(state, { force: true });
+    }
+    return out;
+}
+
 function composeMinutes(state) {
     let text;
+    let rulingApplies = false;
 
     if (state.plaintiff.specialCase !== 'none') {
         const opening = buildOpening(state.opening);
@@ -633,21 +935,31 @@ function composeMinutes(state) {
             }
             if (state.sessionType === 'new') {
                 text += buildClaimEvidenceText(state);
-            } else if (state.sessionType === 'previous' && state.sameJudge === 'لا') {
-                text += NEW_JUDGE_CLAUSE;
-                text += buildPreviousSessionRatification(state);
+            } else if (state.sessionType === 'previous') {
+                if (state.sameJudge === 'لا') {
+                    text += NEW_JUDGE_CLAUSE;
+                    text += buildPreviousSessionRatification(state);
+                }
+                text += buildFollowUpProceedings(state);
             }
             // لا يُقفل باب المرافعة إذا وُجهت اليمين لمدعى عليه غائب (تُحدد جلسة قادمة)
             const oathNotificationAdjournment = state.sessionType === 'new' && state.claim.requestOath && !state.claim.declineOath && state.defendant.attendance === 'لم يحضر';
             if (!oathNotificationAdjournment) {
                 text = text.replace(/\.\s*$/, '') + '، ' + buildClosingArgumentText(state) + '.';
+                rulingApplies = true;
             }
         }
     }
 
+    // الأسباب والحكم: مرحلة مستقلة تُلحق بالضبط بعد قفل باب المرافعة
+    const rulingSection = rulingApplies ? buildRulingSection(state) : '';
+
     // ختم الجلسة بعد 30 دقيقة من الافتتاح
     const closing = addMinutesToTime(state.opening.hour, state.opening.minute, state.opening.period, 30);
     const closingWords = buildTimeArabic(closing.hour, closing.minute, closing.period);
+    if (rulingSection) {
+        return `${text}${rulingSection}\n\nوختمت الجلسة عند الساعة ${closingWords}.`;
+    }
     return text.replace(/\.\s*$/, '') + `، وختمت الجلسة عند الساعة ${closingWords}.`;
 }
 
@@ -726,28 +1038,85 @@ function collectWarnings(state) {
         && state.plaintiff.attendance !== 'لم يحضر'
         && state.plaintiff.specialCase === 'none'
         && !(state.defendant.attendance === 'لم يحضر' && state.defendant.notifyStatus === 'لم يتبلغ');
+    const defendantPresent = state.defendant.attendance !== 'لم يحضر';
+    const c = state.claim;
+    // في الجلسة التحضيرية تُفحص بينة المدعي دائمًا؛ وفي التالية عند سماعها فيها
+    const plaintiffEvidenceApplies = claimApplies
+        && !(defendantPresent && c.defendantStance === 'إقرار')
+        && !(defendantPresent && c.defendantStance === 'دفع شكلي' && c.answeredOnMerits !== 'نعم');
+    const followUp = state.followUp || {};
+
     if (claimApplies) {
-        const c = state.claim;
         if (!c.text.trim()) w.push('لم يُكتب نص الدعوى.');
-        if (state.defendant.attendance !== 'لم يحضر' && !c.defendantResponseText.trim()) w.push('لم تُكتب إجابة المدعى عليه على الدعوى.');
-        const evidenceCount = c.evidenceItems.length;
-        if (c.evidenceChoice === 'has' && evidenceCount === 0) w.push('لم تُحدَّد البينة (اختر نوعًا واحدًا على الأقل).');
-        if (c.evidenceChoice === 'has' && c.evidenceItems.includes('مستند رسمي آخر') && !c.otherDocumentText.trim()) w.push('حُدِّد "مستند رسمي آخر" دون كتابة ماهية المستند.');
-        if (c.evidenceChoice === 'has' && c.hasMoreEvidence === 'نعم' && !c.moreEvidenceText.trim()) w.push('لم تُكتب البينة الإضافية.');
-        if (c.evidenceChoice === 'has' && c.evidenceItems.includes('شهادة شهود')) {
-            const fieldLabels = { name: 'الاسم', age: 'تاريخ الميلاد/العمر', job: 'المهنة', residence: 'مكان الإقامة', relation: 'وجه الاتصال', interest: 'المصلحة', testimony: 'نص الشهادة' };
-            c.witnesses.forEach((wit, i) => {
-                const ord = ordinalWordsMasc[i + 1] || `رقم ${i + 1}`;
-                Object.keys(fieldLabels).forEach(k => {
-                    if (!wit[k].trim()) w.push(`لم يُكمَل حقل "${fieldLabels[k]}" للشاهد ${ord}.`);
-                });
-            });
+        if (defendantPresent && !c.defendantResponseText.trim()) w.push('لم تُكتب إجابة المدعى عليه على الدعوى.');
+        if (defendantPresent && c.defendantStance === 'دفع شكلي') {
+            if (!c.formalPleaText.trim()) w.push('لم يُكتب نص الدفع الشكلي للمدعى عليه.');
+            if (!c.plaintiffReplyText.trim()) w.push('لم يُكتب رد المدعي على الدفع الشكلي.');
         }
     }
-    if (state.sessionType === 'previous' && state.defendant.attendance !== 'لم يحضر' && state.defendant.oathPerformanceSession === 'نعم' && !state.defendant.oathAnswerText.trim()) {
+
+    if (plaintiffEvidenceApplies || followUp.plaintiffEvidence) {
+        w.push(...evidenceWarnings({
+            choice: c.evidenceChoice, items: c.evidenceItems, otherDocumentText: c.otherDocumentText,
+            witnesses: c.witnesses, tazkiya: c.tazkiya, tazkiyaNames: c.tazkiyaNames,
+            objection: c.witnessObjection, objectionText: c.witnessObjectionText
+        }, 'المدعي', defendantPresent));
+        if (c.evidenceChoice === 'has' && c.hasMoreEvidence === 'نعم' && !c.moreEvidenceText.trim()) w.push('لم تُكتب البينة الإضافية.');
+    }
+
+    const defendantEvidenceApplies = defendantPresent
+        && ((claimApplies && c.askDefendantEvidence === 'نعم') || followUp.defendantEvidence);
+    if (defendantEvidenceApplies) {
+        w.push(...evidenceWarnings(c.defendantEvidence, 'المدعى عليه', state.plaintiff.attendance !== 'لم يحضر'));
+    }
+
+    if (state.sessionType === 'previous' && defendantPresent && state.defendant.oathPerformanceSession === 'نعم' && !state.defendant.oathAnswerText.trim()) {
         w.push('لم تُكتب إجابة المدعى عليه عن الاستعداد لأداء اليمين.');
     }
 
+    w.push(...rulingWarnings(state));
+    return w;
+}
+
+// فحص كتلة بينة (للمدعي أو للمدعى عليه) بنفس القواعد
+function evidenceWarnings(block, ownerLabel, opposingPresent) {
+    const w = [];
+    if (!block || block.choice !== 'has') return w;
+    if (block.items.length === 0) w.push(`لم تُحدَّد بينة ${ownerLabel} (اختر نوعًا واحدًا على الأقل).`);
+    if (block.items.includes('مستند رسمي آخر') && !block.otherDocumentText.trim()) {
+        w.push(`حُدِّد "مستند رسمي آخر" في بينة ${ownerLabel} دون كتابة ماهية المستند.`);
+    }
+    if (!block.items.includes('شهادة شهود')) return w;
+
+    const fieldLabels = { name: 'الاسم', age: 'تاريخ الميلاد/العمر', job: 'المهنة', residence: 'مكان الإقامة', relation: 'وجه الاتصال', interest: 'المصلحة', testimony: 'نص الشهادة' };
+    block.witnesses.forEach((wit, i) => {
+        const ord = ordinalWordsMasc[i + 1] || `رقم ${i + 1}`;
+        Object.keys(fieldLabels).forEach(k => {
+            if (!String(wit[k] || '').trim()) w.push(`لم يُكمَل حقل "${fieldLabels[k]}" لشاهد ${ownerLabel} ${ord}.`);
+        });
+    });
+    if (block.tazkiya === 'presented' && !String(block.tazkiyaNames || '').trim()) {
+        w.push(`لم تُكتب أسماء معدِّلي شهود ${ownerLabel}.`);
+    }
+    if (opposingPresent && block.objection === 'نعم' && !String(block.objectionText || '').trim()) {
+        w.push(`حُدِّد وجود مطعن في شهود ${ownerLabel} دون كتابة نص المطعن.`);
+    }
+    return w;
+}
+
+// فحص مرحلة الأسباب والحكم
+function rulingWarnings(state) {
+    const w = [];
+    const r = state.ruling || {};
+    if (r.pronounce !== 'نعم') return w;
+    if (!String(r.reasonsText || '').trim()) w.push('لم تُكتب أسباب الحكم.');
+    if (!String(r.rulingText || '').trim()) w.push('لم يُكتب منطوق الحكم.');
+    if (r.noticeKind === 'auto' && !String(r.claimValue || '').trim()) {
+        w.push('لم تُدخل قيمة المطالبة، فتعذّر اشتقاق نوع الإفهام تلقائيًا (اعتُمد "قابل للاستئناف").');
+    }
+    if (!buildNoticeText(state)) {
+        w.push('⚠️ تعذّر جلب نص الإفهام من مكتبة النماذج (data/templates.js).');
+    }
     return w;
 }
 
@@ -755,16 +1124,22 @@ function collectWarnings(state) {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         MINUTES_PLACEHOLDER, VIDEO_CALL_PHRASE, VIDEO_CALL_SHORT,
-        NATIONALITY_OPTIONS, EVIDENCE_OPTIONS,
+        NATIONALITY_OPTIONS, EVIDENCE_OPTIONS, YASEERA_CLAIM_LIMIT,
         minutesPhrase, buildTimeArabic, addMinutesToTime, validHoursForPeriod, convertArabicDigits,
         ordinalWord, partyLabel, multiPartyLabel, agentPossessive,
         kinshipDegree, asharDegree, degreeOrdinal, asharTemplate,
-        freshPartyState, freshExtraParty, freshWitness, freshClaimState, freshMinutesState,
+        findTemplate, templatesOfCategory,
+        freshPartyState, freshExtraParty, freshWitness, freshEvidenceBlock,
+        freshClaimState, freshRulingState, freshFollowUpState, freshMinutesState,
         buildOpening, buildAgencyVerificationClause, buildKinshipPhrase, buildAccompanyingAgentClause,
         buildIdentityClause, buildPartyClause, buildExtraClause, buildNotNotifiedClause,
         buildSpecialCaseText, buildShatbText, buildOathAbsenceDefendantText, buildOathPerformanceText,
         buildClosingArgumentText, buildPreviousSessionRatification,
-        buildOathSentence, buildOathBlock, buildWitnessSection, buildClaimEvidenceText,
-        getOathDefendantStatus, composeMinutes, collectWarnings
+        buildOathSentence, buildOathBlock, buildWitnessSection, buildTazkiyaClause, buildWitnessObjectionClause,
+        buildClaimEvidenceText, buildProceedingsAfterClaim, buildDefendantAnswerClause,
+        buildAdmissionClause, buildFormalPleaClause,
+        buildPlaintiffEvidenceText, buildDefendantEvidenceText, buildFollowUpProceedings,
+        noticeKindFor, buildNoticeText, buildMandatoryReviewText, buildPresenceClause, buildRulingSection,
+        getOathDefendantStatus, composeMinutes, collectWarnings, evidenceWarnings, rulingWarnings
     };
 }
