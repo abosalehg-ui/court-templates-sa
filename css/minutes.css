@@ -8,40 +8,24 @@
     padding-bottom: 6rem;
 }
 
-/* ---------- شريط مؤقّت التعبئة ---------- */
-#fillTimer {
-    position: sticky;
-    top: 0;
-    z-index: 150;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 1rem;
-    background: var(--success);
-    color: #fff;
-    font-weight: 700;
-    font-size: 1rem;
-    padding: 0.4rem 1rem;
-    box-shadow: var(--shadow);
-}
-
-#fillTimer.warn { background: #b8863b; }
-#fillTimer.late { background: #a33a2e; }
-
-#fillTimer .hide-timer-btn {
-    background: rgba(255, 255, 255, 0.2);
-    border: none;
-    color: inherit;
-    font-family: inherit;
-    font-size: 0.75rem;
-    padding: 0.15rem 0.6rem;
-    border-radius: 6px;
-    cursor: pointer;
-}
-
 /* صفحة المولّد بلا شريط سفلي — تبقى أزرار الهيدر ظاهرة على الجوال */
+/* هيدر مضغوط: زرّا الرئيسية والوضع الليلي في سطر واحد بمحاذاة العنوان والتاريخ */
+.header-content { flex-wrap: nowrap; }
+.header-actions { flex-shrink: 0; }
+.logo-text h1 { line-height: 1.25; }
+.logo-text span { line-height: 1.35; }
+
 @media (max-width: 768px) {
     body .header-actions .btn { display: inline-flex; }
+
+    .header-actions { gap: 0.4rem; }
+
+    .header-actions .btn-icon {
+        width: 36px;
+        height: 36px;
+        padding: 0.35rem;
+        font-size: 1rem;
+    }
 }
 
 /* أزرار btn-secondary داخل البطاقات والنوافذ (خارج الهيدر الداكن) */
@@ -472,7 +456,7 @@ input.invalid {
 
 /* ---------- الطباعة: النص الناتج فقط ---------- */
 @media print {
-    .header, #fillTimer, .form-column, #stepDots, #stepNavBar, .back-link,
+    .header, .form-column, #stepDots, #stepNavBar, .back-link,
     .output-toolbar, .preview-actions, #missingFieldsWarning, .minutes-credits,
     .modal-overlay, .toast, .preview-hint, #backToEditBtn { display: none !important; }
     .minutes-container { padding: 0; }

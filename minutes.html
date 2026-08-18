@@ -21,17 +21,11 @@
                 </div>
             </div>
             <div class="header-actions">
-                <a class="btn btn-secondary" href="index.html">⚖️ الرئيسية</a>
+                <a class="btn btn-icon btn-secondary" href="index.html" title="الرئيسية" aria-label="الرئيسية">⚖️</a>
                 <button class="btn btn-icon btn-secondary" id="darkModeToggle" title="الوضع الليلي" aria-label="تبديل الوضع الليلي">🌙</button>
             </div>
         </div>
     </header>
-
-    <!-- شريط مؤقّت التعبئة -->
-    <div id="fillTimer" style="display:none;">
-        <span id="fillTimerText">⏱ 00:00</span>
-        <button type="button" class="hide-timer-btn" id="hideTimerBtn">إخفاء المؤقّت</button>
-    </div>
 
     <div class="minutes-container">
 
@@ -51,14 +45,6 @@
                     <div class="choice-btn landing-btn" data-value="new">جلسة تحضيرية (جديدة)</div>
                     <div class="choice-btn landing-btn" data-value="previous">جلسة منظورة سابقًا</div>
                 </div>
-            </div>
-
-            <div class="m-card">
-                <h2>خيارات</h2>
-                <label class="checkbox-row">
-                    <input type="checkbox" id="timerEnabledCheckbox" checked>
-                    تفعيل مؤقّت قياس سرعة تعبئة المحضر
-                </label>
             </div>
         </div>
 
@@ -847,21 +833,6 @@
             <div class="modal-body">
                 <p>🚫 لا بد من إلزام أطراف الدعوى بضرورة <strong>فتح الكاميرا</strong> والالتزام <strong>بالزي الرسمي</strong> للسعوديين أثناء الجلسة، وذلك استنادًا للدليل الإجرائي لخدمة التقاضي الإلكتروني.</p>
                 <button type="button" class="btn btn-primary" style="width:100%; margin-top:1rem;" id="clerkModalOk">فهمت، متابعة</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- نتيجة مؤقّت التعبئة -->
-    <div class="modal-overlay" id="timerResultModal" role="dialog" aria-modal="true" aria-labelledby="timerResultTitle">
-        <div class="modal" style="max-width: 360px; text-align:center;">
-            <div class="modal-header">
-                <h2 id="timerResultTitle">⏱ زمن تعبئة المحضر</h2>
-                <button type="button" class="modal-close" aria-label="إغلاق النافذة" id="timerResultClose">&times;</button>
-            </div>
-            <div class="modal-body">
-                <p id="timerResultTime" style="font-size:2rem; font-weight:800; margin-bottom:0.5rem;"></p>
-                <p id="timerResultLabel" style="font-size:1.1rem; font-weight:700; margin-bottom:1rem;"></p>
-                <button type="button" class="btn btn-primary" style="width:100%;" id="timerResultOk">حسنًا</button>
             </div>
         </div>
     </div>
