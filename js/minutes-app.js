@@ -19,7 +19,6 @@ function showToast(msg, type = '') {
 // ==================== مفاتيح التخزين المحلي ====================
 const DRAFT_KEY = 'courtMinutesDraft';
 const SETTINGS_KEY = 'courtMinutesSettings';
-const TIMER_KEY = 'courtMinutesTimer';
 const THEME_KEY = 'courtTheme'; // نفس مفتاح الصفحة الرئيسية ليتزامن الوضع الليلي
 
 // ==================== الحالة ====================
@@ -67,8 +66,7 @@ function closeMinutesModal(id) {
 }
 [['confirmModal', ['confirmModalClose', 'confirmModalNo']],
  ['wakalaModal', ['wakalaModalClose', 'wakalaModalOk']],
- ['clerkModal', ['clerkModalClose', 'clerkModalOk']],
- ['timerResultModal', ['timerResultClose', 'timerResultOk']]].forEach(([modalId, btns]) => {
+ ['clerkModal', ['clerkModalClose', 'clerkModalOk']]].forEach(([modalId, btns]) => {
     btns.forEach(btnId => $(btnId).addEventListener('click', () => closeMinutesModal(modalId)));
     $(modalId).addEventListener('click', e => { if (e.target === $(modalId)) closeMinutesModal(modalId); });
 });
@@ -1160,80 +1158,12 @@ function enterReviewMode() {
     $('minutesLayout').classList.add('review-mode');
     $('backToEditBtn').style.display = 'inline-block';
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    stopFillTimerAndReport();
 }
 function exitReviewMode() {
     $('minutesLayout').classList.remove('review-mode');
     $('backToEditBtn').style.display = 'none';
 }
 $('backToEditBtn').addEventListener('click', exitReviewMode);
-
-// ==================== مؤقّت التعبئة ====================
-let formStartTime = null;
-let fillTimerInterval = null;
-
-function timerEnabled() {
-    return localStorage.getItem(TIMER_KEY) !== 'off';
-}
-
-$('timerEnabledCheckbox').checked = timerEnabled();
-$('timerEnabledCheckbox').addEventListener('change', e => {
-    try { localStorage.setItem(TIMER_KEY, e.target.checked ? 'on' : 'off'); } catch (err) { }
-    if (!e.target.checked) hideFillTimer();
-});
-
-function hideFillTimer() {
-    clearInterval(fillTimerInterval);
-    formStartTime = null;
-    $('fillTimer').style.display = 'none';
-}
-
-$('hideTimerBtn').addEventListener('click', () => {
-    try { localStorage.setItem(TIMER_KEY, 'off'); } catch (err) { }
-    $('timerEnabledCheckbox').checked = false;
-    hideFillTimer();
-});
-
-function startFillTimerIfNeeded() {
-    if (formStartTime !== null || !timerEnabled()) return;
-    formStartTime = Date.now();
-    $('fillTimer').style.display = 'flex';
-    updateFillTimerDisplay();
-    fillTimerInterval = setInterval(updateFillTimerDisplay, 1000);
-}
-
-function timerGrade(minutes) {
-    if (minutes <= 3) return { label: '✅ ممتاز جدًا', cls: '' };
-    if (minutes <= 7) return { label: '⚠️ جيد', cls: 'warn' };
-    return { label: '🔴 متأخر', cls: 'late' };
-}
-
-function updateFillTimerDisplay() {
-    const elapsed = Math.floor((Date.now() - formStartTime) / 1000);
-    const mm = String(Math.floor(elapsed / 60)).padStart(2, '0');
-    const ss = String(elapsed % 60).padStart(2, '0');
-    $('fillTimerText').textContent = `⏱ ${mm}:${ss}`;
-    $('fillTimer').className = timerGrade(elapsed / 60).cls;
-}
-
-function stopFillTimerAndReport() {
-    if (formStartTime === null) return;
-    clearInterval(fillTimerInterval);
-    const elapsed = Math.floor((Date.now() - formStartTime) / 1000);
-    const mm = String(Math.floor(elapsed / 60)).padStart(2, '0');
-    const ss = String(elapsed % 60).padStart(2, '0');
-    const grade = timerGrade(elapsed / 60);
-    $('timerResultTime').textContent = `${mm}:${ss}`;
-    $('timerResultLabel').textContent = grade.label;
-    openMinutesModal('timerResultModal');
-    formStartTime = null;
-    $('fillTimer').style.display = 'none';
-}
-
-$('mainApp').addEventListener('input', startFillTimerIfNeeded);
-$('mainApp').addEventListener('click', e => {
-    if (e.target.closest('.choice-btn')) startFillTimerIfNeeded();
-});
 
 // ==================== محضر جديد ====================
 ['newSessionBtn', 'newSessionBtnStep'].forEach(id => {
