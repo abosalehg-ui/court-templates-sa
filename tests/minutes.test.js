@@ -6,11 +6,11 @@ const assert = require('node:assert/strict');
 const M = require('../js/minutes.js');
 
 // حالة جاهزة: جلسة تحضيرية، الطرفان حاضران أصالة ببيانات مكتملة
-// مع تفعيل إدراج بيانات الهوية في النص (المفتاح مُغلق افتراضًا)
+// مع تفعيل إدراج بيانات الطرفين في النص (المفتاح مُغلق افتراضًا)
 function readyState(overrides = {}) {
     const s = M.freshMinutesState();
     s.sessionType = 'new';
-    s.includeIdentityInText = true;
+    s.includePartyDataInText = true;
     s.opening = { judge: 'فلان بن فلان', court: 'الرياض', hour: 9, minute: 0, period: 'ص' };
     s.plaintiff.name = 'سعد';
     s.plaintiff.saudiId = '1000000001';
@@ -148,8 +148,8 @@ test('buildIdentityClause: فرد سعودي / مقيم / شركة', () => {
     assert.equal(M.buildIdentityClause(s), '، بموجب السجل التجاري رقم (55555)');
 });
 
-test('freshMinutesState: مفتاح إدراج بيانات الهوية مُغلق افتراضًا', () => {
-    assert.equal(M.freshMinutesState().includeIdentityInText, false);
+test('freshMinutesState: مفتاح إدراج بيانات الطرفين مُغلق افتراضًا', () => {
+    assert.equal(M.freshMinutesState().includePartyDataInText, false);
 });
 
 test('buildIdentityClause: تسقط العبارة عند إغلاق مفتاح الإدراج', () => {
@@ -161,20 +161,41 @@ test('buildIdentityClause: تسقط العبارة عند إغلاق مفتاح 
     assert.equal(M.buildIdentityClause(s, false), '');
 });
 
-test('buildPartyClause: إغلاق المفتاح يحذف بيانات هوية الطرف ويُبقي اسمه', () => {
+test('buildPartyClause: إغلاق المفتاح يحذف اسم الطرف وهويته ويُبقي لقبه', () => {
     const state = readyState();
-    state.includeIdentityInText = false;
-    assert.equal(M.buildPartyClause(state, 'plaintiff'), 'حضر المدعي سعد أصالة');
+    state.includePartyDataInText = false;
+    assert.equal(M.buildPartyClause(state, 'plaintiff'), 'حضر المدعي أصالة');
+    state.plaintiff.gender = 'ف';
+    assert.equal(M.buildPartyClause(state, 'plaintiff'), 'حضرت المدعية أصالة');
+    state.defendant.gender = 'ف';
+    assert.equal(M.buildPartyClause(state, 'defendant'), 'حضرت المدعى عليها أصالة');
+});
+
+test('buildPartyClause: إغلاق المفتاح مع التعدد يُبقي ترقيم الأطراف', () => {
+    const state = readyState({ includePartyDataInText: false });
+    state.extraPlaintiffs.push(M.freshExtraParty());
+    assert.equal(M.buildPartyClause(state, 'plaintiff'), 'حضر المدعي الأول أصالة');
+});
+
+test('buildPartyClause: إغلاق المفتاح يُبقي غياب الطرف وتبليغه بلا اسم', () => {
+    const state = readyState({ includePartyDataInText: false });
+    state.defendant.attendance = 'لم يحضر';
+    state.defendant.tabligh = '456';
+    assert.equal(
+        M.buildPartyClause(state, 'defendant'),
+        'لم يحضر المدعى عليه رغم تبليغه بالجلسة وفق مهمّة التبليغ رقم (456)'
+    );
 });
 
 test('buildPartyClause: إغلاق المفتاح لا يمسّ بيانات الوكيل', () => {
-    const state = readyState({ includeIdentityInText: false });
+    const state = readyState({ includePartyDataInText: false });
     state.defendant.attendance = 'تمثيل';
     state.defendant.agentName = 'خالد';
     state.defendant.agentId = '3000000003';
     state.defendant.wakalaNum = '777';
     state.defendant.licenseNum = '99';
     const clause = M.buildPartyClause(state, 'defendant');
+    assert.match(clause, /^حضر عن المدعى عليه وكيله المحامي خالد/);
     assert.match(clause, /بموجب الوكالة الشرعية رقم \(777\)/);
     assert.match(clause, /للمادَّة \(51\/3\) من نظام المرافعات الشرعية/);
     assert.match(clause, /رخصة مزاولة المحاماة رقم \(99\)/);
@@ -182,27 +203,29 @@ test('buildPartyClause: إغلاق المفتاح لا يمسّ بيانات ا�
 });
 
 test('buildPartyClause: إغلاق المفتاح مع وكيل مرافق يُبقي بيانات الوكالة وحدها', () => {
-    const state = readyState({ includeIdentityInText: false });
+    const state = readyState({ includePartyDataInText: false });
     state.plaintiff.hasAccompanyingAgent = true;
     state.plaintiff.agentName = 'خالد';
     state.plaintiff.agentId = '3000000003';
     state.plaintiff.wakalaNum = '777';
     state.plaintiff.licenseNum = '99';
     const clause = M.buildPartyClause(state, 'plaintiff');
-    assert.match(clause, /^حضر المدعي سعد أصالة، وحضر معه وكيله المحامي خالد/);
+    assert.match(clause, /^حضر المدعي أصالة، وحضر معه وكيله المحامي خالد/);
     assert.ok(!clause.includes('الهوية الوطنية'));
     assert.match(clause, /بموجب الوكالة الشرعية رقم \(777\)/);
 });
 
-test('buildExtraClause: إغلاق المفتاح يحذف هوية الطرف الإضافي', () => {
+test('buildExtraClause: إغلاق المفتاح يحذف اسم الطرف الإضافي وهويته', () => {
     const p = M.freshExtraParty();
     p.name = 'ناصر';
     p.saudiId = '1010101010';
-    assert.equal(M.buildExtraClause('plaintiff', 0, p, false), 'حضر المدعي الثاني ناصر أصالة');
+    assert.equal(M.buildExtraClause('plaintiff', 0, p, false), 'حضر المدعي الثاني أصالة');
+    p.gender = 'ف';
+    assert.equal(M.buildExtraClause('defendant', 0, p, false), 'حضرت المدعى عليها الثانية أصالة');
 });
 
-test('composeMinutes: إغلاق المفتاح يحذف الهوية من نص الضبط للأطراف كافة', () => {
-    const state = readyState({ includeIdentityInText: false });
+test('composeMinutes: إغلاق المفتاح يحذف الأسماء والهوية من نص الضبط للأطراف كافة', () => {
+    const state = readyState({ includePartyDataInText: false });
     const extra = M.freshExtraParty();
     extra.name = 'ناصر';
     extra.saudiId = '1010101010';
@@ -210,19 +233,31 @@ test('composeMinutes: إغلاق المفتاح يحذف الهوية من نص 
     const text = M.composeMinutes(state);
     assert.ok(!text.includes('الهوية الوطنية'));
     assert.ok(!text.includes('الإقامة النظامية'));
-    assert.match(text, /حضر المدعي الأول سعد أصالة/);
-    assert.match(text, /حضر المدعي الثاني ناصر أصالة/);
+    assert.ok(!text.includes('سعد'));
+    assert.ok(!text.includes('ناصر'));
+    assert.match(text, /حضر المدعي الأول أصالة/);
+    assert.match(text, /حضر المدعي الثاني أصالة/);
 });
 
-test('collectWarnings: إغلاق المفتاح يُسقط تحذيرات الهوية ويُبقي تحذير الاسم', () => {
-    const state = readyState({ includeIdentityInText: false });
+test('collectWarnings: إغلاق المفتاح يُسقط تحذيرات الاسم والهوية معًا', () => {
+    const state = readyState({ includePartyDataInText: false });
+    state.plaintiff.name = '';
     state.plaintiff.saudiId = '';
+    state.defendant.name = '';
     state.defendant.saudiId = '';
-    const extra = M.freshExtraParty();   // بلا اسم ولا هوية
-    state.extraPlaintiffs.push(extra);
+    state.extraPlaintiffs.push(M.freshExtraParty());   // بلا اسم ولا هوية
     const w = M.collectWarnings(state);
+    assert.deepEqual(w.filter(x => x.includes('اسم المدعي') || x.includes('اسم المدعى عليه')), []);
     assert.deepEqual(w.filter(x => x.includes('هوية') || x.includes('إقامة') || x.includes('السجل التجاري')), []);
-    assert.ok(w.some(x => x.includes('لم يُدخل اسم المدعي الثاني')));
+});
+
+test('collectWarnings: تفعيل المفتاح يعيد المطالبة باسم الطرف وهويته', () => {
+    const state = readyState();
+    state.plaintiff.name = '';
+    state.plaintiff.saudiId = '';
+    const w = M.collectWarnings(state);
+    assert.ok(w.some(x => x.includes('لم يُدخل اسم المدعي')));
+    assert.ok(w.some(x => x.includes('رقم هوية المدعي')));
 });
 
 test('buildPartyClause: حضور أصالة', () => {
@@ -613,8 +648,11 @@ test('collectWarnings: يرصد الحقول الناقصة', () => {
     state.sessionType = 'new';
     const w = M.collectWarnings(state);
     assert.ok(w.some(x => x.includes('اسم القاضي')));
-    assert.ok(w.some(x => x.includes('اسم المدعي')));
     assert.ok(w.some(x => x.includes('نص الدعوى')));
+    // اسم الطرف لا يُطالب به إلا إذا كان سيُدرج في نص الضبط
+    assert.ok(!w.some(x => x.includes('اسم المدعي')));
+    state.includePartyDataInText = true;
+    assert.ok(M.collectWarnings(state).some(x => x.includes('اسم المدعي')));
 });
 
 test('collectWarnings: محضر الشطب لا يطالب ببيانات المدعى عليه', () => {
