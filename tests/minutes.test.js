@@ -105,11 +105,32 @@ test('buildKinshipPhrase: قرابة مقبولة وخارج الدرجات', ()
 
 // ==================== بناة الجمل ====================
 
-test('buildOpening: يتضمن القاضي والمحكمة وصيغة الاتصال المرئي والوقت', () => {
+test('buildOpening: الافتراضي عبر الاتصال المرئي مختصراً بلا نص القرار', () => {
     const text = M.buildOpening({ judge: 'فلان', court: 'الرياض', hour: 8, minute: 30, period: 'ص' });
+    assert.match(text, /^فلديّ أنا فلان القاضي بمحكمة الرياض افتتحتُ الجلسة عبر الاتصال المرئي عند الساعة/);
+    assert.ok(!text.includes('17388'));
+    assert.match(text, /عند الساعة الثامنة والنصف صباحًا،$/);
+});
+
+test('buildOpening: خيار «مع المستند» يدرج نص قرار المجلس الأعلى للقضاء', () => {
+    const text = M.buildOpening({ judge: 'فلان', court: 'الرياض', hour: 8, minute: 30, period: 'ص', mode: M.SESSION_MODES.VIDEO_FULL });
     assert.match(text, /^فلديّ أنا فلان القاضي بمحكمة الرياض افتتحتُ الجلسة عبر الاتصال المرئي/);
     assert.match(text, /قرار رئيس المجلس الأعلى للقضاء رقم \(17388\)/);
+    assert.match(text, /إلا في الحالات التي تقتضي حضورهم/);
     assert.match(text, /عند الساعة الثامنة والنصف صباحًا،$/);
+});
+
+test('buildOpening: الجلسة الحضورية تحذف صيغة الاتصال المرئي كاملة', () => {
+    const text = M.buildOpening({ judge: 'فلان', court: 'الرياض', hour: 8, minute: 30, period: 'ص', mode: M.SESSION_MODES.IN_PERSON });
+    assert.equal(text, 'فلديّ أنا فلان القاضي بمحكمة الرياض افتتحتُ الجلسة عند الساعة الثامنة والنصف صباحًا،');
+    assert.ok(!text.includes('المرئي'));
+});
+
+test('sessionMode: المختصر افتراضياً لأي قيمة غير معروفة', () => {
+    assert.equal(M.sessionMode({}), M.SESSION_MODES.VIDEO);
+    assert.equal(M.sessionMode({ mode: 'شيء آخر' }), M.SESSION_MODES.VIDEO);
+    assert.equal(M.sessionMode({ mode: 'inPerson' }), M.SESSION_MODES.IN_PERSON);
+    assert.equal(M.freshMinutesState().opening.mode, M.SESSION_MODES.VIDEO);
 });
 
 test('buildIdentityClause: فرد سعودي / مقيم / شركة', () => {
@@ -174,6 +195,36 @@ test('buildShatbText: الغياب الأول — شطب للمرة الأولى
     assert.match(text, /شطب الدَّعوى للمرَّة الأُولى/);
     assert.match(text, /خلال \(60\) يوماً/);
     assert.match(text, /بالمادَّة \(55\) من نظام المرافعات الشَّرعيَّة/);
+});
+
+test('buildShatbText: الجلسة الحضورية تحذف رابط غرفة الاتصال المرئي', () => {
+    const state = readyState();
+    state.opening.mode = M.SESSION_MODES.IN_PERSON;
+    state.plaintiff.attendance = 'لم يحضر';
+    state.plaintiff.tabligh = '456';
+    const text = M.buildShatbText(state);
+    assert.ok(!text.includes('غرفة الاتصال المرئي'));
+    assert.ok(!text.includes('بالاتصال المرئي'));
+    assert.match(text, /حضورياً بمقر المحكمة/);
+    assert.match(text, /عبر الوسائل الإلكترونية وفق مهمّة التبليغ رقم \( 456 \)/);
+    assert.match(text, /شطب الدَّعوى للمرَّة الأُولى/);
+});
+
+test('buildShatbText: الجلسة المرئية المختصرة تبقي فقرة التبليغ المرئي كما هي', () => {
+    const state = readyState();
+    state.plaintiff.attendance = 'لم يحضر';
+    state.plaintiff.tabligh = '456';
+    const text = M.buildShatbText(state);
+    assert.match(text, /- بالاتصال المرئي -/);
+    assert.match(text, /برابط الدخول لغرفة الاتصال المرئي/);
+});
+
+test('buildSpecialCaseText: صيغة «حضر بالنظام ولم يحضر» تتبع طريقة الانعقاد', () => {
+    const state = readyState();
+    state.plaintiff.specialCase = 'systemNoVideo';
+    assert.match(M.buildSpecialCaseText(state, 'plaintiff'), /لم يحضر الجلسة عبر الاتصال المرئي/);
+    state.opening.mode = M.SESSION_MODES.IN_PERSON;
+    assert.match(M.buildSpecialCaseText(state, 'plaintiff'), /لم يحضر الجلسة بمقر المحكمة/);
 });
 
 test('buildShatbText: الغياب الثاني — اعتبار الدعوى كأن لم تكن', () => {

@@ -75,8 +75,12 @@
 
                             <div class="field">
                                 <label>طريقة انعقاد الجلسة</label>
-                                <input type="text" class="form-control" id="sessionMode" value="عبر الاتصال المرئي" disabled>
-                                <div class="hint">تُدرج في المحضر الصيغة الكاملة المستندة لقرار رئيس المجلس الأعلى للقضاء رقم (17388) وتاريخ 5/10/1441هـ.</div>
+                                <div class="choice-group vertical" data-group="session-mode">
+                                    <div class="choice-btn" data-value="videoFull">عبر الاتصال المرئي (مع المستند النظامي)</div>
+                                    <div class="choice-btn active" data-value="video">عبر الاتصال المرئي</div>
+                                    <div class="choice-btn" data-value="inPerson">حضوري</div>
+                                </div>
+                                <div class="hint" id="sessionModeHint"></div>
                             </div>
 
                             <div class="field">

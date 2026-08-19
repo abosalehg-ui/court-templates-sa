@@ -88,6 +88,25 @@ function saveSettings() {
 $('judgeName').addEventListener('input', e => { state.opening.judge = e.target.value; saveSettings(); render(); });
 $('courtName').addEventListener('input', e => { state.opening.court = e.target.value; saveSettings(); render(); });
 
+// ==================== طريقة انعقاد الجلسة ====================
+const SESSION_MODE_HINTS = {
+    videoFull: 'تُدرج صيغة الانعقاد كاملة مع الاستناد لقرار رئيس المجلس الأعلى للقضاء رقم (17388) وتاريخ 5/10/1441هـ.',
+    video: 'تُدرج عبارة «عبر الاتصال المرئي» وحدها في الافتتاح دون نص القرار، وتبقى بقية فقرات المحضر كما هي.',
+    inPerson: 'يُفتتح المحضر دون ذكر الاتصال المرئي، وتُحذف الإشارة لرابط غرفة الاتصال المرئي من فقرات الغياب والشطب وتُستبدل بصيغة الحضور المباشر.'
+};
+
+function updateSessionModeUI() {
+    const mode = state.opening.mode;
+    $('sessionModeHint').textContent = SESSION_MODE_HINTS[mode] || '';
+    const noVideoBtn = document.querySelector('.choice-group[data-group="plaintiff-specialCase"] .choice-btn[data-value="systemNoVideo"]');
+    if (noVideoBtn) {
+        noVideoBtn.textContent = mode === 'inPerson'
+            ? '⚠ تبيّن حضوره بالنظام الإلكتروني، لكنه لم يحضر بمقر المحكمة'
+            : '⚠ تبيّن حضوره بالنظام الإلكتروني، لكنه لم يحضر عبر الاتصال المرئي';
+    }
+}
+updateSessionModeUI();
+
 // ==================== وقت افتتاح الجلسة ====================
 function populateHourOptions() {
     const hourSel = $('openHour');
@@ -452,6 +471,7 @@ function handleChoice(key, value) {
         return;
     }
     if (key === 'session-sameJudge') { state.sameJudge = value; return; }
+    if (key === 'session-mode') { state.opening.mode = value; updateSessionModeUI(); return; }
 
     // ===== تكييف جواب المدعى عليه =====
     if (key === 'defendant-stance') {
