@@ -34,14 +34,24 @@ from PyQt5.QtWidgets import (
 
 from docx import Document
 
+# تطبيع النصوص العربية — يمنع تسرّب محارف يونيكود الخفية وتطويل الكشيدة من Word
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from normalize_arabic import normalize
+
 
 # ════════════════════════ منطق التحويل ════════════════════════
 # (كان في ملف converter.py سابقاً، تم دمجه هنا ليصبح كل شيء في ملف واحد)
 
 def _get_cell_text(cell):
-    """يستخرج نص الخلية مع الحفاظ على فواصل الأسطر بين الفقرات."""
+    """يستخرج نص الخلية مع الحفاظ على فواصل الأسطر بين الفقرات.
+
+    كل نص خارج من Word يمر من هنا، فهذه هي نقطة التطبيع الوحيدة:
+    تُحذف محارف يونيكود الخفية (RLM/PDF/ZWSP) وتتحول NBSP إلى مسافة عادية،
+    ويُزال تطويل الكشيدة الزخرفي مع حفظ «هـ» وتحويل الفاصل ـــ إلى شرطة.
+    """
     paragraphs = [p.text for p in cell.paragraphs]
-    return '\n'.join(paragraphs).strip('\n').strip()
+    text = '\n'.join(paragraphs).strip('\n').strip()
+    return normalize(text)
 
 
 def _extract_keyword_from_content(content):
@@ -132,7 +142,7 @@ def filename_to_key(filepath):
     يُبقي اسم الملف كما هو (بالمسافات) ليطابق صيغة المفاتيح
     المستخدمة فعلياً في data/templates.js وتظهر التصنيفات بشكل صحيح.
     """
-    return os.path.splitext(os.path.basename(filepath))[0]
+    return normalize(os.path.splitext(os.path.basename(filepath))[0])
 
 
 def build_js_content(data):
