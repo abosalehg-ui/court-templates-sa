@@ -115,8 +115,8 @@ test('buildOpening: الافتراضي عبر الاتصال المرئي مخت
 test('buildOpening: خيار «مع المستند» يدرج نص قرار المجلس الأعلى للقضاء', () => {
     const text = M.buildOpening({ judge: 'فلان', court: 'الرياض', hour: 8, minute: 30, period: 'ص', mode: M.SESSION_MODES.VIDEO_FULL });
     assert.match(text, /^فلديّ أنا فلان القاضي بمحكمة الرياض افتتحتُ الجلسة عبر الاتصال المرئي/);
-    assert.match(text, /قرار رئيس المجلس الأعلى للقضاء رقم \(17388\)/);
-    assert.match(text, /إلا في الحالات التي تقتضي حضورهم/);
+    assert.match(text, /قرار فضيلة رئيس المجلس الأعلى للقضاء رقم 17388/);
+    assert.match(text, /المتضمن إطلاق خدمة التقاضي عن بعد/);
     assert.match(text, /عند الساعة الثامنة والنصف صباحًا،$/);
 });
 
@@ -178,13 +178,54 @@ test('buildPartyClause: ممثل نظامي بصفته', () => {
 test('buildExtraClause: طرف إضافي حاضر وممثل وغائب', () => {
     const p = M.freshExtraParty();
     p.name = 'ناصر';
-    assert.equal(M.buildExtraClause('plaintiff', 0, p), 'حضر المدعي الثاني ناصر أصالة');
+    p.saudiId = '1010101010';
+    assert.equal(M.buildExtraClause('plaintiff', 0, p), 'حضر المدعي الثاني ناصر أصالة، بموجب الهوية الوطنية رقم (1010101010)');
     p.attendance = 'تمثيل';
     p.repName = 'بدر';
     p.repNum = '123';
     assert.equal(M.buildExtraClause('plaintiff', 0, p), 'حضر عن المدعي الثاني ناصر وكيله بدر بموجب الوكالة الشرعية رقم (123)');
     p.attendance = 'لم يحضر';
     assert.equal(M.buildExtraClause('plaintiff', 0, p), 'لم يحضر المدعي الثاني ناصر');
+});
+
+test('buildExtraClause: بطاقة هوية الطرف الإضافي كالطرف الأول — سعودي ومقيم', () => {
+    const p = M.freshExtraParty();
+    p.name = 'ناصر';
+    // لم تُعبّأ الهوية بعد: نقاط لا فراغ، كالطرف الأول
+    assert.equal(M.buildExtraClause('plaintiff', 0, p), `حضر المدعي الثاني ناصر أصالة، بموجب الهوية الوطنية رقم (${M.MINUTES_PLACEHOLDER})`);
+
+    p.nationalityType = 'غير ذلك';
+    p.foreignNationality = 'مصري';
+    p.iqamaNum = '2020202020';
+    assert.equal(
+        M.buildExtraClause('plaintiff', 0, p),
+        'حضر المدعي الثاني ناصر أصالة، مصري الجنسية، بموجب الإقامة النظامية رقم (2020202020)'
+    );
+
+    const f = M.freshExtraParty();
+    f.name = 'نورة';
+    f.gender = 'ف';
+    f.saudiId = '1122334455';
+    assert.equal(M.buildExtraClause('defendant', 0, f), 'حضرت المدعى عليها الثانية نورة أصالة، بموجب الهوية الوطنية رقم (1122334455)');
+});
+
+test('collectWarnings: نقص هوية الطرف الإضافي الحاضر أصالة', () => {
+    const state = readyState();
+    const p = M.freshExtraParty();
+    p.name = 'ناصر';
+    state.extraPlaintiffs.push(p);
+    assert.ok(M.collectWarnings(state).some(x => /رقم هوية المدعي الثاني غير مكتمل/.test(x)));
+
+    p.saudiId = '1010101010';
+    assert.ok(!M.collectWarnings(state).some(x => /رقم هوية المدعي الثاني/.test(x)));
+
+    p.nationalityType = 'غير ذلك';
+    const w = M.collectWarnings(state);
+    assert.ok(w.some(x => /لم تُحدَّد جنسية المدعي الثاني/.test(x)));
+    assert.ok(w.some(x => /رقم إقامة المدعي الثاني غير مكتمل/.test(x)));
+
+    p.attendance = 'لم يحضر';
+    assert.ok(!M.collectWarnings(state).some(x => /جنسية المدعي الثاني|إقامة المدعي الثاني/.test(x)));
 });
 
 test('buildShatbText: الغياب الأول — شطب للمرة الأولى والمادة (55)', () => {
@@ -638,4 +679,49 @@ test('collectWarnings: وكيل غير محامٍ خارج الدرجات الأ
     state.plaintiff.kinship = 'أخرى';
     const w = M.collectWarnings(state);
     assert.ok(w.some(x => x.includes('خارج الدرجات الأربع')));
+});
+
+// ==================== بحث نماذج التسبيب ====================
+
+test('normalizeArabicSearch: يسقط التشكيل ويوحّد الهمزات والتاء المربوطة', () => {
+    assert.equal(M.normalizeArabicSearch('فبيانُ الدعوى أنّ المدعية'), 'فبيان الدعوي ان المدعيه');
+    assert.equal(M.normalizeArabicSearch('  بيّنة   «واتساب»  '), 'بينه واتساب');
+    assert.equal(M.normalizeArabicSearch('رقم ١٤٤٧'), 'رقم 1447');
+    assert.equal(M.normalizeArabicSearch(null), '');
+});
+
+test('searchTemplates: مطابقة مطبَّعة بكلمات متعددة مع تقديم الكلمة المفتاحية', () => {
+    const list = [
+        { keyword: 'أجرة المثل', content: 'فبيانُ الدعوى أنّ المدعي يطالب بأجرة المثل' },
+        { keyword: 'شيكات', content: 'الحكم بقيمة الشيكات وأجرةِ المثل معًا' },
+        { keyword: 'دية', content: 'الحكم بالدية' }
+    ];
+    // بلا استعلام: التصنيف كاملاً
+    assert.equal(M.searchTemplates(list, '').length, 3);
+    // مكتوب بلا همزات ولا تشكيل، ومع ذلك يُطابق
+    const hits = M.searchTemplates(list, 'اجره المثل');
+    assert.deepEqual(hits.map(t => t.keyword), ['أجرة المثل', 'شيكات']);
+    // كلمتان متباعدتان في النص تُطابقان معًا
+    assert.deepEqual(M.searchTemplates(list, 'المثل شيكات').map(t => t.keyword), ['شيكات']);
+    assert.deepEqual(M.searchTemplates(list, 'لا يوجد'), []);
+});
+
+test('curatedReasonsCount: يُحسب من المكتبة لا برقم ثابت', () => {
+    const opener = M.CURATED_REASON_OPENER + ' أنّ المدعي';
+    assert.equal(M.curatedReasonsCount([{ content: opener }, { content: opener }, { content: 'فبناء على' }]), 2);
+    // لا نماذج منسّقة في المقدمة: يُرجع الاحتياطي محدودًا بطول القائمة
+    assert.equal(M.curatedReasonsCount([{ content: 'فبناء على' }, { content: 'و لما' }]), 2);
+});
+
+test('نماذج التسبيب في المكتبة: التصنيف موجود ومقدمته منسّقة', () => {
+    const all = M.templatesOfCategory('أسباب الحكم');
+    assert.ok(all.length > 100);
+    const curated = M.curatedReasonsCount(all);
+    assert.ok(curated > 0 && curated <= all.length);
+    // كل النماذج المنسّقة تبدأ بمطلعها الموحّد
+    all.slice(0, curated).forEach(t => {
+        assert.ok(M.normalizeArabicSearch(t.content).startsWith(M.normalizeArabicSearch(M.CURATED_REASON_OPENER)));
+    });
+    // البحث يجد نماذج محدَّثة رغم اختلاف التشكيل والهمزات في الكتابة
+    assert.ok(M.searchTemplates(all, 'اجرة المثل').length > 0);
 });

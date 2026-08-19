@@ -77,6 +77,75 @@ function templatesOfCategory(category) {
     return (src && Array.isArray(src[category])) ? src[category] : [];
 }
 
+// ==================== بحث النماذج (بطاقة البحث في نماذج التسبيب) ====================
+// نصوص القوالب تُحدَّث من ملفات Word وتُطبَّع بـ tools/normalize_arabic.py، فتحمل تشكيلًا
+// وهمزات وعلامات اقتباس تُفشِل المطابقة الحرفية. لذلك يُطبَّع الطرفان قبل المقارنة.
+const TASHKEEL_RE = /[\u064B-\u065F\u0670\u0640]/g;
+
+function normalizeArabicSearch(text) {
+    return convertArabicDigits(String(text == null ? '' : text))
+        .replace(TASHKEEL_RE, '')
+        .replace(/[\u0623\u0625\u0622\u0671]/g, 'ا')
+        .replace(/[\u0649]/g, 'ي')
+        .replace(/[\u0624]/g, 'و')
+        .replace(/[\u0626]/g, 'ي')
+        .replace(/[\u0629]/g, 'ه')
+        .replace(/[^\u0621-\u064a0-9a-zA-Z]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toLowerCase();
+}
+
+// مطلع نماذج التسبيب المنسّقة في مقدمة تصنيف (أسباب الحكم) — علامة تعرُّف على المجموعة
+// (يُقارَن مطبَّعًا، فلا يضره تشكيل النص ولا اختلاف الألف المقصورة)
+const CURATED_REASON_OPENER = 'فبيان الدعوى';
+// احتياطي إن تغيّر مطلع النماذج المنسّقة مستقبلًا
+const CURATED_REASONS_FALLBACK = 31;
+
+// عدد النماذج المنسّقة = الطول المتصل في مقدمة التصنيف الذي يبدأ بمطلعها الموحّد
+function curatedReasonsCount(list) {
+    const arr = Array.isArray(list) ? list : templatesOfCategory('أسباب الحكم');
+    const opener = normalizeArabicSearch(CURATED_REASON_OPENER);
+    let count = 0;
+    for (let i = 0; i < arr.length; i++) {
+        // يكفي مطلع النص، فلا حاجة لتطبيع النموذج كاملاً
+        const head = String((arr[i] && arr[i].content) || '').slice(0, opener.length * 3);
+        if (!normalizeArabicSearch(head).startsWith(opener)) break;
+        count++;
+    }
+    return count || Math.min(CURATED_REASONS_FALLBACK, arr.length);
+}
+
+// ذاكرة تطبيع النماذج — يُستدعى البحث مع كل حرف يُكتب، والتصنيف يتجاوز 140 نموذجاً
+const normalizedTemplateCache = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
+
+function normalizedTemplate(tpl) {
+    if (!tpl || typeof tpl !== 'object') {
+        return { keyword: '', all: normalizeArabicSearch(tpl) };
+    }
+    const cached = normalizedTemplateCache && normalizedTemplateCache.get(tpl);
+    if (cached) return cached;
+    const keyword = normalizeArabicSearch(tpl.keyword);
+    const entry = { keyword, all: keyword + ' ' + normalizeArabicSearch(tpl.content) };
+    if (normalizedTemplateCache) normalizedTemplateCache.set(tpl, entry);
+    return entry;
+}
+
+// بحث بكلمات متعددة (وليس مطابقة حرفية): تُطابَق كل كلمة على حدة في الكلمة المفتاحية والنص،
+// وتُقدَّم النماذج التي طابقت كلمتُها المفتاحية على ما طابق متنُها فقط.
+function searchTemplates(list, query) {
+    const arr = Array.isArray(list) ? list : [];
+    const terms = normalizeArabicSearch(query).split(' ').filter(Boolean);
+    if (terms.length === 0) return arr.slice();
+    const hits = [];
+    arr.forEach(t => {
+        const norm = normalizedTemplate(t);
+        if (!terms.every(term => norm.all.includes(term))) return;
+        hits.push({ tpl: t, rank: terms.every(term => norm.keyword.includes(term)) ? 0 : 1 });
+    });
+    return hits.sort((a, b) => a.rank - b.rank).map(h => h.tpl);
+}
+
 // ==================== تحويل الوقت إلى كتابة عربية ====================
 
 const hourWords = { 1: 'الواحدة', 2: 'الثانية', 3: 'الثالثة', 4: 'الرابعة', 5: 'الخامسة', 6: 'السادسة', 7: 'السابعة', 8: 'الثامنة', 9: 'التاسعة', 10: 'العاشرة', 11: 'الحادية عشرة', 12: 'الثانية عشرة' };
@@ -209,7 +278,11 @@ function freshPartyState() {
 }
 
 function freshExtraParty() {
-    return { name: '', gender: 'م', attendance: 'أصالة', repName: '', repNum: '' };
+    return {
+        name: '', gender: 'م', attendance: 'أصالة', repName: '', repNum: '',
+        // بطاقة الهوية — كالطرف الأول تمامًا (تظهر عند الحضور أصالة)
+        nationalityType: 'سعودي', saudiId: '', foreignNationality: '', iqamaNum: ''
+    };
 }
 
 function freshWitness() {
@@ -412,7 +485,7 @@ function buildExtraClause(role, idx, p) {
 
     if (p.attendance === 'أصالة') {
         const verb = p.gender === 'م' ? 'حضر' : 'حضرت';
-        return `${verb} ${name} أصالة`;
+        return `${verb} ${name} أصالة${buildIdentityClause(p)}`;
     }
     if (p.attendance === 'تمثيل') {
         const repName = p.repName.trim();
@@ -1065,6 +1138,14 @@ function collectWarnings(state) {
         list.forEach((ep, i) => {
             const ordinal = ordinalWord(i + 2, ep.gender);
             if (!ep.name.trim()) w.push(`لم يُدخل اسم ${partyLabelAr[p]} ${ordinal}.`);
+            if (ep.attendance === 'أصالة') {
+                if (ep.nationalityType === 'غير ذلك') {
+                    if (!String(ep.foreignNationality || '').trim()) w.push(`لم تُحدَّد جنسية ${partyLabelAr[p]} ${ordinal}.`);
+                    if (!ep.iqamaNum || ep.iqamaNum.length !== 10) w.push(`رقم إقامة ${partyLabelAr[p]} ${ordinal} غير مكتمل (10 أرقام).`);
+                } else if (!ep.saudiId || ep.saudiId.length !== 10) {
+                    w.push(`رقم هوية ${partyLabelAr[p]} ${ordinal} غير مكتمل (10 أرقام).`);
+                }
+            }
             if (ep.attendance === 'تمثيل') {
                 if (!ep.repName.trim()) w.push(`لم يُدخل اسم وكيل ${partyLabelAr[p]} ${ordinal}.`);
                 if (!ep.repNum.trim()) w.push(`لم يُدخل رقم الوكالة لوكيل ${partyLabelAr[p]} ${ordinal}.`);
@@ -1168,6 +1249,7 @@ if (typeof module !== 'undefined' && module.exports) {
         ordinalWord, partyLabel, multiPartyLabel, agentPossessive,
         kinshipDegree, asharDegree, degreeOrdinal, asharTemplate,
         findTemplate, templatesOfCategory,
+        normalizeArabicSearch, searchTemplates, curatedReasonsCount, CURATED_REASON_OPENER,
         freshPartyState, freshExtraParty, freshWitness, freshEvidenceBlock,
         freshClaimState, freshRulingState, freshFollowUpState, freshMinutesState,
         buildOpening, buildAgencyVerificationClause, buildKinshipPhrase, buildAccompanyingAgentClause,

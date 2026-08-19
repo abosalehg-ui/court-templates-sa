@@ -205,15 +205,16 @@ function updateKinshipHint(party) {
 }
 
 // ==================== بحث الجنسيات ====================
-function setupNationalitySearch(party) {
-    const input = $(`${party}-foreignNationality`);
-    const list = $(`${party}-foreignNationality-list`);
+// يُستعمل للطرف الأول ولكل طرف إضافي، فبطاقة الهوية واحدة للجميع
+function attachNationalitySearch(input, list, onValue) {
+    if (!input || !list) return;
     let highlightedIdx = -1;
     let filtered = [];
 
     function renderList() {
-        const q = input.value.trim();
-        filtered = q ? NATIONALITY_OPTIONS.filter(n => n.includes(q)) : NATIONALITY_OPTIONS;
+        // تطبيع الهمزات والتشكيل حتى يجد «عماني» جنسية «عُماني»
+        const q = normalizeArabicSearch(input.value);
+        filtered = q ? NATIONALITY_OPTIONS.filter(n => normalizeArabicSearch(n).includes(q)) : NATIONALITY_OPTIONS;
         list.innerHTML = filtered.length === 0
             ? '<div class="nat-dropdown-empty">لا توجد نتائج مطابقة</div>'
             : filtered.map((n, i) => `<div class="nat-dropdown-item" data-idx="${i}">${n}</div>`).join('');
@@ -223,19 +224,18 @@ function setupNationalitySearch(party) {
 
     function choose(value) {
         input.value = value;
-        state[party].foreignNationality = value;
         list.style.display = 'none';
-        render();
+        onValue(value);
     }
 
     input.addEventListener('focus', renderList);
     input.addEventListener('input', () => {
-        state[party].foreignNationality = input.value;
         renderList();
-        render();
+        onValue(input.value);
     });
     input.addEventListener('blur', () => {
-        setTimeout(() => { list.style.display = 'none'; }, 150);
+        // مهلة تسمح بالنقر على عنصر القائمة، ولا تُخفيها إن عاد التركيز للحقل سريعًا
+        setTimeout(() => { if (document.activeElement !== input) list.style.display = 'none'; }, 150);
     });
     input.addEventListener('keydown', e => {
         const items = list.querySelectorAll('.nat-dropdown-item');
@@ -262,6 +262,13 @@ function setupNationalitySearch(party) {
     list.addEventListener('mousedown', e => {
         const item = e.target.closest('.nat-dropdown-item');
         if (item && item.dataset.idx !== undefined) choose(filtered[Number(item.dataset.idx)]);
+    });
+}
+
+function setupNationalitySearch(party) {
+    attachNationalitySearch($(`${party}-foreignNationality`), $(`${party}-foreignNationality-list`), value => {
+        state[party].foreignNationality = value;
+        render();
     });
 }
 
@@ -710,6 +717,34 @@ $('defendant-oathTablighNum').addEventListener('input', e => { state.defendant.o
 $('defendant-oathAnswerText').addEventListener('input', e => { state.defendant.oathAnswerText = e.target.value; render(); });
 
 // ==================== الأطراف الإضافية (تعدد المدعين/المدعى عليهم) ====================
+// بطاقة الهوية للطرف الإضافي — نفس بطاقة الطرف الأول (تظهر عند الحضور أصالة)
+function extraIdentityHTML(role, idx, p) {
+    const isSaudi = p.nationalityType !== 'غير ذلك';
+    const attrs = `data-role="${role}" data-idx="${idx}"`;
+    return `
+        <div class="sub-fields">
+            <label>الجنسية</label>
+            <div class="choice-group">
+                <div class="choice-btn extra-choice ${isSaudi ? 'active' : ''}" ${attrs} data-field="nationalityType" data-value="سعودي">سعودي</div>
+                <div class="choice-btn extra-choice ${isSaudi ? '' : 'active'}" ${attrs} data-field="nationalityType" data-value="غير ذلك">غير ذلك</div>
+            </div>
+            ${isSaudi ? `
+            <div class="field">
+                <label>رقم الهوية الوطنية <span class="req">*</span></label>
+                <input type="text" class="form-control" ${attrs} data-field="saudiId" value="${escapeHtml(p.saudiId || '')}" placeholder="أدخل 10 أرقام فقط" maxlength="10" inputmode="numeric" data-numeric-only="true" required>
+            </div>` : `
+            <div class="field" style="position:relative;">
+                <label>الجنسية <span class="req">*</span></label>
+                <input type="text" class="form-control extra-nat-input" ${attrs} data-field="foreignNationality" value="${escapeHtml(p.foreignNationality || '')}" placeholder="اكتب للبحث عن الجنسية" autocomplete="off" required>
+                <div class="nat-dropdown extra-nat-list" style="display:none;"></div>
+            </div>
+            <div class="field">
+                <label>رقم الإقامة <span class="req">*</span></label>
+                <input type="text" class="form-control" ${attrs} data-field="iqamaNum" value="${escapeHtml(p.iqamaNum || '')}" placeholder="أدخل 10 أرقام فقط" maxlength="10" inputmode="numeric" data-numeric-only="true" required>
+            </div>`}
+        </div>`;
+}
+
 function extraCardHTML(role, idx, p) {
     const ordinal = ordinalWord(idx + 2, p.gender);
     const roleLabel = role === 'plaintiff' ? 'مدعي' : 'مدعى عليه';
@@ -734,6 +769,7 @@ function extraCardHTML(role, idx, p) {
             <div class="choice-btn extra-choice ${p.attendance === 'تمثيل' ? 'active' : ''}" data-role="${role}" data-idx="${idx}" data-field="attendance" data-value="تمثيل">حضر وكيل</div>
             <div class="choice-btn extra-choice ${p.attendance === 'لم يحضر' ? 'active' : ''}" data-role="${role}" data-idx="${idx}" data-field="attendance" data-value="لم يحضر">${p.gender === 'م' ? 'لم يحضر' : 'لم تحضر'}</div>
         </div>
+        ${p.attendance === 'أصالة' ? extraIdentityHTML(role, idx, p) : ''}
         ${p.attendance === 'تمثيل' ? `
         <div class="sub-fields">
             <div class="field">
@@ -755,6 +791,15 @@ function extraListOf(role) {
 function renderExtraCards(role) {
     const container = $(role === 'plaintiff' ? 'plaintiffExtraContainer' : 'defendantExtraContainer');
     container.innerHTML = extraListOf(role).map((p, i) => extraCardHTML(role, i, p)).join('');
+    // إعادة ربط بحث الجنسيات بعد كل إعادة بناء للبطاقات
+    container.querySelectorAll('.extra-nat-input').forEach(input => {
+        const idx = Number(input.dataset.idx);
+        attachNationalitySearch(input, input.parentElement.querySelector('.extra-nat-list'), value => {
+            const party = extraListOf(role)[idx];
+            if (party) party.foreignNationality = value;
+            render();
+        });
+    });
 }
 
 ['plaintiffExtraContainer', 'defendantExtraContainer'].forEach(cid => {
@@ -972,8 +1017,28 @@ $('declineOathCheckbox').addEventListener('change', e => {
 // ==================== مرحلة الأسباب والحكم ====================
 // النماذج تُستهلك من مكتبة النماذج في data/templates.js فلا تُكرَّر هنا
 
-// عدد نماذج التسبيب المنسّقة في مقدمة التصنيف
-const CURATED_REASONS_COUNT = 31;
+// حدّ ما يُعرض من النتائج في القائمة المنسدلة
+const TEMPLATE_RESULTS_LIMIT = 80;
+// طول المقتطف المعروض تحت الكلمة المفتاحية للتفريق بين النماذج المتشابهة العنوان
+const TEMPLATE_PREVIEW_LEN = 100;
+
+function clipPreview(text) {
+    return text.length > TEMPLATE_PREVIEW_LEN ? text.slice(0, TEMPLATE_PREVIEW_LEN).trim() + '…' : text;
+}
+
+// مقتطف من متن النموذج: الجملة التي وقع فيها البحث إن وُجدت، وإلا مطلع النموذج.
+// نماذج التسبيب تتشابه مطالعها، فعرض موضع المطابقة هو ما يميّزها فعلًا.
+function templatePreview(content, query) {
+    const flat = String(content || '').replace(/\s+/g, ' ').trim();
+    const terms = normalizeArabicSearch(query).split(' ').filter(Boolean);
+    if (terms.length === 0) return clipPreview(flat);
+    const parts = flat.split(/[.،؛:]\s+/);
+    for (let i = 0; i < parts.length; i++) {
+        const seg = normalizeArabicSearch(parts[i]);
+        if (terms.some(t => seg.includes(t))) return (i > 0 ? '…' : '') + clipPreview(parts[i].trim());
+    }
+    return clipPreview(flat);
+}
 
 function setupTemplatePicker(cfg) {
     const input = $(cfg.searchId);
@@ -984,20 +1049,25 @@ function setupTemplatePicker(cfg) {
 
     function pool() {
         const all = templatesOfCategory(cfg.category);
-        return cfg.curatedOnly && cfg.curatedOnly() ? all.slice(0, CURATED_REASONS_COUNT) : all;
+        return cfg.curatedOnly && cfg.curatedOnly() ? all.slice(0, curatedReasonsCount(all)) : all;
     }
 
     function renderList() {
-        const q = input.value.trim();
         const source = pool();
-        filtered = q
-            ? source.filter(t => (t.keyword + ' ' + t.content).includes(q))
-            : source;
+        // بحث مطبَّع بكلمات متعددة، فلا يفوته تشكيل النماذج المحدَّثة ولا اختلاف الهمزات
+        filtered = searchTemplates(source, input.value);
+        const shown = filtered.slice(0, TEMPLATE_RESULTS_LIMIT);
+        const moreCount = filtered.length - shown.length;
         list.innerHTML = filtered.length === 0
             ? '<div class="nat-dropdown-empty">لا توجد نماذج مطابقة</div>'
-            : filtered.slice(0, 60).map((t, i) =>
-                `<div class="nat-dropdown-item" data-idx="${i}">${escapeHtml(String(t.keyword).replace(/\s+/g, ' '))}</div>`
-            ).join('');
+            : shown.map((t, i) =>
+                `<div class="nat-dropdown-item" data-idx="${i}">
+                    <div class="tpl-item-title">${escapeHtml(String(t.keyword).replace(/\s+/g, ' '))}</div>
+                    <div class="tpl-item-preview">${escapeHtml(templatePreview(t.content, input.value))}</div>
+                </div>`
+            ).join('') + (moreCount > 0
+                ? `<div class="nat-dropdown-empty">وثمة نماذج أخرى مطابقة (${moreCount}) — تابع الكتابة لتضييق البحث</div>`
+                : '');
         highlightedIdx = -1;
         list.style.display = 'block';
     }
@@ -1013,7 +1083,9 @@ function setupTemplatePicker(cfg) {
 
     input.addEventListener('focus', renderList);
     input.addEventListener('input', renderList);
-    input.addEventListener('blur', () => { setTimeout(() => { list.style.display = 'none'; }, 150); });
+    input.addEventListener('blur', () => {
+        setTimeout(() => { if (document.activeElement !== input) list.style.display = 'none'; }, 150);
+    });
     input.addEventListener('keydown', e => {
         const items = list.querySelectorAll('.nat-dropdown-item');
         if (e.key === 'ArrowDown') { e.preventDefault(); highlightedIdx = Math.min(highlightedIdx + 1, items.length - 1); }
@@ -1035,10 +1107,21 @@ setupTemplatePicker({
     searchId: 'reasonsTemplateSearch', listId: 'reasonsTemplateList', targetId: 'reasonsText',
     category: 'أسباب الحكم', curatedOnly: () => $('curatedReasonsOnly').checked
 });
+
 setupTemplatePicker({
     searchId: 'verdictTemplateSearch', listId: 'verdictTemplateList', targetId: 'rulingText',
     category: 'اختصارات صندوق الحكم'
 });
+
+// عدّادا النماذج يُقرآن من مكتبة النماذج، فيتحدثان تلقائيًا مع كل تحديث لقوالب التسبيب
+function updateReasonsTemplateCounts() {
+    const all = templatesOfCategory('أسباب الحكم');
+    const curated = curatedReasonsCount(all);
+    $('curatedReasonsCountLabel').textContent = `الاقتصار على نماذج التسبيب المنسّقة (${curated} نموذجًا)`;
+    $('reasonsTemplateHint').textContent =
+        `تصنيف (أسباب الحكم) يضم ${all.length} نموذجًا. اختيار نموذج يُدرج نصه في الحقل أدناه، ويبقى قابلًا للتعديل الكامل.`;
+}
+updateReasonsTemplateCounts();
 
 $('reasonsText').addEventListener('input', e => { state.ruling.reasonsText = e.target.value; render(); });
 $('rulingText').addEventListener('input', e => { state.ruling.rulingText = e.target.value; render(); });
@@ -1289,8 +1372,10 @@ function saveDraftToStorage() {
 }
 
 function applySnapshot(snap) {
-    state.extraPlaintiffs = snap.extraPlaintiffs || [];
-    state.extraDefendants = snap.extraDefendants || [];
+    // دمج مع القيم الافتراضية حتى تعمل المسودّات المحفوظة قبل إضافة بطاقة الهوية
+    const withDefaults = list => (list || []).map(p => Object.assign(freshExtraParty(), p));
+    state.extraPlaintiffs = withDefaults(snap.extraPlaintiffs);
+    state.extraDefendants = withDefaults(snap.extraDefendants);
     uiState.manualText = snap.manualText || null;
     if (uiState.manualText) $('resetManualEditLink').style.display = 'inline';
     renderExtraCards('plaintiff');
