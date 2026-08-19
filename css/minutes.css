@@ -302,6 +302,19 @@ input.invalid {
     font-size: 0.85rem;
 }
 
+/* ---------- عناصر قائمة نماذج التسبيب: عنوان النموذج ومقتطف من متنه ---------- */
+.tpl-item-title {
+    font-weight: 600;
+    line-height: 1.5;
+}
+
+.tpl-item-preview {
+    margin-top: 0.15rem;
+    color: var(--text-light);
+    font-size: 0.8rem;
+    line-height: 1.6;
+}
+
 /* ---------- قائمة البينات ---------- */
 .evidence-checklist {
     display: grid;
