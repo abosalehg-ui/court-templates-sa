@@ -88,11 +88,12 @@ function saveSettings() {
 $('judgeName').addEventListener('input', e => { state.opening.judge = e.target.value; saveSettings(); render(); });
 $('courtName').addEventListener('input', e => { state.opening.court = e.target.value; saveSettings(); render(); });
 
-// ==================== إدراج بيانات الهوية في نص الضبط ====================
-// مُغلق افتراضًا لأن جدول نظام تقاضي أعلى صفحة الضبط والصك يحمل اسم الطرف ورقم هويته.
-// وبيانات الوكيل (الوكالة والتحقق منها والرخصة والقرابة) لا يشملها المفتاح فتبقى دائمًا.
-$('includeIdentityInText').addEventListener('change', e => {
-    state.includeIdentityInText = e.target.checked;
+// ==================== إدراج بيانات الطرفين في نص الضبط ====================
+// مُغلق افتراضًا لأن جدول نظام تقاضي أعلى صفحة الضبط والصك يحمل اسم الطرف ورقم هويته،
+// فيُخفى حقلا الاسم والهوية ويُوصف الطرف بلقبه وحده. ويبقى تحديد النوع (فرد/شركة،
+// مذكر/مؤنث) لأن عليه تدور المطابقة النحوية. وبيانات الوكيل لا يشملها المفتاح.
+$('includePartyDataInText').addEventListener('change', e => {
+    state.includePartyDataInText = e.target.checked;
     updateVisibility('plaintiff');
     updateVisibility('defendant');
     renderExtraCards('plaintiff');
@@ -368,7 +369,8 @@ function updateSpecialCaseVisibility() {
 }
 
 function updatePrimaryNameFieldVisibility(party) {
-    $(`${party}-name-field`).style.display = state[party].attendance !== 'لم يحضر' ? 'block' : 'none';
+    const show = state.includePartyDataInText && state[party].attendance !== 'لم يحضر';
+    $(`${party}-name-field`).style.display = show ? 'block' : 'none';
 }
 
 function updateOathAbsenceFieldVisibility() {
@@ -451,7 +453,7 @@ function updateClaimValueHint() {
 function updateVisibility(party) {
     const s = state[party];
     $(`${party}-accompany-toggle`).style.display = s.attendance === 'أصالة' ? 'block' : 'none';
-    const showIdentity = state.includeIdentityInText && (s.attendance === 'أصالة' || s.entityType === 'شركة');
+    const showIdentity = state.includePartyDataInText && (s.attendance === 'أصالة' || s.entityType === 'شركة');
     $(`${party}-selfIdentity-section`).style.display = showIdentity ? 'block' : 'none';
     updatePrimaryNameFieldVisibility(party);
     const showRepFields = s.attendance === 'تمثيل' || (s.attendance === 'أصالة' && s.hasAccompanyingAgent);
@@ -767,10 +769,11 @@ function extraCardHTML(role, idx, p) {
             <div class="party-title" style="margin-bottom:0;">${roleLabel} ${ordinal}</div>
             <button type="button" class="remove-line-btn remove-extra-btn" data-role="${role}" data-idx="${idx}">✕ إزالة</button>
         </div>
+        ${state.includePartyDataInText ? `
         <div class="field">
             <label>الاسم <span class="req">*</span></label>
             <input type="text" class="form-control" data-role="${role}" data-idx="${idx}" data-field="name" value="${escapeHtml(p.name)}" placeholder="اسم الطرف" required>
-        </div>
+        </div>` : ''}
         <label>الجنس</label>
         <div class="choice-group">
             <div class="choice-btn extra-choice ${p.gender === 'م' ? 'active' : ''}" data-role="${role}" data-idx="${idx}" data-field="gender" data-value="م">مذكر</div>
@@ -782,7 +785,7 @@ function extraCardHTML(role, idx, p) {
             <div class="choice-btn extra-choice ${p.attendance === 'تمثيل' ? 'active' : ''}" data-role="${role}" data-idx="${idx}" data-field="attendance" data-value="تمثيل">حضر وكيل</div>
             <div class="choice-btn extra-choice ${p.attendance === 'لم يحضر' ? 'active' : ''}" data-role="${role}" data-idx="${idx}" data-field="attendance" data-value="لم يحضر">${p.gender === 'م' ? 'لم يحضر' : 'لم تحضر'}</div>
         </div>
-        ${p.attendance === 'أصالة' && state.includeIdentityInText ? extraIdentityHTML(role, idx, p) : ''}
+        ${p.attendance === 'أصالة' && state.includePartyDataInText ? extraIdentityHTML(role, idx, p) : ''}
         ${p.attendance === 'تمثيل' ? `
         <div class="sub-fields">
             <div class="field">

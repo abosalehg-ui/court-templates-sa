@@ -347,11 +347,12 @@ function freshMinutesState() {
     return {
         sessionType: null,           // 'new' جلسة تحضيرية | 'previous' منظورة سابقًا
         sameJudge: 'نعم',
-        // إدراج بيانات هوية الطرفين (الهوية/الإقامة/السجل التجاري) في نص الضبط.
+        // إدراج بيانات الطرفين — الاسم والهوية (أو الإقامة أو السجل التجاري) — في نص الضبط.
         // مُغلق افتراضًا: جدول نظام تقاضي أعلى صفحة الضبط والصك يحمل اسم الطرف ورقم هويته،
-        // فإثباتها في المتن تكرار. ولا يشمل هذا المفتاح بيانات الوكيل (رقم الوكالة والتحقق
-        // منها بالمادة (51/3) ورخصة المحاماة ودرجة القرابة) فتلك لا يكتبها الجدول وإثباتها لازم.
-        includeIdentityInText: false,
+        // فإثباتها في المتن تكرار، ويكفي وصفه بـ«المدعي/المدعية/المدعى عليه» مع ترقيمه عند التعدد.
+        // ولا يشمل هذا المفتاح بيانات الوكيل (رقم الوكالة والتحقق منها بالمادة (51/3) ورخصة
+        // المحاماة ودرجة القرابة) فتلك لا يكتبها الجدول وإثباتها في الضبط مطلوب نظامًا.
+        includePartyDataInText: false,
         opening: { judge: '', court: '', hour: 8, minute: 0, period: 'ص', mode: SESSION_MODES.VIDEO },
         plaintiff: freshPartyState(),
         defendant: freshPartyState(),
@@ -427,9 +428,9 @@ function buildAccompanyingAgentClause(s, name, suffix) {
 }
 
 // إثبات هوية الطرف الحاضر (هوية وطنية / إقامة / سجل تجاري)
-// includeIdentity=false يُسقط العبارة من المخرج (بيانات الطرف مثبتة في جدول تقاضي)
-function buildIdentityClause(s, includeIdentity = true) {
-    if (!includeIdentity) return '';
+// includePartyData=false يُسقط العبارة من المخرج (بيانات الطرف مثبتة في جدول تقاضي)
+function buildIdentityClause(s, includePartyData = true) {
+    if (!includePartyData) return '';
     if (s.entityType === 'شركة') {
         return `، بموجب السجل التجاري رقم (${orDots(s.crNum)})`;
     }
@@ -442,17 +443,19 @@ function buildIdentityClause(s, includeIdentity = true) {
 // فقرة حضور/غياب الطرف الأساسي (المدعي أو المدعى عليه)
 function buildPartyClause(state, role) {
     const s = state[role];
-    const includeIdentity = state.includeIdentityInText === true;
+    const includePartyData = state.includePartyDataInText === true;
     const extraList = role === 'plaintiff' ? state.extraPlaintiffs : state.extraDefendants;
     const hasMultiple = extraList.length > 0;
+    // عند إغلاق المفتاح يُوصف الطرف بلقبه وحده: «المدعي» أو «المدعي الأول» عند التعدد
+    const givenName = includePartyData ? s.name : '';
     const name = hasMultiple
-        ? multiPartyLabel(role, s.gender, 1, s.name)
-        : (s.name.trim() ? `${partyLabel(role, s.gender)} ${s.name.trim()}` : partyLabel(role, s.gender));
+        ? multiPartyLabel(role, s.gender, 1, givenName)
+        : (givenName.trim() ? `${partyLabel(role, s.gender)} ${givenName.trim()}` : partyLabel(role, s.gender));
     const suffix = s.gender === 'م' ? 'ه' : 'ها';
 
     if (s.attendance === 'أصالة') {
         const verb = s.gender === 'م' ? 'حضر' : 'حضرت';
-        let clause = `${verb} ${name} أصالة${buildIdentityClause(s, includeIdentity)}`;
+        let clause = `${verb} ${name} أصالة${buildIdentityClause(s, includePartyData)}`;
         if (s.hasAccompanyingAgent) {
             clause += buildAccompanyingAgentClause(s, name, suffix);
         }
@@ -487,13 +490,13 @@ function buildPartyClause(state, role) {
 }
 
 // فقرة طرف إضافي (عند تعدد المدعين أو المدعى عليهم)
-function buildExtraClause(role, idx, p, includeIdentity = true) {
-    const name = multiPartyLabel(role, p.gender, idx + 2, p.name);
+function buildExtraClause(role, idx, p, includePartyData = true) {
+    const name = multiPartyLabel(role, p.gender, idx + 2, includePartyData ? p.name : '');
     const suffix = p.gender === 'م' ? 'ه' : 'ها';
 
     if (p.attendance === 'أصالة') {
         const verb = p.gender === 'م' ? 'حضر' : 'حضرت';
-        return `${verb} ${name} أصالة${buildIdentityClause(p, includeIdentity)}`;
+        return `${verb} ${name} أصالة${buildIdentityClause(p, includePartyData)}`;
     }
     if (p.attendance === 'تمثيل') {
         const repName = p.repName.trim();
@@ -1038,8 +1041,8 @@ function composeMinutes(state) {
         }
     } else {
         const opening = buildOpening(state.opening);
-        const includeIdentity = state.includeIdentityInText === true;
-        const pClauses = [buildPartyClause(state, 'plaintiff'), ...state.extraPlaintiffs.map((p, i) => buildExtraClause('plaintiff', i, p, includeIdentity))];
+        const includePartyData = state.includePartyDataInText === true;
+        const pClauses = [buildPartyClause(state, 'plaintiff'), ...state.extraPlaintiffs.map((p, i) => buildExtraClause('plaintiff', i, p, includePartyData))];
         const oathAbsenceActive = state.sessionType === 'previous' && state.defendant.attendance === 'لم يحضر' && state.defendant.oathAbsence === 'نعم';
         const defendantNotNotified = state.defendant.attendance === 'لم يحضر' && state.defendant.notifyStatus === 'لم يتبلغ';
 
@@ -1048,7 +1051,7 @@ function composeMinutes(state) {
         } else if (defendantNotNotified) {
             text = `${opening} و${pClauses.join('، و')}، و${buildNotNotifiedClause('defendant', state.defendant)}.`;
         } else {
-            const dClauses = [buildPartyClause(state, 'defendant'), ...state.extraDefendants.map((p, i) => buildExtraClause('defendant', i, p, includeIdentity))];
+            const dClauses = [buildPartyClause(state, 'defendant'), ...state.extraDefendants.map((p, i) => buildExtraClause('defendant', i, p, includePartyData))];
             text = `${opening} و${pClauses.join('، و')}، و${dClauses.join('، و')}.`;
             if (state.sessionType === 'previous' && state.defendant.attendance !== 'لم يحضر' && state.defendant.oathPerformanceSession === 'نعم') {
                 text = text.replace(/\.\s*$/, '') + '، ' + buildOathPerformanceText(state) + '.';
@@ -1088,8 +1091,8 @@ function composeMinutes(state) {
 function collectWarnings(state) {
     const w = [];
     const partyLabelAr = { plaintiff: 'المدعي', defendant: 'المدعى عليه' };
-    // بيانات الهوية لا تُفحص إلا إذا كانت ستُدرج في نص الضبط
-    const includeIdentity = state.includeIdentityInText === true;
+    // بيانات الطرفين (الاسم والهوية) لا تُفحص إلا إذا كانت ستُدرج في نص الضبط
+    const includePartyData = state.includePartyDataInText === true;
 
     if (!String(state.opening.judge || '').trim()) w.push('لم يُدخل اسم القاضي.');
     if (!String(state.opening.court || '').trim()) w.push('لم يُدخل اسم المحكمة.');
@@ -1102,12 +1105,12 @@ function collectWarnings(state) {
         // في محضر الشطب أو الحالات الاستثنائية لا تُفحص بيانات المدعى عليه
         if (p === 'defendant' && (state.plaintiff.attendance === 'لم يحضر' || state.plaintiff.specialCase !== 'none')) return;
 
-        if (extraList.length > 0 && !s.name.trim()) {
+        if (includePartyData && extraList.length > 0 && !s.name.trim()) {
             w.push(`لم يُدخل اسم ${label} الأول (لازم لكل الأطراف عند تعدد ${label === 'المدعي' ? 'المدعين' : 'المدعى عليهم'}).`);
         }
         if (s.attendance === 'أصالة') {
-            if (!s.name.trim()) w.push(`لم يُدخل اسم ${label}.`);
-            if (includeIdentity) {
+            if (includePartyData) {
+                if (!s.name.trim()) w.push(`لم يُدخل اسم ${label}.`);
                 if (s.entityType === 'شركة') {
                     if (!s.crNum.trim()) w.push(`لم يُدخل رقم السجل التجاري لـ${label}.`);
                 } else {
@@ -1150,8 +1153,8 @@ function collectWarnings(state) {
         const list = p === 'plaintiff' ? state.extraPlaintiffs : state.extraDefendants;
         list.forEach((ep, i) => {
             const ordinal = ordinalWord(i + 2, ep.gender);
-            if (!ep.name.trim()) w.push(`لم يُدخل اسم ${partyLabelAr[p]} ${ordinal}.`);
-            if (ep.attendance === 'أصالة' && includeIdentity) {
+            if (includePartyData && !ep.name.trim()) w.push(`لم يُدخل اسم ${partyLabelAr[p]} ${ordinal}.`);
+            if (ep.attendance === 'أصالة' && includePartyData) {
                 if (ep.nationalityType === 'غير ذلك') {
                     if (!String(ep.foreignNationality || '').trim()) w.push(`لم تُحدَّد جنسية ${partyLabelAr[p]} ${ordinal}.`);
                     if (!ep.iqamaNum || ep.iqamaNum.length !== 10) w.push(`رقم إقامة ${partyLabelAr[p]} ${ordinal} غير مكتمل (10 أرقام).`);
