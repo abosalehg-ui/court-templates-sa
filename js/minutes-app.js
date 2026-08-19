@@ -88,6 +88,18 @@ function saveSettings() {
 $('judgeName').addEventListener('input', e => { state.opening.judge = e.target.value; saveSettings(); render(); });
 $('courtName').addEventListener('input', e => { state.opening.court = e.target.value; saveSettings(); render(); });
 
+// ==================== إدراج بيانات الهوية في نص الضبط ====================
+// مُغلق افتراضًا لأن جدول نظام تقاضي أعلى صفحة الضبط والصك يحمل اسم الطرف ورقم هويته.
+// وبيانات الوكيل (الوكالة والتحقق منها والرخصة والقرابة) لا يشملها المفتاح فتبقى دائمًا.
+$('includeIdentityInText').addEventListener('change', e => {
+    state.includeIdentityInText = e.target.checked;
+    updateVisibility('plaintiff');
+    updateVisibility('defendant');
+    renderExtraCards('plaintiff');
+    renderExtraCards('defendant');
+    render();
+});
+
 // ==================== طريقة انعقاد الجلسة ====================
 const SESSION_MODE_HINTS = {
     videoFull: 'تُدرج صيغة الانعقاد كاملة مع الاستناد لقرار رئيس المجلس الأعلى للقضاء رقم (17388) وتاريخ 5/10/1441هـ.',
@@ -439,7 +451,8 @@ function updateClaimValueHint() {
 function updateVisibility(party) {
     const s = state[party];
     $(`${party}-accompany-toggle`).style.display = s.attendance === 'أصالة' ? 'block' : 'none';
-    $(`${party}-selfIdentity-section`).style.display = (s.attendance === 'أصالة' || s.entityType === 'شركة') ? 'block' : 'none';
+    const showIdentity = state.includeIdentityInText && (s.attendance === 'أصالة' || s.entityType === 'شركة');
+    $(`${party}-selfIdentity-section`).style.display = showIdentity ? 'block' : 'none';
     updatePrimaryNameFieldVisibility(party);
     const showRepFields = s.attendance === 'تمثيل' || (s.attendance === 'أصالة' && s.hasAccompanyingAgent);
     $(`${party}-rep-fields`).style.display = showRepFields ? 'block' : 'none';
@@ -769,7 +782,7 @@ function extraCardHTML(role, idx, p) {
             <div class="choice-btn extra-choice ${p.attendance === 'تمثيل' ? 'active' : ''}" data-role="${role}" data-idx="${idx}" data-field="attendance" data-value="تمثيل">حضر وكيل</div>
             <div class="choice-btn extra-choice ${p.attendance === 'لم يحضر' ? 'active' : ''}" data-role="${role}" data-idx="${idx}" data-field="attendance" data-value="لم يحضر">${p.gender === 'م' ? 'لم يحضر' : 'لم تحضر'}</div>
         </div>
-        ${p.attendance === 'أصالة' ? extraIdentityHTML(role, idx, p) : ''}
+        ${p.attendance === 'أصالة' && state.includeIdentityInText ? extraIdentityHTML(role, idx, p) : ''}
         ${p.attendance === 'تمثيل' ? `
         <div class="sub-fields">
             <div class="field">
