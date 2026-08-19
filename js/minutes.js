@@ -347,6 +347,11 @@ function freshMinutesState() {
     return {
         sessionType: null,           // 'new' جلسة تحضيرية | 'previous' منظورة سابقًا
         sameJudge: 'نعم',
+        // إدراج بيانات هوية الطرفين (الهوية/الإقامة/السجل التجاري) في نص الضبط.
+        // مُغلق افتراضًا: جدول نظام تقاضي أعلى صفحة الضبط والصك يحمل اسم الطرف ورقم هويته،
+        // فإثباتها في المتن تكرار. ولا يشمل هذا المفتاح بيانات الوكيل (رقم الوكالة والتحقق
+        // منها بالمادة (51/3) ورخصة المحاماة ودرجة القرابة) فتلك لا يكتبها الجدول وإثباتها لازم.
+        includeIdentityInText: false,
         opening: { judge: '', court: '', hour: 8, minute: 0, period: 'ص', mode: SESSION_MODES.VIDEO },
         plaintiff: freshPartyState(),
         defendant: freshPartyState(),
@@ -422,7 +427,9 @@ function buildAccompanyingAgentClause(s, name, suffix) {
 }
 
 // إثبات هوية الطرف الحاضر (هوية وطنية / إقامة / سجل تجاري)
-function buildIdentityClause(s) {
+// includeIdentity=false يُسقط العبارة من المخرج (بيانات الطرف مثبتة في جدول تقاضي)
+function buildIdentityClause(s, includeIdentity = true) {
+    if (!includeIdentity) return '';
     if (s.entityType === 'شركة') {
         return `، بموجب السجل التجاري رقم (${orDots(s.crNum)})`;
     }
@@ -435,6 +442,7 @@ function buildIdentityClause(s) {
 // فقرة حضور/غياب الطرف الأساسي (المدعي أو المدعى عليه)
 function buildPartyClause(state, role) {
     const s = state[role];
+    const includeIdentity = state.includeIdentityInText === true;
     const extraList = role === 'plaintiff' ? state.extraPlaintiffs : state.extraDefendants;
     const hasMultiple = extraList.length > 0;
     const name = hasMultiple
@@ -444,7 +452,7 @@ function buildPartyClause(state, role) {
 
     if (s.attendance === 'أصالة') {
         const verb = s.gender === 'م' ? 'حضر' : 'حضرت';
-        let clause = `${verb} ${name} أصالة${buildIdentityClause(s)}`;
+        let clause = `${verb} ${name} أصالة${buildIdentityClause(s, includeIdentity)}`;
         if (s.hasAccompanyingAgent) {
             clause += buildAccompanyingAgentClause(s, name, suffix);
         }
@@ -479,13 +487,13 @@ function buildPartyClause(state, role) {
 }
 
 // فقرة طرف إضافي (عند تعدد المدعين أو المدعى عليهم)
-function buildExtraClause(role, idx, p) {
+function buildExtraClause(role, idx, p, includeIdentity = true) {
     const name = multiPartyLabel(role, p.gender, idx + 2, p.name);
     const suffix = p.gender === 'م' ? 'ه' : 'ها';
 
     if (p.attendance === 'أصالة') {
         const verb = p.gender === 'م' ? 'حضر' : 'حضرت';
-        return `${verb} ${name} أصالة${buildIdentityClause(p)}`;
+        return `${verb} ${name} أصالة${buildIdentityClause(p, includeIdentity)}`;
     }
     if (p.attendance === 'تمثيل') {
         const repName = p.repName.trim();
@@ -1030,7 +1038,8 @@ function composeMinutes(state) {
         }
     } else {
         const opening = buildOpening(state.opening);
-        const pClauses = [buildPartyClause(state, 'plaintiff'), ...state.extraPlaintiffs.map((p, i) => buildExtraClause('plaintiff', i, p))];
+        const includeIdentity = state.includeIdentityInText === true;
+        const pClauses = [buildPartyClause(state, 'plaintiff'), ...state.extraPlaintiffs.map((p, i) => buildExtraClause('plaintiff', i, p, includeIdentity))];
         const oathAbsenceActive = state.sessionType === 'previous' && state.defendant.attendance === 'لم يحضر' && state.defendant.oathAbsence === 'نعم';
         const defendantNotNotified = state.defendant.attendance === 'لم يحضر' && state.defendant.notifyStatus === 'لم يتبلغ';
 
@@ -1039,7 +1048,7 @@ function composeMinutes(state) {
         } else if (defendantNotNotified) {
             text = `${opening} و${pClauses.join('، و')}، و${buildNotNotifiedClause('defendant', state.defendant)}.`;
         } else {
-            const dClauses = [buildPartyClause(state, 'defendant'), ...state.extraDefendants.map((p, i) => buildExtraClause('defendant', i, p))];
+            const dClauses = [buildPartyClause(state, 'defendant'), ...state.extraDefendants.map((p, i) => buildExtraClause('defendant', i, p, includeIdentity))];
             text = `${opening} و${pClauses.join('، و')}، و${dClauses.join('، و')}.`;
             if (state.sessionType === 'previous' && state.defendant.attendance !== 'لم يحضر' && state.defendant.oathPerformanceSession === 'نعم') {
                 text = text.replace(/\.\s*$/, '') + '، ' + buildOathPerformanceText(state) + '.';
@@ -1079,6 +1088,8 @@ function composeMinutes(state) {
 function collectWarnings(state) {
     const w = [];
     const partyLabelAr = { plaintiff: 'المدعي', defendant: 'المدعى عليه' };
+    // بيانات الهوية لا تُفحص إلا إذا كانت ستُدرج في نص الضبط
+    const includeIdentity = state.includeIdentityInText === true;
 
     if (!String(state.opening.judge || '').trim()) w.push('لم يُدخل اسم القاضي.');
     if (!String(state.opening.court || '').trim()) w.push('لم يُدخل اسم المحكمة.');
@@ -1096,13 +1107,15 @@ function collectWarnings(state) {
         }
         if (s.attendance === 'أصالة') {
             if (!s.name.trim()) w.push(`لم يُدخل اسم ${label}.`);
-            if (s.entityType === 'شركة') {
-                if (!s.crNum.trim()) w.push(`لم يُدخل رقم السجل التجاري لـ${label}.`);
-            } else {
-                if (s.nationalityType === 'سعودي' && (!s.saudiId || s.saudiId.length !== 10)) w.push(`رقم هوية ${label} غير مكتمل (10 أرقام).`);
-                if (s.nationalityType === 'غير ذلك') {
-                    if (!s.foreignNationality.trim()) w.push(`لم تُحدَّد جنسية ${label}.`);
-                    if (!s.iqamaNum || s.iqamaNum.length !== 10) w.push(`رقم إقامة ${label} غير مكتمل (10 أرقام).`);
+            if (includeIdentity) {
+                if (s.entityType === 'شركة') {
+                    if (!s.crNum.trim()) w.push(`لم يُدخل رقم السجل التجاري لـ${label}.`);
+                } else {
+                    if (s.nationalityType === 'سعودي' && (!s.saudiId || s.saudiId.length !== 10)) w.push(`رقم هوية ${label} غير مكتمل (10 أرقام).`);
+                    if (s.nationalityType === 'غير ذلك') {
+                        if (!s.foreignNationality.trim()) w.push(`لم تُحدَّد جنسية ${label}.`);
+                        if (!s.iqamaNum || s.iqamaNum.length !== 10) w.push(`رقم إقامة ${label} غير مكتمل (10 أرقام).`);
+                    }
                 }
             }
         }
@@ -1138,7 +1151,7 @@ function collectWarnings(state) {
         list.forEach((ep, i) => {
             const ordinal = ordinalWord(i + 2, ep.gender);
             if (!ep.name.trim()) w.push(`لم يُدخل اسم ${partyLabelAr[p]} ${ordinal}.`);
-            if (ep.attendance === 'أصالة') {
+            if (ep.attendance === 'أصالة' && includeIdentity) {
                 if (ep.nationalityType === 'غير ذلك') {
                     if (!String(ep.foreignNationality || '').trim()) w.push(`لم تُحدَّد جنسية ${partyLabelAr[p]} ${ordinal}.`);
                     if (!ep.iqamaNum || ep.iqamaNum.length !== 10) w.push(`رقم إقامة ${partyLabelAr[p]} ${ordinal} غير مكتمل (10 أرقام).`);
