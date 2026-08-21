@@ -726,7 +726,7 @@ function buildWitnessSection(witnesses, ctx) {
 
     witnesses.forEach((w, i) => {
         const ordinal = ordinalWordsMasc[i + 1] || `رقم ${i + 1}`;
-        out += ` ثم ${bringVerb} ${ctx.presenterLabel} للشهادة الشاهد ${ordinal}، وبسؤاله عن بياناته الشخصية وعلاقته بأطراف الدعوى أجاب قائلاً: اسمي الكامل: ( ${orDots(w.name)} )، وتاريخ ميلادي/عمري: ( ${orDots(w.age)} )، وأعمل في مهنة: ( ${orDots(w.job)} )، ومكان إقامتي في: ( ${orDots(w.residence)} )، ووجه اتصالي بأطراف الدعوى هو: ( ${orDots(w.relation)} )، ومصلحتي في هذه الدعوى هي: ( ${orDots(w.interest)} )، ثم جرى تحليفه اليمين على أن يشهد بالحق، فحلف، ثم جرى سؤاله عما لديه من شهادة، فأجاب قائلاً: أشهد بالله العظيم أن ( ${orDots(w.testimony)} ) هكذا أجاب وشهد.`;
+        out += ` ثم ${bringVerb} ${ctx.presenterLabel} للشهادة الشاهد ${ordinal}، وبسؤاله عن بياناته الشخصية وعلاقته بأطراف الدعوى أجاب قائلاً: اسمي الكامل: ( ${orDots(w.name)} )، وتاريخ ميلادي/عمري: ( ${orDots(w.age)} )، وأعمل في مهنة: ( ${orDots(w.job)} )، وأسكن في: ( ${orDots(w.residence)} )، وعلاقتي بأطراف الدعوى هو: ( ${orDots(w.relation)} )، ومصلحتي في هذه الدعوى هي: ( ${orDots(w.interest)} )، ثم جرى تحليفه اليمين على أن يشهد بالحق، فحلف، ثم جرى سؤاله عما لديه من شهادة، فأجاب قائلاً: أشهد بالله العظيم أن ( ${orDots(w.testimony)} ) هكذا أجاب وشهد.`;
     });
 
     out += buildTazkiyaClause(ctx, bringVerb);
@@ -1251,7 +1251,7 @@ function evidenceWarnings(block, ownerLabel, opposingPresent) {
     }
     if (!block.items.includes('شهادة شهود')) return w;
 
-    const fieldLabels = { name: 'الاسم', age: 'تاريخ الميلاد/العمر', job: 'المهنة', residence: 'مكان الإقامة', relation: 'وجه الاتصال', interest: 'المصلحة', testimony: 'نص الشهادة' };
+    const fieldLabels = { name: 'اسم الشاهد', age: 'تاريخ الميلاد/العمر', job: 'المهنة', residence: 'مكان سكن الشاهد', relation: 'صلة الشاهد بالمتداعيين', interest: 'المصلحة', testimony: 'نص الشهادة' };
     block.witnesses.forEach((wit, i) => {
         const ord = ordinalWordsMasc[i + 1] || `رقم ${i + 1}`;
         Object.keys(fieldLabels).forEach(k => {
