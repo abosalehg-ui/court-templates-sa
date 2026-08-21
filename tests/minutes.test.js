@@ -200,7 +200,13 @@ test('buildPartyClause: إغلاق المفتاح يُبقي غياب الطرف
     state.defendant.tabligh = '456';
     assert.equal(
         M.buildPartyClause(state, 'defendant'),
-        'لم يحضر المدعى عليه رغم تبليغه بالجلسة وفق مهمّة التبليغ رقم (456)'
+        'لم يحضر المدعى عليه رغم تبليغه بالجلسة عبر الوسائل الإلكترونية بمهمة التبليغ رقم (456) بموعد هذه الجلسة ولم يحضر ولا من يمثله، ولم يودع مذكرة بدفاعه بناء على ما قررته المادة الخامسة والأربعون من نظام المرافعات الشرعية'
+    );
+    // المطابقة النحوية للمدعى عليها
+    state.defendant.gender = 'ف';
+    assert.equal(
+        M.buildPartyClause(state, 'defendant'),
+        'لم تحضر المدعى عليها رغم تبليغها بالجلسة عبر الوسائل الإلكترونية بمهمة التبليغ رقم (456) بموعد هذه الجلسة ولم تحضر ولا من يمثلها، ولم تودع مذكرة بدفاعها بناء على ما قررته المادة الخامسة والأربعون من نظام المرافعات الشرعية'
     );
 });
 
@@ -584,6 +590,18 @@ test('التسلسل: الدفع الشكلي يُعرض على المدعي و�
 
     state.claim.answeredOnMerits = 'نعم';
     assert.match(M.composeMinutes(state), /عن بينته/);
+});
+
+test('buildPlaintiffEvidenceText: غياب المدعى عليه يُصرّح بلقب المدعي بدل الضمير', () => {
+    const state = readyState();
+    state.defendant.attendance = 'لم يحضر';
+    state.defendant.tabligh = '789';
+    const text = M.composeMinutes(state);
+    assert.match(text, / وبسؤال المدعي عن بينته قرر قائلاً:/);
+    assert.ok(!text.includes('وبسؤاله عن بينته'));
+    // ومع حضور المدعى عليه يبقى الضمير عائدًا على المدعي المذكور في فقرة التكليف بالبينة
+    const present = M.composeMinutes(readyState());
+    assert.match(present, /فقد جرى تكليف المدعي بإحضار بينته\. وبسؤاله عن بينته/);
 });
 
 test('التسلسل: غياب المدعى عليه يُبقي سؤال البينة مباشرة بلا عرض', () => {
