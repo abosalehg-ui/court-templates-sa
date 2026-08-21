@@ -444,19 +444,23 @@ test('buildWitnessSection: صلة الشاهد بكل خصم على حدة', () 
     assert.ok(!text.includes('وعلاقتي بأطراف الدعوى هو'));
 });
 
-test('buildWitnessSection: جنسية الشاهد وهويته تتبعان مفتاح إدراج بيانات الطرفين', () => {
-    const off = M.buildWitnessSection([SAMPLE_WITNESS], witnessCtx());
-    assert.ok(!off.includes('وجنسيتي'));
-    assert.ok(!off.includes('1099887766'));
+test('buildWitnessSection: جنسية الشاهد وهويته تُثبتان في الضبط دائمًا', () => {
+    const text = M.buildWitnessSection([SAMPLE_WITNESS], witnessCtx());
+    assert.match(text, /اسمي الكامل: \( صالح \)، وجنسيتي: \( سعودي \)، ورقم هويتي الوطنية\/إقامتي: \( 1099887766 \)، وتاريخ ميلادي/);
+});
 
-    const on = M.buildWitnessSection([SAMPLE_WITNESS], witnessCtx({ includePartyData: true }));
-    assert.match(on, /اسمي الكامل: \( صالح \)، وجنسيتي: \( سعودي \)، ورقم هويتي الوطنية\/إقامتي: \( 1099887766 \)، وتاريخ ميلادي/);
+test('WITNESS_NATIONALITY_OPTIONS: قائمة الطرفين نفسها يتصدرها «سعودي»', () => {
+    assert.equal(M.WITNESS_NATIONALITY_OPTIONS[0], 'سعودي');
+    assert.equal(M.WITNESS_NATIONALITY_OPTIONS.length, M.NATIONALITY_OPTIONS.length + 1);
+    assert.ok(M.WITNESS_NATIONALITY_OPTIONS.includes('مصري'));
+    // قائمة الطرفين لا يدخلها «سعودي» لأن له مفتاحًا مستقلًا
+    assert.ok(!M.NATIONALITY_OPTIONS.includes('سعودي'));
 });
 
 test('buildWitnessSection: رقم جوال الشاهد لا يظهر في نص الضبط', () => {
-    const on = M.buildWitnessSection([SAMPLE_WITNESS], witnessCtx({ includePartyData: true }));
-    assert.ok(!on.includes('0500000000'));
-    assert.ok(!on.includes('جوال'));
+    const text = M.buildWitnessSection([SAMPLE_WITNESS], witnessCtx());
+    assert.ok(!text.includes('0500000000'));
+    assert.ok(!text.includes('جوال'));
 });
 
 test('EVIDENCE_OPTIONS: شهادة الشهود ثانيةً بعد العقد', () => {
@@ -912,12 +916,19 @@ test('collectWarnings: نواقص بينة المدعى عليه وشهوده', 
     assert.ok(w.some(x => x.includes('أسماء معدِّلي شهود المدعى عليه')));
     assert.ok(w.some(x => x.includes('صلة الشاهد بالمدعي')));
     assert.ok(w.some(x => x.includes('صلة الشاهد بالمدعى عليه')));
-    // الجنسية والهوية تُفحصان مع تفعيل مفتاح إدراج بيانات الطرفين فقط
     assert.ok(w.some(x => x.includes('جنسية الشاهد')));
-    state.includePartyDataInText = false;
-    const off = M.collectWarnings(state);
-    assert.ok(!off.some(x => x.includes('جنسية الشاهد')));
-    assert.ok(!off.some(x => x.includes('رقم هوية/إقامة الشاهد')));
+    assert.ok(w.some(x => x.includes('رقم هوية/إقامة الشاهد')));
+});
+
+test('collectWarnings: رقم هوية الشاهد عشرة أرقام كبيانات الطرفين', () => {
+    const state = readyState();
+    state.claim.evidenceChoice = 'has';
+    state.claim.evidenceItems = ['شهادة شهود'];
+    state.claim.witnesses = [Object.assign(M.freshWitness(), SAMPLE_WITNESS, { idNum: '12345' })];
+    assert.ok(M.collectWarnings(state).some(x => x.includes('غير مكتمل (10 أرقام)')));
+
+    state.claim.witnesses[0].idNum = '1099887766';
+    assert.ok(!M.collectWarnings(state).some(x => x.includes('غير مكتمل (10 أرقام)')));
 });
 
 test('freshWitness: رقم الجوال ضمن بيانات الشاهد ولا يُفحص في التحذيرات', () => {

@@ -98,8 +98,6 @@ $('includePartyDataInText').addEventListener('change', e => {
     updateVisibility('defendant');
     renderExtraCards('plaintiff');
     renderExtraCards('defendant');
-    renderWitnesses();
-    renderDefendantWitnesses();
     render();
 });
 
@@ -224,15 +222,16 @@ function updateKinshipHint(party) {
 
 // ==================== بحث الجنسيات ====================
 // يُستعمل للطرف الأول ولكل طرف إضافي، فبطاقة الهوية واحدة للجميع
-function attachNationalitySearch(input, list, onValue) {
+function attachNationalitySearch(input, list, onValue, options) {
     if (!input || !list) return;
+    const source = options || NATIONALITY_OPTIONS;
     let highlightedIdx = -1;
     let filtered = [];
 
     function renderList() {
         // تطبيع الهمزات والتشكيل حتى يجد «عماني» جنسية «عُماني»
         const q = normalizeArabicSearch(input.value);
-        filtered = q ? NATIONALITY_OPTIONS.filter(n => normalizeArabicSearch(n).includes(q)) : NATIONALITY_OPTIONS;
+        filtered = q ? source.filter(n => normalizeArabicSearch(n).includes(q)) : source;
         list.innerHTML = filtered.length === 0
             ? '<div class="nat-dropdown-empty">لا توجد نتائج مطابقة</div>'
             : filtered.map((n, i) => `<div class="nat-dropdown-item" data-idx="${i}">${n}</div>`).join('');
@@ -989,26 +988,34 @@ function setupEvidenceChecklist(cfg) {
 // ==================== الشهود ====================
 function witnessCardHTML(prefix, idx, w) {
     const ordinal = ordinalWord(idx + 1, 'م');
-    // الجنسية والهوية يحكمهما مفتاح إدراج بيانات الطرفين نفسه، فتُخفيان معه
-    const identityFields = state.includePartyDataInText
-        ? [['nationality', 'الجنسية'], ['idNum', 'رقم الهوية الوطنية / رقم الإقامة']]
-        : [];
     const fields = [
-        ['name', 'الاسم الكامل'], ...identityFields, ['age', 'تاريخ الميلاد / العمر'], ['job', 'المهنة'],
+        ['name', 'الاسم الكامل'], ['age', 'تاريخ الميلاد / العمر'], ['job', 'المهنة'],
         ['residence', 'مكان الإقامة'], ['relationPlaintiff', 'صلة الشاهد بالمدعي'], ['relationDefendant', 'صلة الشاهد بالمدعى عليه'],
         ['interest', 'المصلحة في هذه الدعوى'], ['testimony', 'نص الشهادة (أشهد بالله العظيم أن...)']
     ];
+    const [nameField, ...restFields] = fields;
+    const textFieldHTML = ([key, label]) => `
+        <div class="field">
+            <label>${label} <span class="req">*</span></label>
+            <input type="text" class="form-control" data-witness-prefix="${prefix}" data-witness-idx="${idx}" data-witness-field="${key}" value="${escapeHtml(w[key])}" placeholder="${label}" required>
+        </div>`;
     return `
     <div class="extra-party-block">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
             <div class="party-title" style="margin-bottom:0;">الشاهد ${ordinal}</div>
             ${idx > 0 ? `<button type="button" class="remove-line-btn remove-witness-btn" data-prefix="${prefix}" data-idx="${idx}">✕ إزالة</button>` : ''}
         </div>
-        ${fields.map(([key, label]) => `
+        ${textFieldHTML(nameField)}
+        <div class="field" style="position:relative;">
+            <label>الجنسية <span class="req">*</span></label>
+            <input type="text" class="form-control" id="${prefix}-witness-${idx}-nationality" data-witness-prefix="${prefix}" data-witness-idx="${idx}" data-witness-field="nationality" value="${escapeHtml(w.nationality)}" placeholder="اكتب للبحث عن الجنسية" autocomplete="off" required>
+            <div class="nat-dropdown" id="${prefix}-witness-${idx}-nationality-list" style="display:none;"></div>
+        </div>
         <div class="field">
-            <label>${label} <span class="req">*</span></label>
-            <input type="text" class="form-control" data-witness-prefix="${prefix}" data-witness-idx="${idx}" data-witness-field="${key}" value="${escapeHtml(w[key])}" placeholder="${label}" required>
-        </div>`).join('')}
+            <label>رقم الهوية الوطنية / رقم الإقامة <span class="req">*</span></label>
+            <input type="text" class="form-control" data-witness-prefix="${prefix}" data-witness-idx="${idx}" data-witness-field="idNum" value="${escapeHtml(w.idNum)}" placeholder="أدخل 10 أرقام فقط" maxlength="10" inputmode="numeric" data-numeric-only="true" required>
+        </div>
+        ${restFields.map(textFieldHTML).join('')}
         <div class="field">
             <label>رقم جوال الشاهد</label>
             <input type="text" class="form-control" data-witness-prefix="${prefix}" data-witness-idx="${idx}" data-witness-field="phone" value="${escapeHtml(w.phone)}" placeholder="رقم جوال الشاهد" inputmode="numeric" data-numeric-only="true">
@@ -1025,11 +1032,22 @@ const plaintiffEvidenceBlock = () => ({
 });
 const defendantEvidenceBlock = () => state.claim.defendantEvidence;
 
+function setupWitnessNationalitySearch(prefix) {
+    witnessListOf(prefix).forEach((wit, i) => {
+        attachNationalitySearch($(`${prefix}-witness-${i}-nationality`), $(`${prefix}-witness-${i}-nationality-list`), value => {
+            wit.nationality = value;
+            render();
+        }, WITNESS_NATIONALITY_OPTIONS);
+    });
+}
+
 function renderWitnesses() {
     $('witnessContainer').innerHTML = state.claim.witnesses.map((w, i) => witnessCardHTML('plaintiff', i, w)).join('');
+    setupWitnessNationalitySearch('plaintiff');
 }
 function renderDefendantWitnesses() {
     $('defendantWitnessContainer').innerHTML = state.claim.defendantEvidence.witnesses.map((w, i) => witnessCardHTML('defendant', i, w)).join('');
+    setupWitnessNationalitySearch('defendant');
 }
 
 function witnessListOf(prefix) {

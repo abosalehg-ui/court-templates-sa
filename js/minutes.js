@@ -44,6 +44,10 @@ function isInPersonSession(state) {
 
 const NATIONALITY_OPTIONS = ['آيسلندي', 'أذربيجاني', 'أرجنتيني', 'أردني', 'أرمني', 'أسترالي', 'أفريقي وسطي', 'أفغاني', 'ألباني', 'ألماني', 'أمريكي', 'أنغولي', 'أوروغوياني', 'أوزبكستاني', 'أوغندي', 'أوكراني', 'أيرلندي', 'إثيوبي', 'إريتري', 'إسباني', 'إستوني', 'إسواتيني', 'إكوادوري', 'إماراتي', 'إندونيسي', 'إيراني', 'إيطالي', 'الرأس الأخضر', 'بابوا غينيا الجديدة', 'باراغوياني', 'باكستاني', 'بحريني', 'برازيلي', 'برتغالي', 'بروناوي', 'بريطاني', 'بلجيكي', 'بلغاري', 'بنغلاديشي', 'بنمي', 'بنيني', 'بوتاني', 'بوتسواني', 'بوركينابي', 'بوروندي', 'بوسني', 'بولندي', 'بوليفي', 'بيروفي', 'بيلاروسي', 'تايلاندي', 'تايواني', 'تركمانستاني', 'تركي', 'ترينيدادي', 'تشادي', 'تشيكي', 'تشيلي', 'تنزاني', 'توغولي', 'تونسي', 'تيموري', 'جامايكي', 'جزائري', 'جزر القمر', 'جنوب أفريقي', 'جنوب سوداني', 'جورجي', 'جيبوتي', 'دنماركي', 'دومينيكاني', 'رواندي', 'روسي', 'روماني', 'زامبي', 'زيمبابوي', 'ساحل عاجي', 'ساو تومي وبرينسيبي', 'سريلانكي', 'سلفادوري', 'سلوفاكي', 'سلوفيني', 'سنغافوري', 'سنغالي', 'سوداني', 'سوري', 'سورينامي', 'سويدي', 'سويسري', 'سيراليوني', 'سيشيلي', 'صربي', 'صومالي', 'صيني', 'طاجيكستاني', 'عديم الجنسية', 'عراقي', 'عُماني', 'غابوني', 'غامبي', 'غاني', 'غواتيمالي', 'غياني', 'غيني', 'غيني استوائي', 'غيني بيساوي', 'فرنسي', 'فلبيني', 'فلسطيني', 'فنزويلي', 'فنلندي', 'فيتنامي', 'فيجي', 'قبرصي', 'قطري', 'قيرغيزستاني', 'كازاخستاني', 'كاميروني', 'كرواتي', 'كمبودي', 'كندي', 'كوبي', 'كوري جنوبي', 'كوري شمالي', 'كوستاريكي', 'كولومبي', 'كونغولي', 'كونغولي ديمقراطي', 'كويتي', 'كيني', 'لاتفي', 'لاوسي', 'لبناني', 'لوكسمبورغي', 'ليبي', 'ليبيري', 'ليتواني', 'ليسوتوي', 'مالطي', 'مالي', 'ماليزي', 'مدغشقري', 'مصري', 'مغربي', 'مغولي', 'مقدوني', 'مكسيكي', 'ملاوي', 'موريتاني', 'موريشيوسي', 'موزمبيقي', 'مولدوفي', 'مونتينيغري', 'ميانماري', 'ناميبي', 'نرويجي', 'نمساوي', 'نيبالي', 'نيجري', 'نيجيري', 'نيكاراغوي', 'نيوزيلندي', 'هايتي', 'هندوراسي', 'هندي', 'هنغاري', 'هولندي', 'هونغ كونغي', 'ياباني', 'يمني', 'يوناني', 'أخرى'];
 
+// جنسيات الشاهد: قائمة الطرفين نفسها مع «سعودي» في صدرها،
+// إذ ليس للشاهد مفتاح (سعودي / غير ذلك) وإنما حقل جنسية واحد
+const WITNESS_NATIONALITY_OPTIONS = ['سعودي'].concat(NATIONALITY_OPTIONS);
+
 const EVIDENCE_OPTIONS = ['العقد', 'شهادة شهود', 'الفاتورة', 'ورقة إقرار', 'سند لأمر', 'إيصال استلام', 'محضر تسليم', 'الحوالة', 'رسالة نصية / واتساب', 'تسجيل صوتي', 'تقرير خبرة', 'تقدير الأضرار', 'تقرير نجم', 'تقرير المرور', 'عرض سعر', 'صور فوتوغرافية', 'مقاطع فيديو', 'مستند رسمي آخر'];
 
 // حدّ الدعاوى اليسيرة التي تكون أحكامها نهائية غير قابلة للاستئناف.
@@ -734,11 +738,8 @@ function buildWitnessSection(witnesses, ctx) {
 
     witnesses.forEach((w, i) => {
         const ordinal = ordinalWordsMasc[i + 1] || `رقم ${i + 1}`;
-        // الجنسية والهوية يحكمهما مفتاح إدراج بيانات الطرفين نفسه، ورقم الجوال لا يُدرج في الضبط
-        const identityPart = ctx.includePartyData
-            ? `وجنسيتي: ( ${orDots(w.nationality)} )، ورقم هويتي الوطنية/إقامتي: ( ${orDots(w.idNum)} )، `
-            : '';
-        out += ` ثم ${bringVerb} ${ctx.presenterLabel} للشهادة الشاهد ${ordinal}، وبسؤاله عن بياناته الشخصية وعلاقته بأطراف الدعوى أجاب قائلاً: اسمي الكامل: ( ${orDots(w.name)} )، ${identityPart}وتاريخ ميلادي/عمري: ( ${orDots(w.age)} )، وأعمل في مهنة: ( ${orDots(w.job)} )، وأسكن في: ( ${orDots(w.residence)} )، وصلتي بالمدعي: ( ${orDots(w.relationPlaintiff)} )، وصلتي بالمدعى عليه: ( ${orDots(w.relationDefendant)} )، ومصلحتي في هذه الدعوى هي: ( ${orDots(w.interest)} )، ثم جرى تحليفه اليمين على أن يشهد بالحق، فحلف، ثم جرى سؤاله عما لديه من شهادة، فأجاب قائلاً: أشهد بالله العظيم أن ( ${orDots(w.testimony)} ) هكذا أجاب وشهد.`;
+        // بيانات الشاهد تُثبت كاملة في الضبط (المادة 71 من نظام الإثبات)، ورقم الجوال وحده لا يُدرج
+        out += ` ثم ${bringVerb} ${ctx.presenterLabel} للشهادة الشاهد ${ordinal}، وبسؤاله عن بياناته الشخصية وعلاقته بأطراف الدعوى أجاب قائلاً: اسمي الكامل: ( ${orDots(w.name)} )، وجنسيتي: ( ${orDots(w.nationality)} )، ورقم هويتي الوطنية/إقامتي: ( ${orDots(w.idNum)} )، وتاريخ ميلادي/عمري: ( ${orDots(w.age)} )، وأعمل في مهنة: ( ${orDots(w.job)} )، وأسكن في: ( ${orDots(w.residence)} )، وصلتي بالمدعي: ( ${orDots(w.relationPlaintiff)} )، وصلتي بالمدعى عليه: ( ${orDots(w.relationDefendant)} )، ومصلحتي في هذه الدعوى هي: ( ${orDots(w.interest)} )، ثم جرى تحليفه اليمين على أن يشهد بالحق، فحلف، ثم جرى سؤاله عما لديه من شهادة، فأجاب قائلاً: أشهد بالله العظيم أن ( ${orDots(w.testimony)} ) هكذا أجاب وشهد.`;
     });
 
     out += buildTazkiyaClause(ctx, bringVerb);
@@ -893,7 +894,6 @@ function buildPlaintiffEvidenceText(state, opts) {
         if (c.evidenceItems.includes('شهادة شهود') && c.witnesses.length > 0) {
             out += buildWitnessSection(c.witnesses, {
                 speakerGender, speakerSuffix,
-                includePartyData: state.includePartyDataInText === true,
                 presenterLabel: pName, presenterGender: pGender,
                 opposingLabel: addresseeLabelOf('defendant', state.defendant),
                 opposingPresent: state.defendant.attendance !== 'لم يحضر',
@@ -972,7 +972,6 @@ function buildDefendantEvidenceText(state, opts) {
     if (e.items.includes('شهادة شهود') && e.witnesses.length > 0) {
         out += buildWitnessSection(e.witnesses, {
             speakerGender, speakerSuffix,
-            includePartyData: state.includePartyDataInText === true,
             presenterLabel: dName, presenterGender: dGender,
             opposingLabel: addresseeLabelOf('plaintiff', state.plaintiff),
             opposingPresent: state.plaintiff.attendance !== 'لم يحضر',
@@ -1240,14 +1239,14 @@ function collectWarnings(state) {
             choice: c.evidenceChoice, items: c.evidenceItems, otherDocumentText: c.otherDocumentText,
             witnesses: c.witnesses, tazkiya: c.tazkiya, tazkiyaNames: c.tazkiyaNames,
             objection: c.witnessObjection, objectionText: c.witnessObjectionText
-        }, 'المدعي', defendantPresent, includePartyData));
+        }, 'المدعي', defendantPresent));
         if (c.evidenceChoice === 'has' && c.hasMoreEvidence === 'نعم' && !c.moreEvidenceText.trim()) w.push('لم تُكتب البينة الإضافية.');
     }
 
     const defendantEvidenceApplies = defendantPresent
         && ((claimApplies && c.askDefendantEvidence === 'نعم') || followUp.defendantEvidence);
     if (defendantEvidenceApplies) {
-        w.push(...evidenceWarnings(c.defendantEvidence, 'المدعى عليه', state.plaintiff.attendance !== 'لم يحضر', includePartyData));
+        w.push(...evidenceWarnings(c.defendantEvidence, 'المدعى عليه', state.plaintiff.attendance !== 'لم يحضر'));
     }
 
     if (state.sessionType === 'previous' && defendantPresent && state.defendant.oathPerformanceSession === 'نعم' && !state.defendant.oathAnswerText.trim()) {
@@ -1259,7 +1258,7 @@ function collectWarnings(state) {
 }
 
 // فحص كتلة بينة (للمدعي أو للمدعى عليه) بنفس القواعد
-function evidenceWarnings(block, ownerLabel, opposingPresent, includePartyData = false) {
+function evidenceWarnings(block, ownerLabel, opposingPresent) {
     const w = [];
     if (!block || block.choice !== 'has') return w;
     if (block.items.length === 0) w.push(`لم تُحدَّد بينة ${ownerLabel} (اختر نوعًا واحدًا على الأقل).`);
@@ -1268,17 +1267,15 @@ function evidenceWarnings(block, ownerLabel, opposingPresent, includePartyData =
     }
     if (!block.items.includes('شهادة شهود')) return w;
 
-    const fieldLabels = { name: 'اسم الشاهد', age: 'تاريخ الميلاد/العمر', job: 'المهنة', residence: 'مكان سكن الشاهد', relationPlaintiff: 'صلة الشاهد بالمدعي', relationDefendant: 'صلة الشاهد بالمدعى عليه', interest: 'المصلحة', testimony: 'نص الشهادة' };
-    // الجنسية والهوية لا تُفحصان إلا إذا كانتا ستُدرجان في نص الضبط (كبيانات الطرفين)
-    if (includePartyData) {
-        fieldLabels.nationality = 'جنسية الشاهد';
-        fieldLabels.idNum = 'رقم هوية/إقامة الشاهد';
-    }
+    const fieldLabels = { name: 'اسم الشاهد', nationality: 'جنسية الشاهد', idNum: 'رقم هوية/إقامة الشاهد', age: 'تاريخ الميلاد/العمر', job: 'المهنة', residence: 'مكان سكن الشاهد', relationPlaintiff: 'صلة الشاهد بالمدعي', relationDefendant: 'صلة الشاهد بالمدعى عليه', interest: 'المصلحة', testimony: 'نص الشهادة' };
     block.witnesses.forEach((wit, i) => {
         const ord = ordinalWordsMasc[i + 1] || `رقم ${i + 1}`;
         Object.keys(fieldLabels).forEach(k => {
             if (!String(wit[k] || '').trim()) w.push(`لم يُكمَل حقل "${fieldLabels[k]}" لشاهد ${ownerLabel} ${ord}.`);
         });
+        // رقم الهوية أو الإقامة عشرة أرقام كبيانات الطرفين
+        const idNum = String(wit.idNum || '').trim();
+        if (idNum && idNum.length !== 10) w.push(`رقم هوية/إقامة شاهد ${ownerLabel} ${ord} غير مكتمل (10 أرقام).`);
     });
     if (block.tazkiya === 'presented' && !String(block.tazkiyaNames || '').trim()) {
         w.push(`لم تُكتب أسماء معدِّلي شهود ${ownerLabel}.`);
@@ -1311,7 +1308,7 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         MINUTES_PLACEHOLDER, VIDEO_CALL_PHRASE, VIDEO_CALL_SHORT, VIDEO_CALL_BRIEF, VIDEO_CALL_BASIS,
         IN_PERSON_SHORT, SESSION_MODES, sessionMode, isInPersonSession,
-        NATIONALITY_OPTIONS, EVIDENCE_OPTIONS, YASEERA_CLAIM_LIMIT, ENTITY_TYPES,
+        NATIONALITY_OPTIONS, WITNESS_NATIONALITY_OPTIONS, EVIDENCE_OPTIONS, YASEERA_CLAIM_LIMIT, ENTITY_TYPES,
         isCorporateEntity, corporateDocLabel, mandatoryReviewNotice, closingTimeParts,
         minutesPhrase, buildTimeArabic, addMinutesToTime, validHoursForPeriod, convertArabicDigits,
         ordinalWord, partyLabel, multiPartyLabel, agentPossessive,
