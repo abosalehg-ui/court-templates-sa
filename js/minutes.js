@@ -276,7 +276,7 @@ const ENTITY_TYPES = { INDIVIDUAL: 'فرد', COMPANY: 'شركة', WAQF: 'وقف'
 function freshPartyState() {
     return {
         gender: 'م', name: '', attendance: 'أصالة', repType: 'وكيل', repIsLawyer: 'نعم', agentGender: 'م',
-        agentName: '', agentId: '', wakalaNum: '', licenseNum: '', repNum: '', repName: '', occurrence: 1,
+        agentName: '', agentId: '', wakalaNum: '', wakalaIssuer: '', licenseNum: '', repNum: '', repName: '', occurrence: 1,
         tabligh: '', notifyStatus: 'تبلغ',
         kinshipType: 'نسب', kinship: '', asharDirection: 'الزوجة', kinshipAshar: '',
         hasAccompanyingAgent: false, specialCase: 'none',
@@ -289,7 +289,7 @@ function freshPartyState() {
 
 function freshExtraParty() {
     return {
-        name: '', gender: 'م', attendance: 'أصالة', repName: '', repNum: '',
+        name: '', gender: 'م', attendance: 'أصالة', repName: '', repNum: '', repIssuer: '',
         // بطاقة الهوية — كالطرف الأول تمامًا (تظهر عند الحضور أصالة)
         nationalityType: 'سعودي', saudiId: '', foreignNationality: '', iqamaNum: ''
     };
@@ -414,7 +414,29 @@ function buildSessionModeOpeningPart(opening) {
     return ` افتتحتُ الجلسة${modePart}`;
 }
 
+// صيغة الحاضر بوكالة: صفته وجهة إصدار وكالته ورقمها.
+// التحقق من الوكالة قائم لدى الدائرة (بوابة التحقق) ولا يُكتب في المتن، وكذلك رقم هوية الوكيل.
+// present=true للصيغة الموصوفة في متن الجملة: «الحاضر بصفته وكيلاً …»
+function buildAgentCapacityPhrase(s, partyName, options = {}) {
+    const isFem = s.agentGender === 'ف';
+    const wakeelWord = isFem ? 'وكيلةً' : 'وكيلاً';
+    const capacity = options.present
+        ? `${isFem ? 'الحاضرة بصفتها' : 'الحاضر بصفته'} ${wakeelWord}`
+        : `بصفت${isFem ? 'ها' : 'ه'} ${wakeelWord}`;
+    return `${capacity} بموجب الوكالة الصادرة من (${orDots(s.wakalaIssuer)})، برقم (${orDots(s.wakalaNum)})${buildAgentCredentialsPhrase(s, partyName)}`;
+}
+
+// ما يُلحق بصيغة الوكالة: رخصة المحاماة للمحامي، وصلة القرابة لغيره
+// (ووكيل الشركة لا قرابة له بها، فلا يُسأل عنها)
+function buildAgentCredentialsPhrase(s, partyName) {
+    if (s.repIsLawyer === 'نعم') {
+        return `، ورخصة مزاولة المحاماة رقم (${orDots(s.licenseNum)})`;
+    }
+    return s.repType === 'وكيل شركة' ? '' : buildKinshipPhrase(s, partyName);
+}
+
 // عبارة التحقق من الوكالة — المادة (51/3) من نظام المرافعات الشرعية
+// لم تعد تُدرج في متن الضبط (انظر buildAgentCapacityPhrase)، وأُبقيت للحاجة مستقبلاً
 function buildAgencyVerificationClause(agentGender) {
     const agentSuffix = agentGender === 'ف' ? 'ها' : 'ه';
     return `، وقد جرى من الدَّائرة التحقق منها، وأنها تخوّل${agentSuffix} الإجراء المطلوب، استناداً للمادَّة (51/3) من نظام المرافعات الشرعية`;
@@ -442,20 +464,9 @@ function buildKinshipPhrase(s, name) {
 
 // عبارة الوكيل المرافق للطرف الحاضر أصالة
 function buildAccompanyingAgentClause(s, name, suffix) {
-    const wakalaNum = orDots(s.wakalaNum);
-    const agentName = s.agentName.trim();
-    const agentId = orDots(s.agentId);
-    const namePart = agentName ? ` ${agentName}` : '';
     const agentVerb = s.agentGender === 'ف' ? 'حضرت' : 'حضر';
-    const agentPoss = agentPossessive(s.agentGender, suffix);
-    const lawyerWord = s.agentGender === 'ف' ? 'المحامية' : 'المحامي';
     const withHim = suffix === 'ه' ? 'معه' : 'معها';
-
-    if (s.repIsLawyer === 'نعم') {
-        const lic = orDots(s.licenseNum);
-        return `، و${agentVerb} ${withHim} ${agentPoss} ${lawyerWord}${namePart}، بموجب الهوية رقم (${agentId})، بموجب الوكالة الشرعية رقم (${wakalaNum})${buildAgencyVerificationClause(s.agentGender)} ورخصة مزاولة المحاماة رقم (${lic})`;
-    }
-    return `، و${agentVerb} ${withHim} ${agentPoss}${namePart}، بموجب الهوية رقم (${agentId})، بموجب الوكالة الشرعية رقم (${wakalaNum})${buildAgencyVerificationClause(s.agentGender)}${buildKinshipPhrase(s, name)}`;
+    return `، و${agentVerb} ${withHim} ${orDots(s.agentName)}، ${buildAgentCapacityPhrase(s, name)}`;
 }
 
 // صفة الطرف: الشركة والوقف كلاهما شخصية اعتبارية لا تحضر أصالةً وإنما بوكيل أو ممثل نظامي
@@ -506,19 +517,8 @@ function buildPartyClause(state, role) {
 
     if (s.attendance === 'تمثيل') {
         if (s.repType === 'وكيل' || s.repType === 'وكيل شركة') {
-            const wakalaNum = orDots(s.wakalaNum);
-            const agentName = s.agentName.trim();
-            const agentId = orDots(s.agentId);
-            const namePart = agentName ? ` ${agentName}` : '';
             const agentVerb = s.agentGender === 'ف' ? 'حضرت' : 'حضر';
-            const agentPoss = agentPossessive(s.agentGender, suffix);
-            const lawyerWord = s.agentGender === 'ف' ? 'المحامية' : 'المحامي';
-            if (s.repIsLawyer === 'نعم') {
-                const lic = orDots(s.licenseNum);
-                return `${agentVerb} عن ${name} ${agentPoss} ${lawyerWord}${namePart}، بموجب الهوية رقم (${agentId})، بموجب الوكالة الشرعية رقم (${wakalaNum})${buildAgencyVerificationClause(s.agentGender)} ورخصة مزاولة المحاماة رقم (${lic})`;
-            }
-            const kinshipPart = s.repType === 'وكيل شركة' ? '' : buildKinshipPhrase(s, name);
-            return `${agentVerb} عن ${name} ${agentPoss}${namePart}، بموجب الهوية رقم (${agentId})، بموجب الوكالة الشرعية رقم (${wakalaNum})${buildAgencyVerificationClause(s.agentGender)}${kinshipPart}`;
+            return `${agentVerb} عن ${name} ${orDots(s.agentName)}، ${buildAgentCapacityPhrase(s, name)}`;
         }
         // ممثل نظامي
         const repCapacity = orDots(s.repNum);
@@ -544,9 +544,7 @@ function buildExtraClause(role, idx, p, includePartyData = true) {
         return `${verb} ${name} أصالة${identity}`;
     }
     if (p.attendance === 'تمثيل') {
-        const repName = p.repName.trim();
-        const namePart = repName ? ` ${repName}` : '';
-        return `حضر عن ${name} وكيل${suffix}${namePart} بموجب الوكالة الشرعية رقم (${orDots(p.repNum)})`;
+        return `حضر عن ${name} ${orDots(p.repName)}، بصفته وكيلاً بموجب الوكالة الصادرة من (${orDots(p.repIssuer)})، برقم (${orDots(p.repNum)})`;
     }
     const verb = p.gender === 'م' ? 'لم يحضر' : 'لم تحضر';
     return `${verb} ${name}`;
@@ -831,12 +829,15 @@ function buildProceedingsAfterClaim(state) {
 }
 
 // عرض الدعوى على المدعى عليه وإثبات جوابه
+// وبيانات وكيله تُثبت هنا (لا في فقرات الحضور) — انظر defendantAgentStatedInAnswer
 function buildDefendantAnswerClause(state) {
     const d = state.defendant;
     const dName = partyLabel('defendant', d.gender);
     const isRepresented = d.attendance === 'تمثيل' && (d.repType === 'وكيل' || d.repType === 'وكيل شركة');
     const speakerGender = isRepresented ? d.agentGender : d.gender;
-    const addressee = isRepresented ? `وكيل${d.agentGender === 'ف' ? 'ة' : ''} ${dName}` : dName;
+    const addressee = isRepresented
+        ? `${orDots(d.agentName)}، ${buildAgentCapacityPhrase(d, dName, { present: true })}،`
+        : dName;
     const answerVerb = speakerGender === 'م' ? 'أجاب قائلاً' : 'أجابت قائلة';
     const answerVerbEnd = speakerGender === 'م' ? 'أجاب' : 'أجابت';
     // الضمير في «وبعرضها» عائد على صحيفة الدعوى المذكورة قبله
@@ -1089,6 +1090,15 @@ function buildFollowUpProceedings(state) {
     return out;
 }
 
+// بيانات وكيل المدعى عليه تُثبت في فقرة عرض الدعوى عليه، فلا تُكرَّر في فقرات الحضور.
+// ولا يكون ذلك إلا في الجلسة التحضيرية التي تُعرض فيها الدعوى؛ وفي غيرها تبقى في موضعها.
+function defendantAgentStatedInAnswer(state) {
+    const d = state.defendant;
+    return state.sessionType === 'new'
+        && d.attendance === 'تمثيل'
+        && (d.repType === 'وكيل' || d.repType === 'وكيل شركة');
+}
+
 // وصل فقرات الحضور بواو العطف بعد إسقاط الفارغ منها
 // (الحضور أصالةً لا يُثبت في المتن، فقد تخلو القائمة كلها)
 function joinPresenceClauses(clauses) {
@@ -1135,7 +1145,8 @@ function composeMinutes(state) {
         } else if (defendantNotNotified) {
             text = `${appendClause(appendClause(opening, joinPresenceClauses(pClauses)), 'و' + buildNotNotifiedClause('defendant', state.defendant))}.`;
         } else {
-            const dClauses = [buildPartyClause(state, 'defendant'), ...state.extraDefendants.map((p, i) => buildExtraClause('defendant', i, p, includePartyData))];
+            const dClause = defendantAgentStatedInAnswer(state) ? '' : buildPartyClause(state, 'defendant');
+            const dClauses = [dClause, ...state.extraDefendants.map((p, i) => buildExtraClause('defendant', i, p, includePartyData))];
             const presence = joinPresenceClauses([...pClauses, ...dClauses]);
             // إذا خلت فقرات الحضور بقيت فقرة الافتتاح وحدها موصولةً بما بعدها
             text = presence ? `${appendClause(opening, presence)}.` : opening;
@@ -1212,7 +1223,7 @@ function collectWarnings(state) {
         const needsAccompanyCheck = s.attendance === 'أصالة' && s.hasAccompanyingAgent;
         if (needsWakeelCheck || needsAccompanyCheck) {
             if (!s.agentName.trim()) w.push(`لم يُدخل اسم وكيل ${label}.`);
-            if (!s.agentId || s.agentId.length !== 10) w.push(`رقم هوية وكيل ${label} غير مكتمل (10 أرقام).`);
+            if (!s.wakalaIssuer.trim()) w.push(`لم تُحدَّد جهة إصدار وكالة وكيل ${label}.`);
             if (!s.wakalaNum.trim()) w.push(`لم يُدخل رقم الوكالة الشرعية لوكيل ${label}.`);
             if (s.repIsLawyer === 'نعم' && !s.licenseNum.trim()) w.push(`لم يُدخل رقم رخصة المحاماة لوكيل ${label}.`);
             if (s.repIsLawyer === 'لا' && s.repType !== 'وكيل شركة') {
@@ -1250,6 +1261,7 @@ function collectWarnings(state) {
             }
             if (ep.attendance === 'تمثيل') {
                 if (!ep.repName.trim()) w.push(`لم يُدخل اسم وكيل ${partyLabelAr[p]} ${ordinal}.`);
+                if (!String(ep.repIssuer || '').trim()) w.push(`لم تُحدَّد جهة إصدار وكالة وكيل ${partyLabelAr[p]} ${ordinal}.`);
                 if (!ep.repNum.trim()) w.push(`لم يُدخل رقم الوكالة لوكيل ${partyLabelAr[p]} ${ordinal}.`);
             }
         });
@@ -1360,6 +1372,7 @@ if (typeof module !== 'undefined' && module.exports) {
         freshPartyState, freshExtraParty, freshWitness, freshEvidenceBlock,
         freshClaimState, freshRulingState, freshFollowUpState, freshMinutesState,
         buildOpening, buildAgencyVerificationClause, buildKinshipPhrase, buildAccompanyingAgentClause,
+        buildAgentCapacityPhrase, buildAgentCredentialsPhrase, defendantAgentStatedInAnswer,
         buildIdentityClause, buildPartyClause, buildExtraClause, buildNotNotifiedClause,
         buildSpecialCaseText, buildShatbText, buildOathAbsenceDefendantText, buildOathPerformanceText,
         buildClosingArgumentText, buildPreviousSessionRatification,

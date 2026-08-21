@@ -191,7 +191,7 @@ test('buildPartyClause: الوكيل المرافق يُبقي فقرة الحض
     state.plaintiff.agentName = 'خالد';
     state.plaintiff.agentId = '1020304050';
     state.plaintiff.wakalaNum = '123';
-    assert.match(M.buildPartyClause(state, 'plaintiff'), /^حضر المدعي أصالة، وحضر معه وكيله المحامي خالد/);
+    assert.match(M.buildPartyClause(state, 'plaintiff'), /^حضر المدعي أصالة، وحضر معه خالد، بصفته وكيلاً/);
 });
 
 test('buildPartyClause: إغلاق المفتاح يُبقي غياب الطرف وتبليغه بلا اسم', () => {
@@ -208,15 +208,13 @@ test('buildPartyClause: إغلاق المفتاح لا يمسّ بيانات ا�
     const state = readyState({ includePartyDataInText: false });
     state.defendant.attendance = 'تمثيل';
     state.defendant.agentName = 'خالد';
-    state.defendant.agentId = '3000000003';
+    state.defendant.wakalaIssuer = 'كتابة العدل بالرياض';
     state.defendant.wakalaNum = '777';
     state.defendant.licenseNum = '99';
-    const clause = M.buildPartyClause(state, 'defendant');
-    assert.match(clause, /^حضر عن المدعى عليه وكيله المحامي خالد/);
-    assert.match(clause, /بموجب الوكالة الشرعية رقم \(777\)/);
-    assert.match(clause, /للمادَّة \(51\/3\) من نظام المرافعات الشرعية/);
-    assert.match(clause, /رخصة مزاولة المحاماة رقم \(99\)/);
-    assert.match(clause, /بموجب الهوية رقم \(3000000003\)/);
+    assert.equal(
+        M.buildPartyClause(state, 'defendant'),
+        'حضر عن المدعى عليه خالد، بصفته وكيلاً بموجب الوكالة الصادرة من (كتابة العدل بالرياض)، برقم (777)، ورخصة مزاولة المحاماة رقم (99)'
+    );
 });
 
 test('buildPartyClause: إغلاق المفتاح مع وكيل مرافق يُبقي بيانات الوكالة وحدها', () => {
@@ -227,9 +225,9 @@ test('buildPartyClause: إغلاق المفتاح مع وكيل مرافق يُ�
     state.plaintiff.wakalaNum = '777';
     state.plaintiff.licenseNum = '99';
     const clause = M.buildPartyClause(state, 'plaintiff');
-    assert.match(clause, /^حضر المدعي أصالة، وحضر معه وكيله المحامي خالد/);
+    assert.match(clause, /^حضر المدعي أصالة، وحضر معه خالد، بصفته وكيلاً/);
     assert.ok(!clause.includes('الهوية الوطنية'));
-    assert.match(clause, /بموجب الوكالة الشرعية رقم \(777\)/);
+    assert.match(clause, /برقم \(777\)/);
 });
 
 test('buildExtraClause: إغلاق المفتاح يُسقط فقرة الطرف الإضافي الحاضر أصالةً', () => {
@@ -284,17 +282,40 @@ test('buildPartyClause: حضور أصالة', () => {
     assert.equal(clause, 'حضر المدعي سعد أصالة، بموجب الهوية الوطنية رقم (1000000001)');
 });
 
-test('buildPartyClause: وكيل محامٍ يتضمن المادة (51/3) ورخصة المحاماة', () => {
+test('buildPartyClause: صيغة الوكالة تحمل جهة الإصدار ورقمها ورخصة المحاماة', () => {
     const state = readyState();
     state.defendant.attendance = 'تمثيل';
     state.defendant.agentName = 'خالد';
-    state.defendant.agentId = '3000000003';
+    state.defendant.wakalaIssuer = 'كتابة العدل بالرياض';
     state.defendant.wakalaNum = '777';
     state.defendant.licenseNum = '99';
     const clause = M.buildPartyClause(state, 'defendant');
-    assert.match(clause, /^حضر عن المدعى عليه فهد وكيله المحامي خالد/);
-    assert.match(clause, /للمادَّة \(51\/3\) من نظام المرافعات الشرعية/);
+    assert.match(clause, /^حضر عن المدعى عليه فهد خالد، بصفته وكيلاً بموجب الوكالة الصادرة من \(كتابة العدل بالرياض\)، برقم \(777\)/);
     assert.match(clause, /رخصة مزاولة المحاماة رقم \(99\)/);
+    // عبارة التحقق ورقم هوية الوكيل لم تعودا تُكتبان في المتن
+    assert.ok(!clause.includes('51/3'));
+    assert.ok(!clause.includes('الهوية'));
+});
+
+test('buildAgentCapacityPhrase: الوكيلة غير المحامية تُلحق بها صلة القرابة', () => {
+    const s = M.freshPartyState();
+    s.agentGender = 'ف';
+    s.repIsLawyer = 'لا';
+    s.kinship = 'الأخت';
+    s.wakalaIssuer = 'الخدمات الإلكترونية بناجز';
+    s.wakalaNum = '55';
+    assert.equal(
+        M.buildAgentCapacityPhrase(s, 'المدعية', { present: true }),
+        'الحاضرة بصفتها وكيلةً بموجب الوكالة الصادرة من (الخدمات الإلكترونية بناجز)، برقم (55)، وتربطها بالمدعية صلة قرابة: الأخت'
+    );
+});
+
+test('buildAgentCredentialsPhrase: وكيل الشركة لا تُذكر له قرابة', () => {
+    const s = M.freshPartyState();
+    s.repType = 'وكيل شركة';
+    s.repIsLawyer = 'لا';
+    s.kinship = 'الأخ';
+    assert.equal(M.buildAgentCredentialsPhrase(s, 'المدعى عليه'), '');
 });
 
 test('buildPartyClause: ممثل نظامي بصفته', () => {
@@ -314,8 +335,9 @@ test('buildExtraClause: طرف إضافي حاضر وممثل وغائب', () =>
     assert.equal(M.buildExtraClause('plaintiff', 0, p), 'حضر المدعي الثاني ناصر أصالة، بموجب الهوية الوطنية رقم (1010101010)');
     p.attendance = 'تمثيل';
     p.repName = 'بدر';
+    p.repIssuer = 'كتابة العدل بالرياض';
     p.repNum = '123';
-    assert.equal(M.buildExtraClause('plaintiff', 0, p), 'حضر عن المدعي الثاني ناصر وكيله بدر بموجب الوكالة الشرعية رقم (123)');
+    assert.equal(M.buildExtraClause('plaintiff', 0, p), 'حضر عن المدعي الثاني ناصر بدر، بصفته وكيلاً بموجب الوكالة الصادرة من (كتابة العدل بالرياض)، برقم (123)');
     p.attendance = 'لم يحضر';
     assert.equal(M.buildExtraClause('plaintiff', 0, p), 'لم يحضر المدعي الثاني ناصر');
 });
@@ -630,6 +652,42 @@ test('composeMinutes: سماع دفوع المدعى عليه وبينته في 
 });
 
 // ==================== التوليد الكامل ====================
+
+test('composeMinutes: بيانات وكيل المدعى عليه تُثبت في فقرة عرض الدعوى لا في الحضور', () => {
+    const state = readyState({ includePartyDataInText: false });
+    state.defendant.attendance = 'تمثيل';
+    state.defendant.agentName = 'خالد';
+    state.defendant.wakalaIssuer = 'كتابة العدل بالرياض';
+    state.defendant.wakalaNum = '777';
+    state.defendant.licenseNum = '99';
+    const text = M.composeMinutes(state);
+    assert.match(text, /أ\. هـ وبعرضها على خالد، الحاضر بصفته وكيلاً بموجب الوكالة الصادرة من \(كتابة العدل بالرياض\)، برقم \(777\)، ورخصة مزاولة المحاماة رقم \(99\)، أجاب قائلاً:/);
+    // لا تتكرر بيانات الوكيل في فقرات الحضور بعد الافتتاح
+    assert.ok(!text.includes('حضر عن المدعى عليه'));
+    assert.equal(text.match(/الوكالة الصادرة من/g).length, 1);
+});
+
+test('composeMinutes: الجلسة المنظورة سابقًا تُبقي وكيل المدعى عليه في فقرة الحضور', () => {
+    const state = readyState({ includePartyDataInText: false });
+    state.sessionType = 'previous';
+    state.defendant.attendance = 'تمثيل';
+    state.defendant.agentName = 'خالد';
+    state.defendant.wakalaIssuer = 'كتابة العدل بالرياض';
+    state.defendant.wakalaNum = '777';
+    const text = M.composeMinutes(state);
+    assert.match(text, /^لدي أنا فلان بن فلان في المحكمة الرياض، وحضر عن المدعى عليه خالد، بصفته وكيلاً بموجب الوكالة الصادرة من \(كتابة العدل بالرياض\)، برقم \(777\)/);
+});
+
+test('collectWarnings: جهة إصدار الوكالة لازمة لوكيل الطرف', () => {
+    const state = readyState();
+    state.defendant.attendance = 'تمثيل';
+    state.defendant.agentName = 'خالد';
+    state.defendant.wakalaNum = '777';
+    state.defendant.licenseNum = '99';
+    assert.ok(M.collectWarnings(state).some(x => x.includes('جهة إصدار وكالة وكيل المدعى عليه')));
+    state.defendant.wakalaIssuer = 'كتابة العدل بالرياض';
+    assert.ok(!M.collectWarnings(state).some(x => x.includes('جهة إصدار وكالة')));
+});
 
 // النص المعتمد للجلسة التحضيرية كما أقرَّه ناظر القضية — أي تعديل في الصياغة يجب أن يمر من هنا
 test('composeMinutes: النص المعتمد للجلسة التحضيرية بلا بيانات الطرفين', () => {

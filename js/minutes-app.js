@@ -785,6 +785,7 @@ $('backLink').addEventListener('click', () => {
         render();
     });
 
+    $(`${party}-wakala-issuer`).addEventListener('input', e => { state[party].wakalaIssuer = e.target.value; render(); });
     $(`${party}-wakala-num`).addEventListener('input', e => { state[party].wakalaNum = e.target.value; render(); });
     $(`${party}-wakala-num`).addEventListener('change', e => {
         if (e.target.value.trim()) openMinutesModal('wakalaModal');
@@ -881,6 +882,10 @@ function extraCardHTML(role, idx, p) {
             <div class="field">
                 <label>اسم الوكيل <span class="req">*</span></label>
                 <input type="text" class="form-control" data-role="${role}" data-idx="${idx}" data-field="repName" value="${escapeHtml(p.repName)}" placeholder="اسم الوكيل" required>
+            </div>
+            <div class="field">
+                <label>جهة إصدار الوكالة <span class="req">*</span></label>
+                <input type="text" class="form-control" data-role="${role}" data-idx="${idx}" data-field="repIssuer" value="${escapeHtml(p.repIssuer || '')}" placeholder="مثال: كتابة العدل بالرياض" required>
             </div>
             <div class="field">
                 <label>رقم الوكالة الشرعية <span class="req">*</span></label>

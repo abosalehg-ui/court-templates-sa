@@ -200,10 +200,15 @@
                                             <label id="plaintiff-agent-name-label">اسم الوكيل <span class="req">*</span></label>
                                             <input type="text" class="form-control" id="plaintiff-agent-name" placeholder="اسم الوكيل" required>
                                         </div>
-                                        <div class="field">
+                                        <!-- رقم هوية الوكيل لم يعد يُكتب في متن الضبط، فسُتر الحقل مع بقاء عمله في الكود -->
+                                        <div class="field" id="plaintiff-agent-id-field" style="display:none;">
                                             <label>رقم الهوية / الإقامة <span class="req">*</span></label>
                                             <input type="text" class="form-control" id="plaintiff-agent-id" placeholder="أدخل 10 أرقام فقط" maxlength="10" inputmode="numeric" data-numeric-only="true" required>
                                             <div class="field-error" id="plaintiff-agent-id-error" style="display:none;">يجب إدخال رقم الهوية أو الإقامة، ويتكوّن من 10 أرقام بالضبط.</div>
+                                        </div>
+                                        <div class="field">
+                                            <label>جهة إصدار الوكالة <span class="req">*</span></label>
+                                            <input type="text" class="form-control" id="plaintiff-wakala-issuer" placeholder="مثال: كتابة العدل بالرياض، أو الخدمات الإلكترونية بناجز" required>
                                         </div>
                                         <div class="field">
                                             <label>رقم الوكالة الشرعية <span class="req">*</span></label>
@@ -374,10 +379,15 @@
                                             <label id="defendant-agent-name-label">اسم الوكيل <span class="req">*</span></label>
                                             <input type="text" class="form-control" id="defendant-agent-name" placeholder="اسم الوكيل" required>
                                         </div>
-                                        <div class="field">
+                                        <!-- رقم هوية الوكيل لم يعد يُكتب في متن الضبط، فسُتر الحقل مع بقاء عمله في الكود -->
+                                        <div class="field" id="defendant-agent-id-field" style="display:none;">
                                             <label>رقم الهوية / الإقامة <span class="req">*</span></label>
                                             <input type="text" class="form-control" id="defendant-agent-id" placeholder="أدخل 10 أرقام فقط" maxlength="10" inputmode="numeric" data-numeric-only="true" required>
                                             <div class="field-error" id="defendant-agent-id-error" style="display:none;">يجب إدخال رقم الهوية أو الإقامة، ويتكوّن من 10 أرقام بالضبط.</div>
+                                        </div>
+                                        <div class="field">
+                                            <label>جهة إصدار الوكالة <span class="req">*</span></label>
+                                            <input type="text" class="form-control" id="defendant-wakala-issuer" placeholder="مثال: كتابة العدل بالرياض، أو الخدمات الإلكترونية بناجز" required>
                                         </div>
                                         <div class="field">
                                             <label>رقم الوكالة الشرعية <span class="req">*</span></label>
