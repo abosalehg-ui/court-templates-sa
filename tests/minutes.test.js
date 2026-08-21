@@ -434,8 +434,8 @@ test('buildWitnessSection: يتضمن مادتي (71) و(78) وتحليف الش
     assert.match(text, /\(الحادية والسبعين\) و\(الثامنة والسبعين\)/);
     assert.match(text, /جرى سماع كل شاهد على انفراد/);
     assert.match(text, /اسمي الكامل: \( صالح \)/);
-    assert.match(text, /ثم جرى تحليفه اليمين على أن يشهد بالحق، فحلف/);
-    assert.match(text, /أشهد بالله العظيم أن \( المبلغ في ذمة المدعى عليه \)/);
+    assert.match(text, /وبسؤال الشاهد عن بياناته وما لديه من شهادة\؟/);
+    assert.match(text, /وأشهد لله تعالى بأن \( المبلغ في ذمة المدعى عليه \) هذا ما أشهد به هكذا أجاب/);
 });
 
 test('buildWitnessSection: صلة الشاهد بكل خصم على حدة', () => {
@@ -446,7 +446,7 @@ test('buildWitnessSection: صلة الشاهد بكل خصم على حدة', () 
 
 test('buildWitnessSection: جنسية الشاهد وهويته تُثبتان في الضبط دائمًا', () => {
     const text = M.buildWitnessSection([SAMPLE_WITNESS], witnessCtx());
-    assert.match(text, /اسمي الكامل: \( صالح \)، وجنسيتي: \( سعودي \)، ورقم هويتي الوطنية\/إقامتي: \( 1099887766 \)، وتاريخ ميلادي/);
+    assert.match(text, /اسمي الكامل: \( صالح \)، وجنسيتي: \( سعودي \)، ورقم هويتي: \( 1099887766 \)، وتاريخ ميلادي/);
 });
 
 test('WITNESS_NATIONALITY_OPTIONS: قائمة الطرفين نفسها يتصدرها «سعودي»', () => {
@@ -457,10 +457,19 @@ test('WITNESS_NATIONALITY_OPTIONS: قائمة الطرفين نفسها يتصد
     assert.ok(!M.NATIONALITY_OPTIONS.includes('سعودي'));
 });
 
-test('buildWitnessSection: رقم جوال الشاهد لا يظهر في نص الضبط', () => {
+test('buildWitnessSection: رقم جوال الشاهد أرقامٌ بين معقوفتين بلا عبارة تعرّف به', () => {
     const text = M.buildWitnessSection([SAMPLE_WITNESS], witnessCtx());
-    assert.ok(!text.includes('0500000000'));
+    assert.match(text, /ومصلحتي في هذه الدعوى هي: \( لا مصلحة \) \[0500000000\]، وأشهد لله تعالى/);
+    // لا عبارة تسبقه ولا تلحقه
     assert.ok(!text.includes('جوال'));
+    assert.ok(!text.includes('هاتف'));
+});
+
+test('buildWitnessSection: لا معقوفتان فارغتان إذا لم يُدخل رقم الجوال', () => {
+    const witness = Object.assign({}, SAMPLE_WITNESS, { phone: '' });
+    const text = M.buildWitnessSection([witness], witnessCtx());
+    assert.match(text, /ومصلحتي في هذه الدعوى هي: \( لا مصلحة \)، وأشهد لله تعالى/);
+    assert.ok(!text.includes('['));
 });
 
 test('EVIDENCE_OPTIONS: شهادة الشهود ثانيةً بعد العقد', () => {

@@ -738,8 +738,11 @@ function buildWitnessSection(witnesses, ctx) {
 
     witnesses.forEach((w, i) => {
         const ordinal = ordinalWordsMasc[i + 1] || `رقم ${i + 1}`;
-        // بيانات الشاهد تُثبت كاملة في الضبط (المادة 71 من نظام الإثبات)، ورقم الجوال وحده لا يُدرج
-        out += ` ثم ${bringVerb} ${ctx.presenterLabel} للشهادة الشاهد ${ordinal}، وبسؤال الشاهد عن بياناته وما لديه من شهادة؟ أجاب قائلاً: اسمي الكامل: ( ${orDots(w.name)} )، وجنسيتي: ( ${orDots(w.nationality)} )، ورقم هويتي: ( ${orDots(w.idNum)} )، وتاريخ ميلادي/عمري: ( ${orDots(w.age)} )، وأعمل في مهنة: ( ${orDots(w.job)} )، وأسكن في: ( ${orDots(w.residence)} )، وصلتي بالمدعي: ( ${orDots(w.relationPlaintiff)} )، وصلتي بالمدعى عليه: ( ${orDots(w.relationDefendant)} )، ومصلحتي في هذه الدعوى هي: ( ${orDots(w.interest)} )، وأشهد لله تعالى بأن ( ${orDots(w.testimony)} ) هذا ما أشهد به هكذا أجاب.`;
+        // رقم جوال الشاهد يُطبع بأرقامه وحدها بين معقوفتين بلا عبارة تعرّف به،
+        // ليطّلع عليه القاضي عند مراجعة الضبط ويحذفه بعد نسخه في ناجز
+        const phone = String(w.phone || '').trim();
+        const phonePart = phone ? ` [${phone}]` : '';
+        out += ` ثم ${bringVerb} ${ctx.presenterLabel} للشهادة الشاهد ${ordinal}، وبسؤال الشاهد عن بياناته وما لديه من شهادة؟ أجاب قائلاً: اسمي الكامل: ( ${orDots(w.name)} )، وجنسيتي: ( ${orDots(w.nationality)} )، ورقم هويتي: ( ${orDots(w.idNum)} )، وتاريخ ميلادي/عمري: ( ${orDots(w.age)} )، وأعمل في مهنة: ( ${orDots(w.job)} )، وأسكن في: ( ${orDots(w.residence)} )، وصلتي بالمدعي: ( ${orDots(w.relationPlaintiff)} )، وصلتي بالمدعى عليه: ( ${orDots(w.relationDefendant)} )، ومصلحتي في هذه الدعوى هي: ( ${orDots(w.interest)} )${phonePart}، وأشهد لله تعالى بأن ( ${orDots(w.testimony)} ) هذا ما أشهد به هكذا أجاب.`;
 
     });
 
