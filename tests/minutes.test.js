@@ -771,11 +771,21 @@ test('composeMinutes: حكم على وقف — نص واجب التدقيق مر
     state.defendant.entityType = M.ENTITY_TYPES.WAQF;
     state.defendant.attendance = 'تمثيل';
     state.defendant.repType = 'وكيل شركة';
-    state.ruling.mandatoryReview = 'نعم';
     const text = M.composeMinutes(state);
     const reviewText = M.findTemplate('إفهامات بعد النطق', 'واجب التدقيق');
     assert.equal(text.split(reviewText).length - 1, 1);
     assert.ok(!text.includes('قابل للاستئناف'));
+});
+
+test('composeMinutes: حكم على وقف مع إعادة القضية — صيغة واحدة لا صيغتان', () => {
+    const state = rulingState();
+    state.defendant.entityType = M.ENTITY_TYPES.WAQF;
+    state.defendant.attendance = 'تمثيل';
+    state.defendant.repType = 'وكيل شركة';
+    state.ruling.mandatoryReview = 'إعادة';
+    const text = M.composeMinutes(state);
+    assert.match(text, /إعادة القضية بعد إنتهاء فترة الإعتراض إلى محكمة الأستئناف/);
+    assert.ok(!text.includes('رفع كامل ملف الدعوى'));
 });
 
 test('rulingWarnings: لا يُطالَب بقيمة المطالبة مع الوقف واجب التدقيق', () => {
@@ -785,16 +795,27 @@ test('rulingWarnings: لا يُطالَب بقيمة المطالبة مع ال�
     assert.ok(!M.rulingWarnings(state).some(w => w.includes('قيمة المطالبة')));
 });
 
-test('buildMandatoryReviewText: نصا التدقيق الوجوبي من المكتبة', () => {
-    assert.equal(M.buildMandatoryReviewText({ mandatoryReview: 'لا' }), '');
-    assert.equal(M.buildMandatoryReviewText({ mandatoryReview: 'نعم' }), M.findTemplate('إفهامات بعد النطق', 'واجب التدقيق'));
-    assert.equal(M.buildMandatoryReviewText({ mandatoryReview: 'إعادة' }), M.findTemplate('إفهامات بعد النطق', 'واجب التدقيق /إعادة القضية'));
+test('buildNoticeText: إفهام واجب التدقيق له صيغتان يختارهما إجراء التدقيق', () => {
+    const state = rulingState();
+    state.ruling.noticeKind = 'review';
+    assert.equal(M.freshRulingState().mandatoryReview, 'نعم');
+    assert.equal(M.buildNoticeText(state), M.findTemplate('إفهامات بعد النطق', 'واجب التدقيق'));
+    state.ruling.mandatoryReview = 'إعادة';
+    assert.equal(M.buildNoticeText(state), M.findTemplate('إفهامات بعد النطق', 'واجب التدقيق /إعادة القضية'));
+});
+
+test('buildRulingSection: إجراء التدقيق لا يُلحق فقرة زائدة على إفهام غير واجب التدقيق', () => {
+    const state = rulingState();
+    state.ruling.claimValue = '900000';
+    state.ruling.mandatoryReview = 'إعادة';
+    const text = M.buildRulingSection(state);
+    assert.match(text, /قابل للاستئناف/);
+    assert.ok(!text.includes('واجب التدقيق'));
 });
 
 test('composeMinutes: مرحلة الحكم تُلحق بالضبط بعد قفل باب المرافعة', () => {
     const state = rulingState();
     state.ruling.claimValue = '900000';
-    state.ruling.mandatoryReview = 'نعم';
     const text = M.composeMinutes(state);
     const closeAt = text.indexOf('قفل باب المرافعة');
     const reasonsAt = text.indexOf('\n\nالأسباب:\n');
@@ -803,7 +824,6 @@ test('composeMinutes: مرحلة الحكم تُلحق بالضبط بعد قف�
     assert.ok(closeAt < reasonsAt && reasonsAt < rulingAt && rulingAt < endAt);
     assert.match(text, /وهذا الحكم حضوري في حق طرفي الدعوى/);
     assert.match(text, /قابل للاستئناف/);
-    assert.match(text, /واجب التدقيق/);
     assert.match(text, /وأغلقت الجلسة الساعة التاسعة والنصف صباحًا\.$/);
 });
 

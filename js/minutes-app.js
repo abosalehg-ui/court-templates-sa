@@ -121,7 +121,8 @@ function updateSessionModeUI() {
 updateSessionModeUI();
 
 // ==================== وقت إغلاق الجلسة ====================
-// وقت الافتتاح مثبت في ناجز أعلى صفحة القضية، فلا يُطلب هنا ولا يُكرَّر في متن الضبط
+// وقت الافتتاح مثبت في ناجز أعلى صفحة القضية، فلا يُطلب هنا ولا يُكرَّر في متن الضبط،
+// وبطاقة وقت الإغلاق تُذيَّل بها خطوة (الأسباب والحكم) — انظر showStep
 function populateHourOptions() {
     const hourSel = $('closeHour');
     const prevValue = hourSel.value;
@@ -399,7 +400,15 @@ function updateNoticeKindLock() {
     });
     const notice = $('noticeKindLockNotice');
     if (notice) notice.style.display = forced ? 'block' : 'none';
+    updateMandatoryReviewVisibility();
     updateClaimValueHint();
+}
+
+// إجراء التدقيق الوجوبي صيغةٌ لإفهام (واجب التدقيق)، فلا يُسأل عنه إلا عند اختياره
+function updateMandatoryReviewVisibility() {
+    const block = $('mandatoryReviewBlock');
+    if (!block) return;
+    block.style.display = noticeKindFor(state) === 'review' ? 'block' : 'none';
 }
 
 function updateSpecialCaseVisibility() {
@@ -601,6 +610,7 @@ function handleChoice(key, value) {
     if (key === 'ruling-presence') { state.ruling.presence = value; return; }
     if (key === 'ruling-noticeKind') {
         state.ruling.noticeKind = value;
+        updateMandatoryReviewVisibility();
         updateClaimValueHint();
         return;
     }
@@ -1262,6 +1272,9 @@ function showStep() {
         uiState.currentStep = candidates.length ? candidates[candidates.length - 1] : list[0];
     }
     [0, 1, 2, 3].forEach(n => { stepElement(n).style.display = 'none'; });
+    // بطاقة وقت الإغلاق تُذيَّل بها خطوة (الأسباب والحكم)، وفي المحاضر المختصرة التي تسقط
+    // فيها هذه الخطوة (الشطب وعدم التبلّغ ونحوهما) تنتقل لآخر خطوة متاحة فتبقى في المتناول
+    stepElement(list[list.length - 1]).appendChild($('closingTimeCard'));
     stepElement(uiState.currentStep).style.display = 'block';
     const idx = list.indexOf(uiState.currentStep);
     $('prevStepBtn').disabled = idx === 0;
