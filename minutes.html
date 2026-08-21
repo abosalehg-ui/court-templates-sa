@@ -102,24 +102,6 @@
                             <!-- <div class="hint">حاليًا يخرج النص: «حضر المدعي أصالة» و«حضرت المدعى عليها أصالة»، ومع التعدد: «حضر المدعي الأول… وحضر المدعي الثاني…». وعند التفعيل يُدرج اسم الطرف ومعه (الهوية الوطنية) أو (الجنسية والإقامة النظامية) أو (السجل التجاري) للحاضر أصالة.</div>-->
                             <!-- <div class="hint">عند التفعيل يُدرج اسم الطرف ومعه (الهوية الوطنية) أو (الجنسية والإقامة النظامية) أو (السجل التجاري) للحاضر أصالة.</div>-->
                         </div>
-
-                        <div class="m-card">
-                            <h2>وقت الإغلاق</h2>
-                            <div class="field">
-                                <label>وقت إغلاق الجلسة</label>
-                                <div class="time-picker">
-                                    <select class="form-control" id="closeHour"></select>
-                                    <span class="colon">:</span>
-                                    <select class="form-control" id="closeMinute"></select>
-                                    <select class="form-control period-select" id="closePeriod">
-                                        <option value="ص">☀️ صباحًا (٨-١١)</option>
-                                        <option value="م">🌙 مساءً (١٢-٣)</option>
-                                    </select>
-                                </div>
-                                <div class="hint" id="closePeriodHint"></div>
-                            </div>
-                            <div class="hint">وقت افتتاح الجلسة مثبت في صفحة القضية بناجز، فلا يُكرَّر في متن الضبط؛ ويُختم الضبط بعبارة «وأغلقت الجلسة الساعة ...».</div>
-                        </div>
                     </div><!-- /stepWrap0 -->
 
                     <!-- الخطوة 1: بيانات الأطراف -->
@@ -765,6 +747,23 @@
                                     <div class="choice-btn" data-value="إعادة">واجب التدقيق — إعادة القضية لمحكمة الاستئناف</div>
                                 </div>
                                 <div class="hint">نصوص الإفهام والتدقيق تُجلب من مكتبة النماذج في الصفحة الرئيسية (تصنيف: إفهامات بعد النطق) فلا تتعارض معها.</div>
+                            </div>
+                        </div>
+
+                        <div class="m-card" id="closingTimeCard">
+                            <h2>وقت الإغلاق</h2>
+                            <div class="field">
+                                <label>وقت إغلاق الجلسة</label>
+                                <div class="time-picker">
+                                    <select class="form-control" id="closeHour"></select>
+                                    <span class="colon">:</span>
+                                    <select class="form-control" id="closeMinute"></select>
+                                    <select class="form-control period-select" id="closePeriod">
+                                        <option value="ص">☀️ صباحًا (٨-١١)</option>
+                                        <option value="م">🌙 مساءً (١٢-٣)</option>
+                                    </select>
+                                </div>
+                                <div class="hint" id="closePeriodHint"></div>
                             </div>
                         </div>
                     </div><!-- /rulingCard -->

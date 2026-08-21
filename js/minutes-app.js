@@ -121,7 +121,8 @@ function updateSessionModeUI() {
 updateSessionModeUI();
 
 // ==================== وقت إغلاق الجلسة ====================
-// وقت الافتتاح مثبت في ناجز أعلى صفحة القضية، فلا يُطلب هنا ولا يُكرَّر في متن الضبط
+// وقت الافتتاح مثبت في ناجز أعلى صفحة القضية، فلا يُطلب هنا ولا يُكرَّر في متن الضبط،
+// وبطاقة وقت الإغلاق تُذيَّل بها خطوة (الأسباب والحكم) — انظر showStep
 function populateHourOptions() {
     const hourSel = $('closeHour');
     const prevValue = hourSel.value;
@@ -1262,6 +1263,9 @@ function showStep() {
         uiState.currentStep = candidates.length ? candidates[candidates.length - 1] : list[0];
     }
     [0, 1, 2, 3].forEach(n => { stepElement(n).style.display = 'none'; });
+    // بطاقة وقت الإغلاق تُذيَّل بها خطوة (الأسباب والحكم)، وفي المحاضر المختصرة التي تسقط
+    // فيها هذه الخطوة (الشطب وعدم التبلّغ ونحوهما) تنتقل لآخر خطوة متاحة فتبقى في المتناول
+    stepElement(list[list.length - 1]).appendChild($('closingTimeCard'));
     stepElement(uiState.currentStep).style.display = 'block';
     const idx = list.indexOf(uiState.currentStep);
     $('prevStepBtn').disabled = idx === 0;
