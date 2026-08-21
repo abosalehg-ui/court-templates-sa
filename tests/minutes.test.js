@@ -110,7 +110,7 @@ test('buildKinshipPhrase: قرابة مقبولة وخارج الدرجات', ()
 
 test('buildOpening: الافتراضي عبر الاتصال المرئي مختصراً بلا نص القرار', () => {
     const text = M.buildOpening({ judge: 'فلان', court: 'الرياض' });
-    assert.equal(text, 'فلديّ أنا فلان القاضي بمحكمة الرياض افتتحتُ الجلسة عبر الاتصال المرئي،');
+    assert.equal(text, 'فلديّ أنا فلان القاضي في المحكمة الرياض افتتحتُ الجلسة عبر الاتصال المرئي،');
     assert.ok(!text.includes('17388'));
 });
 
@@ -122,7 +122,7 @@ test('buildOpening: لا يُذكر وقت الافتتاح في المتن (م�
 
 test('buildOpening: خيار «مع المستند» يدرج نص قرار المجلس الأعلى للقضاء', () => {
     const text = M.buildOpening({ judge: 'فلان', court: 'الرياض', mode: M.SESSION_MODES.VIDEO_FULL });
-    assert.match(text, /^فلديّ أنا فلان القاضي بمحكمة الرياض افتتحتُ الجلسة عبر الاتصال المرئي/);
+    assert.match(text, /^فلديّ أنا فلان القاضي في المحكمة الرياض افتتحتُ الجلسة عبر الاتصال المرئي/);
     assert.match(text, /قرار فضيلة رئيس المجلس الأعلى للقضاء رقم 17388/);
     assert.match(text, /المتضمن إطلاق خدمة التقاضي عن بعد/);
     assert.match(text, /،$/);
@@ -130,7 +130,7 @@ test('buildOpening: خيار «مع المستند» يدرج نص قرار ال
 
 test('buildOpening: الجلسة الحضورية تحذف صيغة الاتصال المرئي كاملة', () => {
     const text = M.buildOpening({ judge: 'فلان', court: 'الرياض', mode: M.SESSION_MODES.IN_PERSON });
-    assert.equal(text, 'فلديّ أنا فلان القاضي بمحكمة الرياض افتتحتُ الجلسة،');
+    assert.equal(text, 'فلديّ أنا فلان القاضي في المحكمة الرياض افتتحتُ الجلسة،');
     assert.ok(!text.includes('المرئي'));
 });
 
@@ -413,7 +413,11 @@ test('buildOathBlock: لا أرغب / أرغب مع مدعى عليه غائب',
     assert.match(absent, /عُدَّ ناكلاً/);
 });
 
-const SAMPLE_WITNESS = { name: 'صالح', age: '30', job: 'موظف', residence: 'الرياض', relation: 'جار', interest: 'لا مصلحة', testimony: 'المبلغ في ذمة المدعى عليه' };
+const SAMPLE_WITNESS = {
+    name: 'صالح', nationality: 'سعودي', idNum: '1099887766', age: '30', job: 'موظف', residence: 'الرياض',
+    relationPlaintiff: 'جار', relationDefendant: 'لا صلة', interest: 'لا مصلحة',
+    testimony: 'المبلغ في ذمة المدعى عليه', phone: '0500000000'
+};
 
 function witnessCtx(overrides = {}) {
     return Object.assign({
@@ -432,6 +436,35 @@ test('buildWitnessSection: يتضمن مادتي (71) و(78) وتحليف الش
     assert.match(text, /اسمي الكامل: \( صالح \)/);
     assert.match(text, /ثم جرى تحليفه اليمين على أن يشهد بالحق، فحلف/);
     assert.match(text, /أشهد بالله العظيم أن \( المبلغ في ذمة المدعى عليه \)/);
+});
+
+test('buildWitnessSection: صلة الشاهد بكل خصم على حدة', () => {
+    const text = M.buildWitnessSection([SAMPLE_WITNESS], witnessCtx());
+    assert.match(text, /وصلتي بالمدعي: \( جار \)، وصلتي بالمدعى عليه: \( لا صلة \)/);
+    assert.ok(!text.includes('وعلاقتي بأطراف الدعوى هو'));
+});
+
+test('buildWitnessSection: جنسية الشاهد وهويته تتبعان مفتاح إدراج بيانات الطرفين', () => {
+    const off = M.buildWitnessSection([SAMPLE_WITNESS], witnessCtx());
+    assert.ok(!off.includes('وجنسيتي'));
+    assert.ok(!off.includes('1099887766'));
+
+    const on = M.buildWitnessSection([SAMPLE_WITNESS], witnessCtx({ includePartyData: true }));
+    assert.match(on, /اسمي الكامل: \( صالح \)، وجنسيتي: \( سعودي \)، ورقم هويتي الوطنية\/إقامتي: \( 1099887766 \)، وتاريخ ميلادي/);
+});
+
+test('buildWitnessSection: رقم جوال الشاهد لا يظهر في نص الضبط', () => {
+    const on = M.buildWitnessSection([SAMPLE_WITNESS], witnessCtx({ includePartyData: true }));
+    assert.ok(!on.includes('0500000000'));
+    assert.ok(!on.includes('جوال'));
+});
+
+test('EVIDENCE_OPTIONS: شهادة الشهود ثانيةً بعد العقد', () => {
+    assert.equal(M.EVIDENCE_OPTIONS[0], 'العقد');
+    assert.equal(M.EVIDENCE_OPTIONS[1], 'شهادة شهود');
+    // بقية الخيارات باقية بلا حذف ولا تكرار
+    assert.equal(M.EVIDENCE_OPTIONS.length, new Set(M.EVIDENCE_OPTIONS).size);
+    assert.equal(M.EVIDENCE_OPTIONS.length, 18);
 });
 
 test('buildWitnessSection: مطابقة التذكير والتأنيث في مقدّم الشهود والمتكلم', () => {
@@ -581,10 +614,10 @@ test('composeMinutes: سماع دفوع المدعى عليه وبينته في 
 
 test('composeMinutes: جلسة تحضيرية مكتملة بطرفين حاضرين', () => {
     const text = M.composeMinutes(readyState());
-    assert.match(text, /^فلديّ أنا فلان بن فلان القاضي بمحكمة الرياض/);
+    assert.match(text, /^فلديّ أنا فلان بن فلان القاضي في المحكمة الرياض/);
     assert.match(text, /حضر المدعي سعد أصالة/);
     assert.match(text, /حضر المدعى عليه فهد أصالة/);
-    assert.match(text, /وبالاطلاع على دعوى المدعي وجدت نصها: "أطالب بمبلغ مئة ألف ريال"/);
+    assert.match(text, /وبالاطلاع على دعوى المدعي ونصها: "أطالب بمبلغ مئة ألف ريال"/);
     assert.match(text, /وبعرض دعوى المدعي على المدعى عليه أجاب قائلاً: ما ذكره المدعي غير صحيح/);
     assert.match(text, /قفل باب المرافعة/);
     assert.match(text, /وأغلقت الجلسة الساعة التاسعة والنصف صباحًا\.$/);
@@ -858,6 +891,23 @@ test('collectWarnings: نواقص بينة المدعى عليه وشهوده', 
     const w = M.collectWarnings(state);
     assert.ok(w.some(x => x.includes('لشاهد المدعى عليه الأول')));
     assert.ok(w.some(x => x.includes('أسماء معدِّلي شهود المدعى عليه')));
+    assert.ok(w.some(x => x.includes('صلة الشاهد بالمدعي')));
+    assert.ok(w.some(x => x.includes('صلة الشاهد بالمدعى عليه')));
+    // الجنسية والهوية تُفحصان مع تفعيل مفتاح إدراج بيانات الطرفين فقط
+    assert.ok(w.some(x => x.includes('جنسية الشاهد')));
+    state.includePartyDataInText = false;
+    const off = M.collectWarnings(state);
+    assert.ok(!off.some(x => x.includes('جنسية الشاهد')));
+    assert.ok(!off.some(x => x.includes('رقم هوية/إقامة الشاهد')));
+});
+
+test('freshWitness: رقم الجوال ضمن بيانات الشاهد ولا يُفحص في التحذيرات', () => {
+    assert.equal(M.freshWitness().phone, '');
+    const state = readyState();
+    state.claim.evidenceChoice = 'has';
+    state.claim.evidenceItems = ['شهادة شهود'];
+    state.claim.witnesses = [M.freshWitness()];
+    assert.ok(!M.collectWarnings(state).some(x => x.includes('جوال')));
 });
 
 test('collectWarnings: الإقرار لا يطالب ببينة المدعي', () => {

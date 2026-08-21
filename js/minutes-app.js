@@ -98,6 +98,8 @@ $('includePartyDataInText').addEventListener('change', e => {
     updateVisibility('defendant');
     renderExtraCards('plaintiff');
     renderExtraCards('defendant');
+    renderWitnesses();
+    renderDefendantWitnesses();
     render();
 });
 
@@ -971,10 +973,14 @@ function setupEvidenceChecklist(cfg) {
 // ==================== الشهود ====================
 function witnessCardHTML(prefix, idx, w) {
     const ordinal = ordinalWord(idx + 1, 'م');
+    // الجنسية والهوية يحكمهما مفتاح إدراج بيانات الطرفين نفسه، فتُخفيان معه
+    const identityFields = state.includePartyDataInText
+        ? [['nationality', 'الجنسية'], ['idNum', 'رقم الهوية الوطنية / رقم الإقامة']]
+        : [];
     const fields = [
-        ['name', 'الاسم الكامل'], ['age', 'تاريخ الميلاد / العمر'], ['job', 'المهنة'],
-        ['residence', 'مكان الإقامة'], ['relation', 'وجه الاتصال بأطراف الدعوى'], ['interest', 'المصلحة في هذه الدعوى'],
-        ['testimony', 'نص الشهادة (أشهد بالله العظيم أن...)']
+        ['name', 'الاسم الكامل'], ...identityFields, ['age', 'تاريخ الميلاد / العمر'], ['job', 'المهنة'],
+        ['residence', 'مكان الإقامة'], ['relationPlaintiff', 'صلة الشاهد بالمدعي'], ['relationDefendant', 'صلة الشاهد بالمدعى عليه'],
+        ['interest', 'المصلحة في هذه الدعوى'], ['testimony', 'نص الشهادة (أشهد بالله العظيم أن...)']
     ];
     return `
     <div class="extra-party-block">
@@ -987,6 +993,11 @@ function witnessCardHTML(prefix, idx, w) {
             <label>${label} <span class="req">*</span></label>
             <input type="text" class="form-control" data-witness-prefix="${prefix}" data-witness-idx="${idx}" data-witness-field="${key}" value="${escapeHtml(w[key])}" placeholder="${label}" required>
         </div>`).join('')}
+        <div class="field">
+            <label>رقم جوال الشاهد</label>
+            <input type="text" class="form-control" data-witness-prefix="${prefix}" data-witness-idx="${idx}" data-witness-field="phone" value="${escapeHtml(w.phone)}" placeholder="رقم جوال الشاهد" inputmode="numeric" data-numeric-only="true">
+            <div class="hint">لا يظهر في نص الضبط، ويُحفظ للوصول إلى الشاهد عند الحاجة.</div>
+        </div>
     </div>`;
 }
 
@@ -1467,9 +1478,9 @@ function applySnapshot(snap) {
     renderExtraCards('defendant');
 
     state.claim.evidenceItems = snap.evidenceItems || [];
-    state.claim.witnesses = snap.witnesses || [];
+    state.claim.witnesses = (snap.witnesses || []).map(w => Object.assign(freshWitness(), w));
     state.claim.defendantEvidence.items = snap.defendantEvidenceItems || [];
-    state.claim.defendantEvidence.witnesses = snap.defendantWitnesses || [];
+    state.claim.defendantEvidence.witnesses = (snap.defendantWitnesses || []).map(w => Object.assign(freshWitness(), w));
     state.followUp = Object.assign(freshFollowUpState(), snap.followUp || {});
     $('followUpPlaintiffEvidence').checked = !!state.followUp.plaintiffEvidence;
     $('followUpDefendantEvidence').checked = !!state.followUp.defendantEvidence;
