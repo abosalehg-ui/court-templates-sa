@@ -527,8 +527,12 @@ function buildPartyClause(state, role) {
         return `حضر عن ${name} ممثل${suffix} النظامي${repNamePart}، بصفة: ${repCapacity}`;
     }
 
+    // غياب الطرف المتبلّغ — المادة (45) من نظام المرافعات الشرعية: السير في الدعوى
+    // مع إثبات أنه لم يحضر ولا من يمثله ولم يودع مذكرة بدفاعه
     const verb = s.gender === 'م' ? 'لم يحضر' : 'لم تحضر';
-    return `${verb} ${name} رغم تبليغ${suffix} بالجلسة وفق مهمّة التبليغ رقم (${orDots(s.tabligh)})`;
+    const verbRepeat = s.gender === 'م' ? 'ولم يحضر' : 'ولم تحضر';
+    const verbDeposit = s.gender === 'م' ? 'ولم يودع' : 'ولم تودع';
+    return `${verb} ${name} رغم تبليغ${suffix} بالجلسة عبر الوسائل الإلكترونية بمهمة التبليغ رقم (${orDots(s.tabligh)}) بموعد هذه الجلسة ${verbRepeat} ولا من يمثل${suffix}، ${verbDeposit} مذكرة بدفاع${suffix} بناء على ما قررته المادة الخامسة والأربعون من نظام المرافعات الشرعية`;
 }
 
 // فقرة طرف إضافي (عند تعدد المدعين أو المدعى عليهم)
@@ -898,10 +902,17 @@ function buildPlaintiffEvidenceText(state, opts) {
         out += ` ولمَّا كانت إجابة ${dName} إنكاراً لما جاء في الدعوى، وأن البينة على المدعي، فقد جرى تكليف ${pName} بإحضار بينت${pSuffix}.`;
     }
 
+    // إن لم يسبق في الفقرة ذكرٌ للمدعي (كغياب المدعى عليه، فلا إنكار يُعرض) صُرِّح بلقبه
+    // بدل الضمير، لئلا يعود على المدعى عليه المذكور قبله
+    const namePlaintiff = !out;
     if (isRepresented) {
-        out += ` وبسؤال${speakerSuffix} عن بينة ${moakkelThird} ${decideVerb}: `;
+        out += namePlaintiff
+            ? ` وبسؤال ${addresseeForOath} عن بينة ${moakkelThird} ${decideVerb}: `
+            : ` وبسؤال${speakerSuffix} عن بينة ${moakkelThird} ${decideVerb}: `;
     } else {
-        out += ` وبسؤال${pSuffix} عن بينت${pSuffix} ${decideVerb}: `;
+        out += namePlaintiff
+            ? ` وبسؤال ${pName} عن بينت${pSuffix} ${decideVerb}: `
+            : ` وبسؤال${pSuffix} عن بينت${pSuffix} ${decideVerb}: `;
     }
 
     if (c.evidenceChoice === 'none') {
