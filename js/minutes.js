@@ -387,7 +387,7 @@ function buildOpening(opening) {
     let modePart = ` ${VIDEO_CALL_BRIEF}`;
     if (mode === SESSION_MODES.VIDEO_FULL) modePart = ` ${VIDEO_CALL_PHRASE}`;
     else if (mode === SESSION_MODES.IN_PERSON) modePart = '';
-    return `فلديّ أنا ${judge} القاضي بمحكمة ${court} افتتحتُ الجلسة${modePart}،`;
+    return `فلديّ أنا ${judge} القاضي في المحكمة ${court} افتتحتُ الجلسة${modePart}،`;
 }
 
 // عبارة التحقق من الوكالة — المادة (51/3) من نظام المرافعات الشرعية
@@ -767,7 +767,7 @@ function getOathDefendantStatus(state) {
 function buildClaimEvidenceText(state) {
     const pName = partyLabel('plaintiff', state.plaintiff.gender);
     const claimText = state.claim.text.trim() || '.......';
-    return ` وبالاطلاع على دعوى ${pName} وجدت نصها: "${claimText}" أ.هـ.` + buildProceedingsAfterClaim(state);
+    return ` وبالاطلاع على دعوى ${pName} ونصها: "${claimText}" أ.هـ.` + buildProceedingsAfterClaim(state);
 }
 
 // ما يلي عرضَ الدعوى: جواب المدعى عليه ثم ما يترتب عليه من بينات
