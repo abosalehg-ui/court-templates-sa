@@ -1019,7 +1019,6 @@ function witnessCardHTML(prefix, idx, w) {
         <div class="field">
             <label>رقم جوال الشاهد</label>
             <input type="text" class="form-control" data-witness-prefix="${prefix}" data-witness-idx="${idx}" data-witness-field="phone" value="${escapeHtml(w.phone)}" placeholder="رقم جوال الشاهد" inputmode="numeric" data-numeric-only="true">
-            <div class="hint">لا يظهر في نص الضبط، ويُحفظ للوصول إلى الشاهد عند الحاجة.</div>
         </div>
     </div>`;
 }
