@@ -11,7 +11,8 @@ function readyState(overrides = {}) {
     const s = M.freshMinutesState();
     s.sessionType = 'new';
     s.includePartyDataInText = true;
-    s.opening = { judge: 'فلان بن فلان', court: 'الرياض', hour: 9, minute: 0, period: 'ص' };
+    s.opening = { judge: 'فلان بن فلان', court: 'الرياض' };
+    s.closing = { hour: 9, minute: 30, period: 'ص' };
     s.plaintiff.name = 'سعد';
     s.plaintiff.saudiId = '1000000001';
     s.defendant.name = 'فهد';
@@ -108,24 +109,35 @@ test('buildKinshipPhrase: قرابة مقبولة وخارج الدرجات', ()
 // ==================== بناة الجمل ====================
 
 test('buildOpening: الافتراضي عبر الاتصال المرئي مختصراً بلا نص القرار', () => {
-    const text = M.buildOpening({ judge: 'فلان', court: 'الرياض', hour: 8, minute: 30, period: 'ص' });
-    assert.match(text, /^فلديّ أنا فلان القاضي بمحكمة الرياض افتتحتُ الجلسة عبر الاتصال المرئي عند الساعة/);
+    const text = M.buildOpening({ judge: 'فلان', court: 'الرياض' });
+    assert.equal(text, 'فلديّ أنا فلان القاضي بمحكمة الرياض افتتحتُ الجلسة عبر الاتصال المرئي،');
     assert.ok(!text.includes('17388'));
-    assert.match(text, /عند الساعة الثامنة والنصف صباحًا،$/);
+});
+
+test('buildOpening: لا يُذكر وقت الافتتاح في المتن (مثبت في ناجز)', () => {
+    const text = M.buildOpening({ judge: 'فلان', court: 'الرياض' });
+    assert.ok(!text.includes('الساعة'));
+    assert.equal(M.freshMinutesState().opening.hour, undefined);
 });
 
 test('buildOpening: خيار «مع المستند» يدرج نص قرار المجلس الأعلى للقضاء', () => {
-    const text = M.buildOpening({ judge: 'فلان', court: 'الرياض', hour: 8, minute: 30, period: 'ص', mode: M.SESSION_MODES.VIDEO_FULL });
+    const text = M.buildOpening({ judge: 'فلان', court: 'الرياض', mode: M.SESSION_MODES.VIDEO_FULL });
     assert.match(text, /^فلديّ أنا فلان القاضي بمحكمة الرياض افتتحتُ الجلسة عبر الاتصال المرئي/);
     assert.match(text, /قرار فضيلة رئيس المجلس الأعلى للقضاء رقم 17388/);
     assert.match(text, /المتضمن إطلاق خدمة التقاضي عن بعد/);
-    assert.match(text, /عند الساعة الثامنة والنصف صباحًا،$/);
+    assert.match(text, /،$/);
 });
 
 test('buildOpening: الجلسة الحضورية تحذف صيغة الاتصال المرئي كاملة', () => {
-    const text = M.buildOpening({ judge: 'فلان', court: 'الرياض', hour: 8, minute: 30, period: 'ص', mode: M.SESSION_MODES.IN_PERSON });
-    assert.equal(text, 'فلديّ أنا فلان القاضي بمحكمة الرياض افتتحتُ الجلسة عند الساعة الثامنة والنصف صباحًا،');
+    const text = M.buildOpening({ judge: 'فلان', court: 'الرياض', mode: M.SESSION_MODES.IN_PERSON });
+    assert.equal(text, 'فلديّ أنا فلان القاضي بمحكمة الرياض افتتحتُ الجلسة،');
     assert.ok(!text.includes('المرئي'));
+});
+
+test('closingTimeParts: الوقت المُدخل، ومع الحالات القديمة يُشتق من الافتتاح + 30 دقيقة', () => {
+    assert.deepEqual(M.closingTimeParts({ closing: { hour: 10, minute: 15, period: 'ص' } }), [10, 15, 'ص']);
+    assert.deepEqual(M.closingTimeParts({ opening: { hour: 9, minute: 0, period: 'ص' } }), [9, 30, 'ص']);
+    assert.deepEqual(M.freshMinutesState().closing, { hour: 8, minute: 30, period: 'ص' });
 });
 
 test('sessionMode: المختصر افتراضياً لأي قيمة غير معروفة', () => {
@@ -575,7 +587,7 @@ test('composeMinutes: جلسة تحضيرية مكتملة بطرفين حاضر
     assert.match(text, /وبالاطلاع على دعوى المدعي وجدت نصها: "أطالب بمبلغ مئة ألف ريال"/);
     assert.match(text, /وبعرض دعوى المدعي على المدعى عليه أجاب قائلاً: ما ذكره المدعي غير صحيح/);
     assert.match(text, /قفل باب المرافعة/);
-    assert.match(text, /وختمت الجلسة عند الساعة التاسعة والنصف صباحًا\.$/);
+    assert.match(text, /وأغلقت الجلسة الساعة التاسعة والنصف صباحًا\.$/);
     // لا موضع ناقص في حالة مكتملة
     assert.ok(!text.includes(M.MINUTES_PLACEHOLDER));
 });
@@ -586,7 +598,7 @@ test('composeMinutes: غياب المدعي المتبلّغ يولّد محضر
     state.plaintiff.tabligh = '456';
     const text = M.composeMinutes(state);
     assert.match(text, /شطب الدَّعوى/);
-    assert.match(text, /وختمت الجلسة/);
+    assert.match(text, /وأغلقت الجلسة/);
 });
 
 test('composeMinutes: مدعى عليه لم يتبلّغ — رفع الجلسة لإعادة التبليغ', () => {
@@ -715,6 +727,64 @@ test('buildNoticeText: النص مأخوذ من مكتبة النماذج لا �
     assert.equal(M.buildNoticeText(state), M.findTemplate('إفهامات بعد النطق', 'صلح1'));
 });
 
+test('noticeKindFor: صفة الوقف تُلزم بواجب التدقيق ولا تُترك للاختيار', () => {
+    const state = rulingState();
+    state.ruling.claimValue = '10000';
+    assert.equal(M.noticeKindFor(state), 'final');
+    state.defendant.entityType = M.ENTITY_TYPES.WAQF;
+    assert.equal(M.mandatoryReviewNotice(state), true);
+    assert.equal(M.noticeKindFor(state), 'review');
+    // حتى مع تحديد نوع آخر يدويًا يبقى واجب التدقيق
+    state.ruling.noticeKind = 'sulh';
+    assert.equal(M.noticeKindFor(state), 'review');
+    assert.equal(M.buildNoticeText(state), M.findTemplate('إفهامات بعد النطق', 'واجب التدقيق'));
+});
+
+test('noticeKindFor: صفة الوقف للمدعي لا تُغيّر نوع الإفهام', () => {
+    const state = rulingState();
+    state.ruling.claimValue = '10000';
+    state.plaintiff.entityType = M.ENTITY_TYPES.WAQF;
+    assert.equal(M.noticeKindFor(state), 'final');
+});
+
+test('buildNoticeText: اختيار «واجب التدقيق» يدويًا يجلب نصه من المكتبة', () => {
+    const state = rulingState();
+    state.ruling.noticeKind = 'review';
+    assert.equal(M.buildNoticeText(state), M.findTemplate('إفهامات بعد النطق', 'واجب التدقيق'));
+});
+
+test('isCorporateEntity: الوقف شخصية اعتبارية كالشركة، ووثيقته صك الوقفية', () => {
+    const s = M.freshPartyState();
+    assert.equal(M.isCorporateEntity(s), false);
+    s.entityType = M.ENTITY_TYPES.COMPANY;
+    assert.equal(M.isCorporateEntity(s), true);
+    assert.equal(M.corporateDocLabel(s), 'السجل التجاري');
+    s.entityType = M.ENTITY_TYPES.WAQF;
+    assert.equal(M.isCorporateEntity(s), true);
+    assert.equal(M.corporateDocLabel(s), 'صك الوقفية');
+    s.crNum = '77777';
+    assert.equal(M.buildIdentityClause(s), '، بموجب صك الوقفية رقم (77777)');
+});
+
+test('composeMinutes: حكم على وقف — نص واجب التدقيق مرة واحدة بلا تكرار', () => {
+    const state = rulingState();
+    state.defendant.entityType = M.ENTITY_TYPES.WAQF;
+    state.defendant.attendance = 'تمثيل';
+    state.defendant.repType = 'وكيل شركة';
+    state.ruling.mandatoryReview = 'نعم';
+    const text = M.composeMinutes(state);
+    const reviewText = M.findTemplate('إفهامات بعد النطق', 'واجب التدقيق');
+    assert.equal(text.split(reviewText).length - 1, 1);
+    assert.ok(!text.includes('قابل للاستئناف'));
+});
+
+test('rulingWarnings: لا يُطالَب بقيمة المطالبة مع الوقف واجب التدقيق', () => {
+    const state = rulingState();
+    assert.ok(M.rulingWarnings(state).some(w => w.includes('قيمة المطالبة')));
+    state.defendant.entityType = M.ENTITY_TYPES.WAQF;
+    assert.ok(!M.rulingWarnings(state).some(w => w.includes('قيمة المطالبة')));
+});
+
 test('buildMandatoryReviewText: نصا التدقيق الوجوبي من المكتبة', () => {
     assert.equal(M.buildMandatoryReviewText({ mandatoryReview: 'لا' }), '');
     assert.equal(M.buildMandatoryReviewText({ mandatoryReview: 'نعم' }), M.findTemplate('إفهامات بعد النطق', 'واجب التدقيق'));
@@ -729,12 +799,12 @@ test('composeMinutes: مرحلة الحكم تُلحق بالضبط بعد قف�
     const closeAt = text.indexOf('قفل باب المرافعة');
     const reasonsAt = text.indexOf('\n\nالأسباب:\n');
     const rulingAt = text.indexOf('\n\nالحكم:\n');
-    const endAt = text.indexOf('وختمت الجلسة');
+    const endAt = text.indexOf('وأغلقت الجلسة');
     assert.ok(closeAt < reasonsAt && reasonsAt < rulingAt && rulingAt < endAt);
     assert.match(text, /وهذا الحكم حضوري في حق طرفي الدعوى/);
     assert.match(text, /قابل للاستئناف/);
     assert.match(text, /واجب التدقيق/);
-    assert.match(text, /وختمت الجلسة عند الساعة التاسعة والنصف صباحًا\.$/);
+    assert.match(text, /وأغلقت الجلسة الساعة التاسعة والنصف صباحًا\.$/);
 });
 
 test('composeMinutes: بلا نطق بالحكم لا تُلحق الأسباب', () => {
