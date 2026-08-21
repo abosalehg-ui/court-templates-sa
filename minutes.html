@@ -82,20 +82,6 @@
                                 </div>
                                 <div class="hint" id="sessionModeHint"></div>
                             </div>
-
-                            <div class="field">
-                                <label>وقت افتتاح الجلسة</label>
-                                <div class="time-picker">
-                                    <select class="form-control" id="openHour"></select>
-                                    <span class="colon">:</span>
-                                    <select class="form-control" id="openMinute"></select>
-                                    <select class="form-control period-select" id="openPeriod">
-                                        <option value="ص">☀️ صباحًا (٨-١١)</option>
-                                        <option value="م">🌙 مساءً (١٢-٣)</option>
-                                    </select>
-                                </div>
-                                <div class="hint" id="openPeriodHint"></div>
-                            </div>
                         </div>
 
                         <div class="m-card" id="sameJudgeCard" style="display:none;">
@@ -115,6 +101,24 @@
                             <!-- </label>-->
                             <!-- <div class="hint">حاليًا يخرج النص: «حضر المدعي أصالة» و«حضرت المدعى عليها أصالة»، ومع التعدد: «حضر المدعي الأول… وحضر المدعي الثاني…». وعند التفعيل يُدرج اسم الطرف ومعه (الهوية الوطنية) أو (الجنسية والإقامة النظامية) أو (السجل التجاري) للحاضر أصالة.</div>-->
                             <!-- <div class="hint">عند التفعيل يُدرج اسم الطرف ومعه (الهوية الوطنية) أو (الجنسية والإقامة النظامية) أو (السجل التجاري) للحاضر أصالة.</div>-->
+                        </div>
+
+                        <div class="m-card">
+                            <h2>وقت الإغلاق</h2>
+                            <div class="field">
+                                <label>وقت إغلاق الجلسة</label>
+                                <div class="time-picker">
+                                    <select class="form-control" id="closeHour"></select>
+                                    <span class="colon">:</span>
+                                    <select class="form-control" id="closeMinute"></select>
+                                    <select class="form-control period-select" id="closePeriod">
+                                        <option value="ص">☀️ صباحًا (٨-١١)</option>
+                                        <option value="م">🌙 مساءً (١٢-٣)</option>
+                                    </select>
+                                </div>
+                                <div class="hint" id="closePeriodHint"></div>
+                            </div>
+                            <div class="hint">وقت افتتاح الجلسة مثبت في صفحة القضية بناجز، فلا يُكرَّر في متن الضبط؛ ويُختم الضبط بعبارة «وأغلقت الجلسة الساعة ...».</div>
                         </div>
                     </div><!-- /stepWrap0 -->
 
@@ -302,7 +306,9 @@
                                 <div class="choice-group" data-group="defendant-entityType">
                                     <div class="choice-btn active" data-value="فرد">فرد</div>
                                     <div class="choice-btn" data-value="شركة">شركة</div>
+                                    <div class="choice-btn" data-value="وقف">وقف</div>
                                 </div>
+                                <div class="hint" id="defendant-entityType-hint"></div>
 
                                 <div class="field" id="defendant-name-field">
                                     <label>اسم المدعى عليه <span class="req">*</span></label>
@@ -743,6 +749,10 @@
                                     <div class="choice-btn" data-value="final">نهائي مكتسب للقطعية (دعوى يسيرة)</div>
                                     <div class="choice-btn" data-value="appealable">قابل للاستئناف خلال ثلاثين يومًا</div>
                                     <div class="choice-btn" data-value="sulh">حكم صلح</div>
+                                    <div class="choice-btn" data-value="review">واجب التدقيق</div>
+                                </div>
+                                <div class="notice-box" id="noticeKindLockNotice" style="display:none;">
+                                    صفة المدعى عليه «وقف»، والحكم على الوقف واجب التدقيق لزومًا لا اختيارًا، فقد ثُبِّت نوع الإفهام على «واجب التدقيق».
                                 </div>
                                 <div class="notice-box">
                                     ⚠️ حدّ الدعاوى اليسيرة المعتمد هنا (50,000 ريال) يُحدَّد بقرار من المجلس الأعلى للقضاء وقابل للتعديل — يلزم التحقق منه قبل الاعتماد عليه.

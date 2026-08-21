@@ -261,6 +261,9 @@ const asharDegree = {};
     });
 });
 
+// صفات الأطراف المتاحة — الوقف يحمل خصائص الشركة نفسها ويفترق عنها في نوع الإفهام
+const ENTITY_TYPES = { INDIVIDUAL: 'فرد', COMPANY: 'شركة', WAQF: 'وقف' };
+
 // ==================== حالات ابتدائية ====================
 
 function freshPartyState() {
@@ -353,7 +356,9 @@ function freshMinutesState() {
         // ولا يشمل هذا المفتاح بيانات الوكيل (رقم الوكالة والتحقق منها بالمادة (51/3) ورخصة
         // المحاماة ودرجة القرابة) فتلك لا يكتبها الجدول وإثباتها في الضبط مطلوب نظامًا.
         includePartyDataInText: false,
-        opening: { judge: '', court: '', hour: 8, minute: 0, period: 'ص', mode: SESSION_MODES.VIDEO },
+        opening: { judge: '', court: '', mode: SESSION_MODES.VIDEO },
+        // وقت الإغلاق يُدخله القاضي في آخر الضبط (لا يُشتق من وقت الافتتاح)
+        closing: { hour: 8, minute: 30, period: 'ص' },
         plaintiff: freshPartyState(),
         defendant: freshPartyState(),
         extraPlaintiffs: [],
@@ -372,15 +377,16 @@ function orDots(value) {
 }
 
 // فقرة افتتاح الجلسة
+// وقت الافتتاح مثبت أصلاً في صفحة القضية بناجز، فإعادته في متن الضبط ازدواج،
+// ولذا اقتُصر على وقت الإغلاق في آخر الضبط.
 function buildOpening(opening) {
     const judge = orDots(opening.judge);
     const court = orDots(opening.court);
-    const time = buildTimeArabic(opening.hour, opening.minute, opening.period);
     const mode = sessionMode(opening);
     let modePart = ` ${VIDEO_CALL_BRIEF}`;
     if (mode === SESSION_MODES.VIDEO_FULL) modePart = ` ${VIDEO_CALL_PHRASE}`;
     else if (mode === SESSION_MODES.IN_PERSON) modePart = '';
-    return `فلديّ أنا ${judge} القاضي بمحكمة ${court} افتتحتُ الجلسة${modePart} عند الساعة ${time}،`;
+    return `فلديّ أنا ${judge} القاضي بمحكمة ${court} افتتحتُ الجلسة${modePart}،`;
 }
 
 // عبارة التحقق من الوكالة — المادة (51/3) من نظام المرافعات الشرعية
@@ -427,12 +433,22 @@ function buildAccompanyingAgentClause(s, name, suffix) {
     return `، و${agentVerb} ${withHim} ${agentPoss}${namePart}، بموجب الهوية رقم (${agentId})، بموجب الوكالة الشرعية رقم (${wakalaNum})${buildAgencyVerificationClause(s.agentGender)}${buildKinshipPhrase(s, name)}`;
 }
 
-// إثبات هوية الطرف الحاضر (هوية وطنية / إقامة / سجل تجاري)
+// صفة الطرف: الشركة والوقف كلاهما شخصية اعتبارية لا تحضر أصالةً وإنما بوكيل أو ممثل نظامي
+function isCorporateEntity(s) {
+    return !!s && (s.entityType === ENTITY_TYPES.COMPANY || s.entityType === ENTITY_TYPES.WAQF);
+}
+
+// وثيقة الشخصية الاعتبارية: السجل التجاري للشركة وصك الوقفية للوقف
+function corporateDocLabel(s) {
+    return (s && s.entityType === ENTITY_TYPES.WAQF) ? 'صك الوقفية' : 'السجل التجاري';
+}
+
+// إثبات هوية الطرف الحاضر (هوية وطنية / إقامة / سجل تجاري أو صك وقفية)
 // includePartyData=false يُسقط العبارة من المخرج (بيانات الطرف مثبتة في جدول تقاضي)
 function buildIdentityClause(s, includePartyData = true) {
     if (!includePartyData) return '';
-    if (s.entityType === 'شركة') {
-        return `، بموجب السجل التجاري رقم (${orDots(s.crNum)})`;
+    if (isCorporateEntity(s)) {
+        return `، بموجب ${corporateDocLabel(s)} رقم (${orDots(s.crNum)})`;
     }
     if (s.nationalityType === 'سعودي') {
         return `، بموجب الهوية الوطنية رقم (${orDots(s.saudiId)})`;
@@ -955,9 +971,15 @@ function buildDefendantEvidenceText(state, opts) {
 
 // ==================== الأسباب والحكم والإفهام ====================
 
+// الحكم على وقف واجب التدقيق لزومًا، فلا يُترك نوع الإفهام فيه للاختيار
+function mandatoryReviewNotice(state) {
+    return state.defendant && state.defendant.entityType === ENTITY_TYPES.WAQF;
+}
+
 // نوع الإفهام: يُشتق من قيمة المطالبة ما لم يُحدَّد يدويًا
 function noticeKindFor(state) {
     const r = state.ruling;
+    if (mandatoryReviewNotice(state)) return 'review';
     if (r.noticeKind && r.noticeKind !== 'auto') return r.noticeKind;
     const value = Number(String(r.claimValue).replace(/[^0-9.]/g, ''));
     if (!value) return 'appealable';
@@ -967,6 +989,7 @@ function noticeKindFor(state) {
 // نص الإفهام مأخوذ من تصنيف (إفهامات بعد النطق) في مكتبة النماذج
 function buildNoticeText(state) {
     const kind = noticeKindFor(state);
+    if (kind === 'review') return findTemplate('إفهامات بعد النطق', 'واجب التدقيق') || '';
     if (kind === 'sulh') return findTemplate('إفهامات بعد النطق', 'صلح1') || '';
     if (kind === 'final') return findTemplate('إفهامات بعد النطق', 'ف1') || '';
     // ف3 تتضمن إفهام الطرفين وكالةً استناداً للمادة (165)
@@ -997,7 +1020,8 @@ function buildRulingSection(state) {
     const notice = buildNoticeText(state);
     if (notice) out += `\n\n${notice}`;
     const review = buildMandatoryReviewText(r);
-    if (review) out += `\n\n${review}`;
+    // لا يُكرَّر نص واجب التدقيق إن كان هو نص الإفهام نفسه (حالة الوقف)
+    if (review && review !== notice) out += `\n\n${review}`;
     return out;
 }
 
@@ -1005,6 +1029,15 @@ function buildRulingSection(state) {
 const NEW_JUDGE_CLAUSE = ' واستناداً إلى المادة السابعة والستون بعد المائة من نظام المرافعات الشرعية: إذا انتهت ولايـة القـاضي بالنسبة إلى قضيـة ما قبل النطق بالحكم فيها، فلخلفه الاستمرار في نظرها من الحد الذي انتهت إليه إجراءاتها لدى سلفه بعد تلاوة ما تم ضبطه سابقًا على الخصوم، فإن كانت موقعة بتوقيع القاضي السابق على توقيعات المترافعين والشهود فيعتمدها، وإن كان ما تم ضبطه غير موقع من المترافعين أو أحدهم أو القاضي ولم يصدّق المترافعون عليه فإن المرافعة تعاد من جديد.';
 
 // ==================== التوليد الكامل للمحضر ====================
+
+// وقت إغلاق الجلسة كما أدخله القاضي، ومع الحالات القديمة (وقت افتتاح فقط) يُشتق بإضافة 30 دقيقة
+function closingTimeParts(state) {
+    const c = state.closing;
+    if (c && c.hour) return [c.hour, c.minute || 0, c.period || 'ص'];
+    const o = state.opening || {};
+    const derived = addMinutesToTime(o.hour || 8, o.minute || 0, o.period || 'ص', 30);
+    return [derived.hour, derived.minute, derived.period];
+}
 
 // إجراءات الجلسة التالية: سماع بينة أحد الخصمين أو كليهما فيها
 function buildFollowUpProceedings(state) {
@@ -1077,13 +1110,12 @@ function composeMinutes(state) {
     // الأسباب والحكم: مرحلة مستقلة تُلحق بالضبط بعد قفل باب المرافعة
     const rulingSection = rulingApplies ? buildRulingSection(state) : '';
 
-    // ختم الجلسة بعد 30 دقيقة من الافتتاح
-    const closing = addMinutesToTime(state.opening.hour, state.opening.minute, state.opening.period, 30);
-    const closingWords = buildTimeArabic(closing.hour, closing.minute, closing.period);
+    // ختم الجلسة بالوقت المُدخل في آخر الضبط
+    const closingWords = buildTimeArabic(...closingTimeParts(state));
     if (rulingSection) {
-        return `${text}${rulingSection}\n\nوختمت الجلسة عند الساعة ${closingWords}.`;
+        return `${text}${rulingSection}\n\nوأغلقت الجلسة الساعة ${closingWords}.`;
     }
-    return text.replace(/\.\s*$/, '') + `، وختمت الجلسة عند الساعة ${closingWords}.`;
+    return text.replace(/\.\s*$/, '') + `، وأغلقت الجلسة الساعة ${closingWords}.`;
 }
 
 // ==================== فحص اكتمال الحقول ====================
@@ -1111,8 +1143,8 @@ function collectWarnings(state) {
         if (s.attendance === 'أصالة') {
             if (includePartyData) {
                 if (!s.name.trim()) w.push(`لم يُدخل اسم ${label}.`);
-                if (s.entityType === 'شركة') {
-                    if (!s.crNum.trim()) w.push(`لم يُدخل رقم السجل التجاري لـ${label}.`);
+                if (isCorporateEntity(s)) {
+                    if (!s.crNum.trim()) w.push(`لم يُدخل رقم ${corporateDocLabel(s)} لـ${label}.`);
                 } else {
                     if (s.nationalityType === 'سعودي' && (!s.saudiId || s.saudiId.length !== 10)) w.push(`رقم هوية ${label} غير مكتمل (10 أرقام).`);
                     if (s.nationalityType === 'غير ذلك') {
@@ -1246,7 +1278,7 @@ function rulingWarnings(state) {
     if (r.pronounce !== 'نعم') return w;
     if (!String(r.reasonsText || '').trim()) w.push('لم تُكتب أسباب الحكم.');
     if (!String(r.rulingText || '').trim()) w.push('لم يُكتب منطوق الحكم.');
-    if (r.noticeKind === 'auto' && !String(r.claimValue || '').trim()) {
+    if (r.noticeKind === 'auto' && !mandatoryReviewNotice(state) && !String(r.claimValue || '').trim()) {
         w.push('لم تُدخل قيمة المطالبة، فتعذّر اشتقاق نوع الإفهام تلقائيًا (اعتُمد "قابل للاستئناف").');
     }
     if (!buildNoticeText(state)) {
@@ -1260,7 +1292,8 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         MINUTES_PLACEHOLDER, VIDEO_CALL_PHRASE, VIDEO_CALL_SHORT, VIDEO_CALL_BRIEF, VIDEO_CALL_BASIS,
         IN_PERSON_SHORT, SESSION_MODES, sessionMode, isInPersonSession,
-        NATIONALITY_OPTIONS, EVIDENCE_OPTIONS, YASEERA_CLAIM_LIMIT,
+        NATIONALITY_OPTIONS, EVIDENCE_OPTIONS, YASEERA_CLAIM_LIMIT, ENTITY_TYPES,
+        isCorporateEntity, corporateDocLabel, mandatoryReviewNotice, closingTimeParts,
         minutesPhrase, buildTimeArabic, addMinutesToTime, validHoursForPeriod, convertArabicDigits,
         ordinalWord, partyLabel, multiPartyLabel, agentPossessive,
         kinshipDegree, asharDegree, degreeOrdinal, asharTemplate,

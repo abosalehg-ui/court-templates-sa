@@ -150,6 +150,13 @@
     border-color: var(--primary);
 }
 
+/* خيار مقفل: مثبت نظامًا فلا يُختار (نوع الإفهام مع المدعى عليه الوقف) */
+.choice-btn.locked {
+    opacity: 0.45;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
 .sub-fields {
     border-right: 3px solid var(--secondary-light);
     padding-right: 0.9rem;

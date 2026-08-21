@@ -120,12 +120,13 @@ function updateSessionModeUI() {
 }
 updateSessionModeUI();
 
-// ==================== وقت افتتاح الجلسة ====================
+// ==================== وقت إغلاق الجلسة ====================
+// وقت الافتتاح مثبت في ناجز أعلى صفحة القضية، فلا يُطلب هنا ولا يُكرَّر في متن الضبط
 function populateHourOptions() {
-    const hourSel = $('openHour');
+    const hourSel = $('closeHour');
     const prevValue = hourSel.value;
     hourSel.innerHTML = '';
-    const hours = validHoursForPeriod($('openPeriod').value || 'ص');
+    const hours = validHoursForPeriod($('closePeriod').value || 'ص');
     hours.forEach(h => {
         const opt = document.createElement('option');
         opt.value = h;
@@ -136,28 +137,29 @@ function populateHourOptions() {
 }
 
 (function populateTimeSelects() {
-    const minSel = $('openMinute');
+    const minSel = $('closeMinute');
     for (let m = 0; m < 60; m += 5) {
         const opt = document.createElement('option');
         opt.value = m;
         opt.textContent = String(m).padStart(2, '0');
         minSel.appendChild(opt);
     }
-    minSel.value = 0;
+    minSel.value = state.closing.minute;
     populateHourOptions();
+    $('closeHour').value = state.closing.hour;
 })();
 
-function syncOpeningTime() {
-    state.opening.hour = Number($('openHour').value);
-    state.opening.minute = Number($('openMinute').value);
-    state.opening.period = $('openPeriod').value;
-    $('openPeriodHint').textContent = `الوقت المحدد: الساعة ${buildTimeArabic(state.opening.hour, state.opening.minute, state.opening.period)}`;
+function syncClosingTime() {
+    state.closing.hour = Number($('closeHour').value);
+    state.closing.minute = Number($('closeMinute').value);
+    state.closing.period = $('closePeriod').value;
+    $('closePeriodHint').textContent = `يُختم الضبط بـ: وأغلقت الجلسة الساعة ${buildTimeArabic(state.closing.hour, state.closing.minute, state.closing.period)}`;
 }
-$('openPeriod').addEventListener('change', () => { populateHourOptions(); syncOpeningTime(); render(); });
-['openHour', 'openMinute'].forEach(id => {
-    $(id).addEventListener('change', () => { syncOpeningTime(); render(); });
+$('closePeriod').addEventListener('change', () => { populateHourOptions(); syncClosingTime(); render(); });
+['closeHour', 'closeMinute'].forEach(id => {
+    $(id).addEventListener('change', () => { syncClosingTime(); render(); });
 });
-syncOpeningTime();
+syncClosingTime();
 
 // ==================== تحويل الأرقام المشرقية وحقول الأرقام فقط ====================
 document.addEventListener('input', function (e) {
@@ -292,7 +294,7 @@ function updateGenderedLabels(party) {
     if (attGroup) {
         const asalaBtn = attGroup.querySelector('[data-value="أصالة"]');
         const absentBtn = attGroup.querySelector('[data-value="لم يحضر"]');
-        if (asalaBtn && state[party].entityType !== 'شركة') asalaBtn.textContent = gender === 'م' ? 'حضر أصالة' : 'حضرت أصالة';
+        if (asalaBtn && !isCorporateEntity(state[party])) asalaBtn.textContent = gender === 'م' ? 'حضر أصالة' : 'حضرت أصالة';
         if (absentBtn) absentBtn.textContent = gender === 'م' ? 'لم يحضر' : 'لم تحضر';
     }
     const notifyGroup = document.querySelector(`.choice-group[data-group="${party}-notifyStatus"]`);
@@ -316,9 +318,9 @@ function updateCompanyAttendanceOptions(party) {
     if (!attGroup) return;
     const asalaBtn = attGroup.querySelector('[data-value="أصالة"]');
     const representedBtn = attGroup.querySelector('[data-value="تمثيل"]');
-    const isCompany = state[party].entityType === 'شركة';
+    const isCompany = isCorporateEntity(state[party]);
     if (asalaBtn) asalaBtn.style.display = isCompany ? 'none' : '';
-    if (representedBtn) representedBtn.textContent = isCompany ? 'حضر وكيل / ممثل' : 'حضر وكيل / ممثل';
+    if (representedBtn) representedBtn.textContent = 'حضر وكيل / ممثل';
     if (isCompany && state[party].attendance === 'أصالة') {
         state[party].attendance = 'تمثيل';
         state[party].hasAccompanyingAgent = false;
@@ -331,9 +333,11 @@ function updateCompanyAttendanceOptions(party) {
 function updateRepresentationTypeOptions(party) {
     const group = document.querySelector(`.choice-group[data-group="${party}-repType"]`);
     if (!group) return;
-    const isCompany = state[party].entityType === 'شركة';
+    const isCompany = isCorporateEntity(state[party]);
+    const isWaqf = state[party].entityType === ENTITY_TYPES.WAQF;
     const individualAgentBtn = group.querySelector('[data-value="وكيل"]');
     const companyAgentBtn = group.querySelector('[data-value="وكيل شركة"]');
+    if (companyAgentBtn) companyAgentBtn.textContent = isWaqf ? 'وكيل عن الوقف' : 'وكيل عن الشركة';
     const companyRepresentativeBtn = group.querySelector('[data-value="ممثل"]');
 
     if (individualAgentBtn) individualAgentBtn.style.display = isCompany ? 'none' : '';
@@ -354,6 +358,48 @@ function updateRepresentationTypeOptions(party) {
     $(`${party}-rep-num-field`).style.display = state[party].repType === 'ممثل' ? 'block' : 'none';
     $(`${party}-kinship-field`).style.display =
         state[party].repType === 'وكيل' && state[party].repIsLawyer === 'لا' ? 'block' : 'none';
+}
+
+// وثيقة الشخصية الاعتبارية: السجل التجاري للشركة وصك الوقفية للوقف
+function updateCorporateDocField(party) {
+    const field = $(`${party}-crNum-field`);
+    if (!field) return;
+    const docLabel = `رقم ${corporateDocLabel(state[party])}`;
+    const label = field.querySelector('label');
+    if (label) label.innerHTML = `${docLabel} <span class="req">*</span>`;
+    const input = $(`${party}-crNum`);
+    if (input) input.placeholder = docLabel;
+}
+
+function updateEntityTypeHint(party) {
+    const hint = $(`${party}-entityType-hint`);
+    if (!hint) return;
+    hint.textContent = state[party].entityType === ENTITY_TYPES.WAQF
+        ? 'الوقف شخصية اعتبارية كالشركة: لا يحضر أصالةً وإنما بوكيل أو ممثل نظامي، والحكم عليه واجب التدقيق لزومًا.'
+        : '';
+}
+
+// نوع الإفهام مع المدعى عليه الوقف: واجب التدقيق لزومًا لا اختيارًا
+let noticeKindBeforeLock = null;
+function updateNoticeKindLock() {
+    const group = document.querySelector('.choice-group[data-group="ruling-noticeKind"]');
+    if (!group) return;
+    const forced = mandatoryReviewNotice(state);
+    if (forced) {
+        if (noticeKindBeforeLock === null) noticeKindBeforeLock = state.ruling.noticeKind;
+        state.ruling.noticeKind = 'review';
+    } else if (noticeKindBeforeLock !== null) {
+        state.ruling.noticeKind = noticeKindBeforeLock;
+        noticeKindBeforeLock = null;
+    }
+    group.querySelectorAll('.choice-btn').forEach(btn => {
+        const isReview = btn.dataset.value === 'review';
+        btn.classList.toggle('locked', forced && !isReview);
+        btn.classList.toggle('active', btn.dataset.value === state.ruling.noticeKind);
+    });
+    const notice = $('noticeKindLockNotice');
+    if (notice) notice.style.display = forced ? 'block' : 'none';
+    updateClaimValueHint();
 }
 
 function updateSpecialCaseVisibility() {
@@ -436,6 +482,10 @@ function updateClaimValueHint() {
     const r = state.ruling;
     const hint = $('claimValueHint');
     if (!hint) return;
+    if (mandatoryReviewNotice(state)) {
+        hint.textContent = 'الحكم على وقف واجب التدقيق لزومًا، فلا أثر لقيمة المطالبة في نوع الإفهام.';
+        return;
+    }
     if (r.noticeKind !== 'auto') {
         hint.textContent = 'نوع الإفهام محدَّد يدويًا، فلا أثر لقيمة المطالبة.';
         return;
@@ -453,7 +503,7 @@ function updateClaimValueHint() {
 function updateVisibility(party) {
     const s = state[party];
     $(`${party}-accompany-toggle`).style.display = s.attendance === 'أصالة' ? 'block' : 'none';
-    const showIdentity = state.includePartyDataInText && (s.attendance === 'أصالة' || s.entityType === 'شركة');
+    const showIdentity = state.includePartyDataInText && (s.attendance === 'أصالة' || isCorporateEntity(s));
     $(`${party}-selfIdentity-section`).style.display = showIdentity ? 'block' : 'none';
     updatePrimaryNameFieldVisibility(party);
     const showRepFields = s.attendance === 'تمثيل' || (s.attendance === 'أصالة' && s.hasAccompanyingAgent);
@@ -606,24 +656,29 @@ function handleChoice(key, value) {
         $(`${party}-foreignId-block`).style.display = value === 'غير ذلك' ? 'block' : 'none';
     } else if (field === 'entityType') {
         state[party].entityType = value;
-        const isCompany = value === 'شركة';
+        const isCompany = isCorporateEntity(state[party]);
+        const isWaqf = value === ENTITY_TYPES.WAQF;
         $(`${party}-individualId-block`).style.display = isCompany ? 'none' : 'block';
         $(`${party}-crNum-field`).style.display = isCompany ? 'block' : 'none';
         $(`${party}-gender-label`).style.display = isCompany ? 'none' : 'block';
         const genderGroup = document.querySelector(`.choice-group[data-group="${party}-gender"]`);
         if (genderGroup) genderGroup.style.display = isCompany ? 'none' : 'flex';
         if (isCompany) {
-            // الشركة تُعامل بصيغة المؤنث (حضرت الشركة / المدعية)
-            state[party].gender = 'ف';
+            // الشركة مؤنثة (حضرت الشركة / المدعية) والوقف مذكر (حضر الوقف / المدعى عليه)
+            const entityGender = isWaqf ? 'م' : 'ف';
+            state[party].gender = entityGender;
             if (genderGroup) {
                 genderGroup.querySelectorAll('.choice-btn').forEach(b => b.classList.remove('active'));
-                genderGroup.querySelector('[data-value="ف"]').classList.add('active');
+                genderGroup.querySelector(`[data-value="${entityGender}"]`).classList.add('active');
             }
             updateGenderedLabels(party);
         }
+        updateCorporateDocField(party);
+        updateEntityTypeHint(party);
         updateCompanyAttendanceOptions(party);
         updateRepresentationTypeOptions(party);
         updateVisibility(party);
+        if (party === 'defendant') updateNoticeKindLock();
     } else if (field === 'oathAbsence') {
         state.defendant.oathAbsence = value;
         $('defendant-oathTabligh-field').style.display = value === 'نعم' ? 'block' : 'none';
@@ -642,6 +697,7 @@ document.querySelectorAll('.choice-group').forEach(group => {
     if (key === 'session-landing') return;
     group.querySelectorAll('.choice-btn').forEach(btn => {
         btn.addEventListener('click', () => {
+            if (btn.classList.contains('locked')) return;
             group.querySelectorAll('.choice-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             handleChoice(key, btn.dataset.value);
@@ -1146,7 +1202,7 @@ $('claimValue').addEventListener('input', e => {
     updateClaimValueHint();
     render();
 });
-updateClaimValueHint();
+updateNoticeKindLock();
 
 // ==================== المعاينة والتحذيرات ====================
 function updateWarningsBox() {
@@ -1447,7 +1503,7 @@ function applySnapshot(snap) {
     updateOathAbsenceFieldVisibility();
     updateVisibility('defendant');
     updateStanceVisibility();
-    updateClaimValueHint();
+    updateNoticeKindLock();
     showStep();
     render();
 }
