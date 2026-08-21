@@ -63,8 +63,8 @@
                             <h2>بيانات الافتتاح</h2>
                             <div class="heirs-grid">
                                 <div class="field">
-                                    <label>اسم القاضي <span class="req">*</span></label>
-                                    <input type="text" class="form-control" id="judgeName" placeholder="اسم ناظر القضية" required>
+                                    <label>اسم القاضي وصفته <span class="req">*</span></label>
+                                    <input type="text" class="form-control" id="judgeName" placeholder="اسم ناظر القضية وصفته، مثال: فلان بن فلان القاضي" required>
                                 </div>
                                 <div class="field">
                                     <label>اسم المحكمة <span class="req">*</span></label>
@@ -77,7 +77,8 @@
                                 <label>طريقة انعقاد الجلسة</label>
                                 <div class="choice-group vertical" data-group="session-mode">
                                     <div class="choice-btn active" data-value="video">عبر الاتصال المرئي</div>
-                                    <div class="choice-btn" data-value="videoFull">عبر الاتصال المرئي (مع المستند)</div>
+                                    <!-- خيار «مع المستند» مُخفى حاليًا (قد يُحتاج إليه مستقبلاً): احذف class="locked" والستر أدناه لإعادته -->
+                                    <div class="choice-btn locked" data-value="videoFull" style="display:none;">عبر الاتصال المرئي (مع المستند)</div>
                                     <div class="choice-btn" data-value="inPerson">حضوري</div>
                                 </div>
                                 <div class="hint" id="sessionModeHint"></div>
@@ -94,7 +95,9 @@
                             <div class="hint">عند اختيار قاضٍ مختلف تُدرج تلقائيًا صيغة المادة (167) من نظام المرافعات الشرعية ومصادقة الأطراف على الجلسات السابقة.</div>
                         </div>
 
-                        <div class="m-card">
+                        <!-- بطاقة «إدراج بيانات الطرفين في نص الضبط» مُخفاة حاليًا (قد يُحتاج إليها مستقبلاً):
+                             احذف الستر أدناه واجعل PARTY_DATA_TOGGLE_ENABLED = true في js/minutes-app.js لإعادتها -->
+                        <div class="m-card" id="partyDataCard" style="display:none;">
                             <label class="checkbox-row">
                                 <input type="checkbox" id="includePartyDataInText">
                                 إدراج بيانات الطرفين (الاسم والهوية) في نص الضبط
@@ -197,10 +200,15 @@
                                             <label id="plaintiff-agent-name-label">اسم الوكيل <span class="req">*</span></label>
                                             <input type="text" class="form-control" id="plaintiff-agent-name" placeholder="اسم الوكيل" required>
                                         </div>
-                                        <div class="field">
+                                        <!-- رقم هوية الوكيل لم يعد يُكتب في متن الضبط، فسُتر الحقل مع بقاء عمله في الكود -->
+                                        <div class="field" id="plaintiff-agent-id-field" style="display:none;">
                                             <label>رقم الهوية / الإقامة <span class="req">*</span></label>
                                             <input type="text" class="form-control" id="plaintiff-agent-id" placeholder="أدخل 10 أرقام فقط" maxlength="10" inputmode="numeric" data-numeric-only="true" required>
                                             <div class="field-error" id="plaintiff-agent-id-error" style="display:none;">يجب إدخال رقم الهوية أو الإقامة، ويتكوّن من 10 أرقام بالضبط.</div>
+                                        </div>
+                                        <div class="field">
+                                            <label>جهة إصدار الوكالة <span class="req">*</span></label>
+                                            <input type="text" class="form-control" id="plaintiff-wakala-issuer" placeholder="مثال: كتابة العدل بالرياض، أو الخدمات الإلكترونية بناجز" required>
                                         </div>
                                         <div class="field">
                                             <label>رقم الوكالة الشرعية <span class="req">*</span></label>
@@ -371,10 +379,15 @@
                                             <label id="defendant-agent-name-label">اسم الوكيل <span class="req">*</span></label>
                                             <input type="text" class="form-control" id="defendant-agent-name" placeholder="اسم الوكيل" required>
                                         </div>
-                                        <div class="field">
+                                        <!-- رقم هوية الوكيل لم يعد يُكتب في متن الضبط، فسُتر الحقل مع بقاء عمله في الكود -->
+                                        <div class="field" id="defendant-agent-id-field" style="display:none;">
                                             <label>رقم الهوية / الإقامة <span class="req">*</span></label>
                                             <input type="text" class="form-control" id="defendant-agent-id" placeholder="أدخل 10 أرقام فقط" maxlength="10" inputmode="numeric" data-numeric-only="true" required>
                                             <div class="field-error" id="defendant-agent-id-error" style="display:none;">يجب إدخال رقم الهوية أو الإقامة، ويتكوّن من 10 أرقام بالضبط.</div>
+                                        </div>
+                                        <div class="field">
+                                            <label>جهة إصدار الوكالة <span class="req">*</span></label>
+                                            <input type="text" class="form-control" id="defendant-wakala-issuer" placeholder="مثال: كتابة العدل بالرياض، أو الخدمات الإلكترونية بناجز" required>
                                         </div>
                                         <div class="field">
                                             <label>رقم الوكالة الشرعية <span class="req">*</span></label>
@@ -489,14 +502,14 @@
                             <h2>الدعوى وجواب المدعى عليه</h2>
 
                             <div class="field" id="claimTextField">
-                                <label>وبالاطلاع على دعوى المدعي وجدت نصها: <span class="req">*</span></label>
-                                <textarea class="form-control" id="claimText" rows="4" placeholder="......." required></textarea>
+                                <label>جرى الاطلاع على صحيفة الدعوى ونصها: <span class="req">*</span></label>
+                                <textarea class="form-control" id="claimText" rows="4" placeholder="....... تنسخ من نظام ناجز ......." required></textarea>
                             </div>
 
                             <div class="sub-fields" id="defendantResponseSection">
                                 <label>إجابة المدعى عليه على الدعوى <span class="req">*</span></label>
                                 <textarea class="form-control" id="defendantResponseText" rows="3" placeholder="اكتب إجابة المدعى عليه" required></textarea>
-                                <div class="hint">سيُضاف تلقائيًا: "وبعرض دعوى المدعي على المدعى عليه أجاب قائلاً: [إجابته] هكذا أجاب." — وهذا العرض يسبق سؤال المدعي عن بينته.</div>
+                                <div class="hint">سيُضاف تلقائيًا: "وبعرضها على المدعى عليه أجاب قائلاً: [إجابته] هكذا أجاب." — وهذا العرض يسبق سؤال المدعي عن بينته.</div>
 
                                 <label style="margin-top:0.9rem;">تكييف الإجابة</label>
                                 <div class="choice-group vertical" data-group="defendant-stance">
