@@ -110,7 +110,7 @@ test('buildKinshipPhrase: قرابة مقبولة وخارج الدرجات', ()
 
 test('buildOpening: الافتراضي عبر الاتصال المرئي مختصراً بلا نص القرار', () => {
     const text = M.buildOpening({ judge: 'فلان', court: 'الرياض' });
-    assert.equal(text, 'فلديّ أنا فلان القاضي بمحكمة الرياض افتتحتُ الجلسة عبر الاتصال المرئي،');
+    assert.equal(text, 'فلديّ أنا فلان القاضي في المحكمة الرياض افتتحتُ الجلسة عبر الاتصال المرئي،');
     assert.ok(!text.includes('17388'));
 });
 
@@ -122,7 +122,7 @@ test('buildOpening: لا يُذكر وقت الافتتاح في المتن (م�
 
 test('buildOpening: خيار «مع المستند» يدرج نص قرار المجلس الأعلى للقضاء', () => {
     const text = M.buildOpening({ judge: 'فلان', court: 'الرياض', mode: M.SESSION_MODES.VIDEO_FULL });
-    assert.match(text, /^فلديّ أنا فلان القاضي بمحكمة الرياض افتتحتُ الجلسة عبر الاتصال المرئي/);
+    assert.match(text, /^فلديّ أنا فلان القاضي في المحكمة الرياض افتتحتُ الجلسة عبر الاتصال المرئي/);
     assert.match(text, /قرار فضيلة رئيس المجلس الأعلى للقضاء رقم 17388/);
     assert.match(text, /المتضمن إطلاق خدمة التقاضي عن بعد/);
     assert.match(text, /،$/);
@@ -130,7 +130,7 @@ test('buildOpening: خيار «مع المستند» يدرج نص قرار ال
 
 test('buildOpening: الجلسة الحضورية تحذف صيغة الاتصال المرئي كاملة', () => {
     const text = M.buildOpening({ judge: 'فلان', court: 'الرياض', mode: M.SESSION_MODES.IN_PERSON });
-    assert.equal(text, 'فلديّ أنا فلان القاضي بمحكمة الرياض افتتحتُ الجلسة،');
+    assert.equal(text, 'فلديّ أنا فلان القاضي في المحكمة الرياض افتتحتُ الجلسة،');
     assert.ok(!text.includes('المرئي'));
 });
 
@@ -413,7 +413,11 @@ test('buildOathBlock: لا أرغب / أرغب مع مدعى عليه غائب',
     assert.match(absent, /عُدَّ ناكلاً/);
 });
 
-const SAMPLE_WITNESS = { name: 'صالح', age: '30', job: 'موظف', residence: 'الرياض', relation: 'جار', interest: 'لا مصلحة', testimony: 'المبلغ في ذمة المدعى عليه' };
+const SAMPLE_WITNESS = {
+    name: 'صالح', nationality: 'سعودي', idNum: '1099887766', age: '30', job: 'موظف', residence: 'الرياض',
+    relationPlaintiff: 'جار', relationDefendant: 'لا صلة', interest: 'لا مصلحة',
+    testimony: 'المبلغ في ذمة المدعى عليه', phone: '0500000000'
+};
 
 function witnessCtx(overrides = {}) {
     return Object.assign({
@@ -432,6 +436,39 @@ test('buildWitnessSection: يتضمن مادتي (71) و(78) وتحليف الش
     assert.match(text, /اسمي الكامل: \( صالح \)/);
     assert.match(text, /ثم جرى تحليفه اليمين على أن يشهد بالحق، فحلف/);
     assert.match(text, /أشهد بالله العظيم أن \( المبلغ في ذمة المدعى عليه \)/);
+});
+
+test('buildWitnessSection: صلة الشاهد بكل خصم على حدة', () => {
+    const text = M.buildWitnessSection([SAMPLE_WITNESS], witnessCtx());
+    assert.match(text, /وصلتي بالمدعي: \( جار \)، وصلتي بالمدعى عليه: \( لا صلة \)/);
+    assert.ok(!text.includes('وعلاقتي بأطراف الدعوى هو'));
+});
+
+test('buildWitnessSection: جنسية الشاهد وهويته تُثبتان في الضبط دائمًا', () => {
+    const text = M.buildWitnessSection([SAMPLE_WITNESS], witnessCtx());
+    assert.match(text, /اسمي الكامل: \( صالح \)، وجنسيتي: \( سعودي \)، ورقم هويتي الوطنية\/إقامتي: \( 1099887766 \)، وتاريخ ميلادي/);
+});
+
+test('WITNESS_NATIONALITY_OPTIONS: قائمة الطرفين نفسها يتصدرها «سعودي»', () => {
+    assert.equal(M.WITNESS_NATIONALITY_OPTIONS[0], 'سعودي');
+    assert.equal(M.WITNESS_NATIONALITY_OPTIONS.length, M.NATIONALITY_OPTIONS.length + 1);
+    assert.ok(M.WITNESS_NATIONALITY_OPTIONS.includes('مصري'));
+    // قائمة الطرفين لا يدخلها «سعودي» لأن له مفتاحًا مستقلًا
+    assert.ok(!M.NATIONALITY_OPTIONS.includes('سعودي'));
+});
+
+test('buildWitnessSection: رقم جوال الشاهد لا يظهر في نص الضبط', () => {
+    const text = M.buildWitnessSection([SAMPLE_WITNESS], witnessCtx());
+    assert.ok(!text.includes('0500000000'));
+    assert.ok(!text.includes('جوال'));
+});
+
+test('EVIDENCE_OPTIONS: شهادة الشهود ثانيةً بعد العقد', () => {
+    assert.equal(M.EVIDENCE_OPTIONS[0], 'العقد');
+    assert.equal(M.EVIDENCE_OPTIONS[1], 'شهادة شهود');
+    // بقية الخيارات باقية بلا حذف ولا تكرار
+    assert.equal(M.EVIDENCE_OPTIONS.length, new Set(M.EVIDENCE_OPTIONS).size);
+    assert.equal(M.EVIDENCE_OPTIONS.length, 18);
 });
 
 test('buildWitnessSection: مطابقة التذكير والتأنيث في مقدّم الشهود والمتكلم', () => {
@@ -581,10 +618,10 @@ test('composeMinutes: سماع دفوع المدعى عليه وبينته في 
 
 test('composeMinutes: جلسة تحضيرية مكتملة بطرفين حاضرين', () => {
     const text = M.composeMinutes(readyState());
-    assert.match(text, /^فلديّ أنا فلان بن فلان القاضي بمحكمة الرياض/);
+    assert.match(text, /^فلديّ أنا فلان بن فلان القاضي في المحكمة الرياض/);
     assert.match(text, /حضر المدعي سعد أصالة/);
     assert.match(text, /حضر المدعى عليه فهد أصالة/);
-    assert.match(text, /وبالاطلاع على دعوى المدعي وجدت نصها: "أطالب بمبلغ مئة ألف ريال"/);
+    assert.match(text, /وبالاطلاع على دعوى المدعي ونصها: "أطالب بمبلغ مئة ألف ريال"/);
     assert.match(text, /وبعرض دعوى المدعي على المدعى عليه أجاب قائلاً: ما ذكره المدعي غير صحيح/);
     assert.match(text, /قفل باب المرافعة/);
     assert.match(text, /وأغلقت الجلسة الساعة التاسعة والنصف صباحًا\.$/);
@@ -694,16 +731,35 @@ test('findTemplate: الوصول لمكتبة النماذج في data/templates
     assert.equal(M.templatesOfCategory('تصنيف غير موجود').length, 0);
 });
 
+test('noticeKindFor: الطلب غير المالي لا يدخل حدّ الدعاوى اليسيرة', () => {
+    const state = rulingState();
+    assert.equal(M.freshClaimState().claimType, 'مالي');
+    state.claim.claimValue = '10000';
+    assert.equal(M.noticeKindFor(state), 'final');
+    state.claim.claimType = 'غير مالي';
+    assert.equal(M.noticeKindFor(state), 'appealable');
+    // التحديد اليدوي يتقدم على الاشتقاق في الحالين
+    state.ruling.noticeKind = 'sulh';
+    assert.equal(M.noticeKindFor(state), 'sulh');
+});
+
+test('rulingWarnings: الطلب غير المالي لا يُطالَب بقيمة المطالبة', () => {
+    const state = rulingState();
+    assert.ok(M.rulingWarnings(state).some(w => w.includes('قيمة المطالبة')));
+    state.claim.claimType = 'غير مالي';
+    assert.ok(!M.rulingWarnings(state).some(w => w.includes('قيمة المطالبة')));
+});
+
 test('noticeKindFor: يُشتق نوع الإفهام من قيمة المطالبة', () => {
     const state = rulingState();
-    state.ruling.claimValue = '45000';
+    state.claim.claimValue = '45000';
     assert.equal(M.noticeKindFor(state), 'final');
-    state.ruling.claimValue = String(M.YASEERA_CLAIM_LIMIT);
+    state.claim.claimValue = String(M.YASEERA_CLAIM_LIMIT);
     assert.equal(M.noticeKindFor(state), 'final');
-    state.ruling.claimValue = '50001';
+    state.claim.claimValue = '50001';
     assert.equal(M.noticeKindFor(state), 'appealable');
     // بلا قيمة يُحتاط بالقابلية للاستئناف
-    state.ruling.claimValue = '';
+    state.claim.claimValue = '';
     assert.equal(M.noticeKindFor(state), 'appealable');
     // التحديد اليدوي يتقدم على الاشتقاق
     state.ruling.noticeKind = 'sulh';
@@ -712,10 +768,10 @@ test('noticeKindFor: يُشتق نوع الإفهام من قيمة المطال
 
 test('buildNoticeText: النص مأخوذ من مكتبة النماذج لا مكتوب هنا', () => {
     const state = rulingState();
-    state.ruling.claimValue = '10000';
+    state.claim.claimValue = '10000';
     assert.equal(M.buildNoticeText(state), M.findTemplate('إفهامات بعد النطق', 'ف1'));
 
-    state.ruling.claimValue = '900000';
+    state.claim.claimValue = '900000';
     assert.equal(M.buildNoticeText(state), M.findTemplate('إفهامات بعد النطق', 'ف2'));
 
     // حضور الطرفين وكالةً يستدعي صيغة إفهام الوكلاء (المادة 165)
@@ -729,7 +785,7 @@ test('buildNoticeText: النص مأخوذ من مكتبة النماذج لا �
 
 test('noticeKindFor: صفة الوقف تُلزم بواجب التدقيق ولا تُترك للاختيار', () => {
     const state = rulingState();
-    state.ruling.claimValue = '10000';
+    state.claim.claimValue = '10000';
     assert.equal(M.noticeKindFor(state), 'final');
     state.defendant.entityType = M.ENTITY_TYPES.WAQF;
     assert.equal(M.mandatoryReviewNotice(state), true);
@@ -742,7 +798,7 @@ test('noticeKindFor: صفة الوقف تُلزم بواجب التدقيق ول
 
 test('noticeKindFor: صفة الوقف للمدعي لا تُغيّر نوع الإفهام', () => {
     const state = rulingState();
-    state.ruling.claimValue = '10000';
+    state.claim.claimValue = '10000';
     state.plaintiff.entityType = M.ENTITY_TYPES.WAQF;
     assert.equal(M.noticeKindFor(state), 'final');
 });
@@ -806,7 +862,7 @@ test('buildNoticeText: إفهام واجب التدقيق له صيغتان يخ
 
 test('buildRulingSection: إجراء التدقيق لا يُلحق فقرة زائدة على إفهام غير واجب التدقيق', () => {
     const state = rulingState();
-    state.ruling.claimValue = '900000';
+    state.claim.claimValue = '900000';
     state.ruling.mandatoryReview = 'إعادة';
     const text = M.buildRulingSection(state);
     assert.match(text, /قابل للاستئناف/);
@@ -815,7 +871,7 @@ test('buildRulingSection: إجراء التدقيق لا يُلحق فقرة ز�
 
 test('composeMinutes: مرحلة الحكم تُلحق بالضبط بعد قفل باب المرافعة', () => {
     const state = rulingState();
-    state.ruling.claimValue = '900000';
+    state.claim.claimValue = '900000';
     const text = M.composeMinutes(state);
     const closeAt = text.indexOf('قفل باب المرافعة');
     const reasonsAt = text.indexOf('\n\nالأسباب:\n');
@@ -858,6 +914,30 @@ test('collectWarnings: نواقص بينة المدعى عليه وشهوده', 
     const w = M.collectWarnings(state);
     assert.ok(w.some(x => x.includes('لشاهد المدعى عليه الأول')));
     assert.ok(w.some(x => x.includes('أسماء معدِّلي شهود المدعى عليه')));
+    assert.ok(w.some(x => x.includes('صلة الشاهد بالمدعي')));
+    assert.ok(w.some(x => x.includes('صلة الشاهد بالمدعى عليه')));
+    assert.ok(w.some(x => x.includes('جنسية الشاهد')));
+    assert.ok(w.some(x => x.includes('رقم هوية/إقامة الشاهد')));
+});
+
+test('collectWarnings: رقم هوية الشاهد عشرة أرقام كبيانات الطرفين', () => {
+    const state = readyState();
+    state.claim.evidenceChoice = 'has';
+    state.claim.evidenceItems = ['شهادة شهود'];
+    state.claim.witnesses = [Object.assign(M.freshWitness(), SAMPLE_WITNESS, { idNum: '12345' })];
+    assert.ok(M.collectWarnings(state).some(x => x.includes('غير مكتمل (10 أرقام)')));
+
+    state.claim.witnesses[0].idNum = '1099887766';
+    assert.ok(!M.collectWarnings(state).some(x => x.includes('غير مكتمل (10 أرقام)')));
+});
+
+test('freshWitness: رقم الجوال ضمن بيانات الشاهد ولا يُفحص في التحذيرات', () => {
+    assert.equal(M.freshWitness().phone, '');
+    const state = readyState();
+    state.claim.evidenceChoice = 'has';
+    state.claim.evidenceItems = ['شهادة شهود'];
+    state.claim.witnesses = [M.freshWitness()];
+    assert.ok(!M.collectWarnings(state).some(x => x.includes('جوال')));
 });
 
 test('collectWarnings: الإقرار لا يطالب ببينة المدعي', () => {

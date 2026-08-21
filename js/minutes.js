@@ -44,7 +44,11 @@ function isInPersonSession(state) {
 
 const NATIONALITY_OPTIONS = ['آيسلندي', 'أذربيجاني', 'أرجنتيني', 'أردني', 'أرمني', 'أسترالي', 'أفريقي وسطي', 'أفغاني', 'ألباني', 'ألماني', 'أمريكي', 'أنغولي', 'أوروغوياني', 'أوزبكستاني', 'أوغندي', 'أوكراني', 'أيرلندي', 'إثيوبي', 'إريتري', 'إسباني', 'إستوني', 'إسواتيني', 'إكوادوري', 'إماراتي', 'إندونيسي', 'إيراني', 'إيطالي', 'الرأس الأخضر', 'بابوا غينيا الجديدة', 'باراغوياني', 'باكستاني', 'بحريني', 'برازيلي', 'برتغالي', 'بروناوي', 'بريطاني', 'بلجيكي', 'بلغاري', 'بنغلاديشي', 'بنمي', 'بنيني', 'بوتاني', 'بوتسواني', 'بوركينابي', 'بوروندي', 'بوسني', 'بولندي', 'بوليفي', 'بيروفي', 'بيلاروسي', 'تايلاندي', 'تايواني', 'تركمانستاني', 'تركي', 'ترينيدادي', 'تشادي', 'تشيكي', 'تشيلي', 'تنزاني', 'توغولي', 'تونسي', 'تيموري', 'جامايكي', 'جزائري', 'جزر القمر', 'جنوب أفريقي', 'جنوب سوداني', 'جورجي', 'جيبوتي', 'دنماركي', 'دومينيكاني', 'رواندي', 'روسي', 'روماني', 'زامبي', 'زيمبابوي', 'ساحل عاجي', 'ساو تومي وبرينسيبي', 'سريلانكي', 'سلفادوري', 'سلوفاكي', 'سلوفيني', 'سنغافوري', 'سنغالي', 'سوداني', 'سوري', 'سورينامي', 'سويدي', 'سويسري', 'سيراليوني', 'سيشيلي', 'صربي', 'صومالي', 'صيني', 'طاجيكستاني', 'عديم الجنسية', 'عراقي', 'عُماني', 'غابوني', 'غامبي', 'غاني', 'غواتيمالي', 'غياني', 'غيني', 'غيني استوائي', 'غيني بيساوي', 'فرنسي', 'فلبيني', 'فلسطيني', 'فنزويلي', 'فنلندي', 'فيتنامي', 'فيجي', 'قبرصي', 'قطري', 'قيرغيزستاني', 'كازاخستاني', 'كاميروني', 'كرواتي', 'كمبودي', 'كندي', 'كوبي', 'كوري جنوبي', 'كوري شمالي', 'كوستاريكي', 'كولومبي', 'كونغولي', 'كونغولي ديمقراطي', 'كويتي', 'كيني', 'لاتفي', 'لاوسي', 'لبناني', 'لوكسمبورغي', 'ليبي', 'ليبيري', 'ليتواني', 'ليسوتوي', 'مالطي', 'مالي', 'ماليزي', 'مدغشقري', 'مصري', 'مغربي', 'مغولي', 'مقدوني', 'مكسيكي', 'ملاوي', 'موريتاني', 'موريشيوسي', 'موزمبيقي', 'مولدوفي', 'مونتينيغري', 'ميانماري', 'ناميبي', 'نرويجي', 'نمساوي', 'نيبالي', 'نيجري', 'نيجيري', 'نيكاراغوي', 'نيوزيلندي', 'هايتي', 'هندوراسي', 'هندي', 'هنغاري', 'هولندي', 'هونغ كونغي', 'ياباني', 'يمني', 'يوناني', 'أخرى'];
 
-const EVIDENCE_OPTIONS = ['العقد', 'الفاتورة', 'ورقة إقرار', 'سند لأمر', 'إيصال استلام', 'محضر تسليم', 'الحوالة', 'رسالة نصية / واتساب', 'تسجيل صوتي', 'شهادة شهود', 'تقرير خبرة', 'تقدير الأضرار', 'تقرير نجم', 'تقرير المرور', 'عرض سعر', 'صور فوتوغرافية', 'مقاطع فيديو', 'مستند رسمي آخر'];
+// جنسيات الشاهد: قائمة الطرفين نفسها مع «سعودي» في صدرها،
+// إذ ليس للشاهد مفتاح (سعودي / غير ذلك) وإنما حقل جنسية واحد
+const WITNESS_NATIONALITY_OPTIONS = ['سعودي'].concat(NATIONALITY_OPTIONS);
+
+const EVIDENCE_OPTIONS = ['العقد', 'شهادة شهود', 'الفاتورة', 'ورقة إقرار', 'سند لأمر', 'إيصال استلام', 'محضر تسليم', 'الحوالة', 'رسالة نصية / واتساب', 'تسجيل صوتي', 'تقرير خبرة', 'تقدير الأضرار', 'تقرير نجم', 'تقرير المرور', 'عرض سعر', 'صور فوتوغرافية', 'مقاطع فيديو', 'مستند رسمي آخر'];
 
 // حدّ الدعاوى اليسيرة التي تكون أحكامها نهائية غير قابلة للاستئناف.
 // ⚠️ الحد يُحدَّد بقرار من المجلس الأعلى للقضاء وقابل للتعديل — يجب التحقق منه قبل الاعتماد عليه.
@@ -289,7 +293,13 @@ function freshExtraParty() {
 }
 
 function freshWitness() {
-    return { name: '', age: '', job: '', residence: '', relation: '', interest: '', testimony: '' };
+    return {
+        name: '', nationality: '', idNum: '', age: '', job: '', residence: '',
+        // صلة الشاهد بكل خصم على حدة — المادة (71) من نظام الإثبات
+        relationPlaintiff: '', relationDefendant: '', interest: '', testimony: '',
+        // رقم الجوال لا يُدرج في نص الضبط، وإنما ليتمكن القاضي من الوصول للشاهد عند الحاجة
+        phone: ''
+    };
 }
 
 // بينة أحد الخصمين (يُستعمل للمدعى عليه، وللمدعي عبر plaintiffEvidenceBlock)
@@ -307,6 +317,9 @@ function freshEvidenceBlock() {
 function freshClaimState() {
     return {
         text: '',
+        // نوع الدعوى: الطلب المالي وحده تُشتق من قيمته صفة الحكم (يسير أو قابل للاستئناف)
+        claimType: 'مالي',          // 'مالي' | 'غير مالي'
+        claimValue: '',             // قيمة المطالبة — يُشتق منها نوع الإفهام
         // جواب المدعى عليه — يُعرض عليه قبل تكليف المدعي بالبينة
         defendantStance: 'إنكار',   // 'إقرار' | 'إنكار' | 'دفع شكلي'
         defendantResponseText: '',
@@ -334,7 +347,6 @@ function freshRulingState() {
         reasonsText: '',
         rulingText: '',
         presence: 'حضوري',          // 'حضوري' | 'غيابي'
-        claimValue: '',             // قيمة المطالبة — يُشتق منها نوع الإفهام
         noticeKind: 'auto',         // 'auto' | 'final' | 'appealable' | 'sulh'
         // إجراء التدقيق الوجوبي — لا يُسأل عنه إلا مع إفهام (واجب التدقيق)، وهو صيغته لا فقرة زائدة عليه
         mandatoryReview: 'نعم'      // 'نعم' رفع الملف بعد مدة الاعتراض | 'إعادة' إعادة القضية للاستئناف
@@ -726,7 +738,8 @@ function buildWitnessSection(witnesses, ctx) {
 
     witnesses.forEach((w, i) => {
         const ordinal = ordinalWordsMasc[i + 1] || `رقم ${i + 1}`;
-        out += ` ثم ${bringVerb} ${ctx.presenterLabel} للشهادة الشاهد ${ordinal}، وبسؤاله عن بياناته الشخصية وعلاقته بأطراف الدعوى أجاب قائلاً: اسمي الكامل: ( ${orDots(w.name)} )، وتاريخ ميلادي/عمري: ( ${orDots(w.age)} )، وأعمل في مهنة: ( ${orDots(w.job)} )، وأسكن في: ( ${orDots(w.residence)} )، وعلاقتي بأطراف الدعوى هو: ( ${orDots(w.relation)} )، ومصلحتي في هذه الدعوى هي: ( ${orDots(w.interest)} )، ثم جرى تحليفه اليمين على أن يشهد بالحق، فحلف، ثم جرى سؤاله عما لديه من شهادة، فأجاب قائلاً: أشهد بالله العظيم أن ( ${orDots(w.testimony)} ) هكذا أجاب وشهد.`;
+        // بيانات الشاهد تُثبت كاملة في الضبط (المادة 71 من نظام الإثبات)، ورقم الجوال وحده لا يُدرج
+        out += ` ثم ${bringVerb} ${ctx.presenterLabel} للشهادة الشاهد ${ordinal}، وبسؤاله عن بياناته الشخصية وعلاقته بأطراف الدعوى أجاب قائلاً: اسمي الكامل: ( ${orDots(w.name)} )، وجنسيتي: ( ${orDots(w.nationality)} )، ورقم هويتي الوطنية/إقامتي: ( ${orDots(w.idNum)} )، وتاريخ ميلادي/عمري: ( ${orDots(w.age)} )، وأعمل في مهنة: ( ${orDots(w.job)} )، وأسكن في: ( ${orDots(w.residence)} )، وصلتي بالمدعي: ( ${orDots(w.relationPlaintiff)} )، وصلتي بالمدعى عليه: ( ${orDots(w.relationDefendant)} )، ومصلحتي في هذه الدعوى هي: ( ${orDots(w.interest)} )، ثم جرى تحليفه اليمين على أن يشهد بالحق، فحلف، ثم جرى سؤاله عما لديه من شهادة، فأجاب قائلاً: أشهد بالله العظيم أن ( ${orDots(w.testimony)} ) هكذا أجاب وشهد.`;
     });
 
     out += buildTazkiyaClause(ctx, bringVerb);
@@ -982,7 +995,10 @@ function noticeKindFor(state) {
     const r = state.ruling;
     if (mandatoryReviewNotice(state)) return 'review';
     if (r.noticeKind && r.noticeKind !== 'auto') return r.noticeKind;
-    const value = Number(String(r.claimValue).replace(/[^0-9.]/g, ''));
+    const c = state.claim || {};
+    // حدّ الدعاوى اليسيرة قيمةٌ مالية، فالطلب غير المالي لا يدخله ويبقى قابلاً للاستئناف
+    if (c.claimType === 'غير مالي') return 'appealable';
+    const value = Number(String(c.claimValue).replace(/[^0-9.]/g, ''));
     if (!value) return 'appealable';
     return value <= YASEERA_CLAIM_LIMIT ? 'final' : 'appealable';
 }
@@ -1251,12 +1267,15 @@ function evidenceWarnings(block, ownerLabel, opposingPresent) {
     }
     if (!block.items.includes('شهادة شهود')) return w;
 
-    const fieldLabels = { name: 'اسم الشاهد', age: 'تاريخ الميلاد/العمر', job: 'المهنة', residence: 'مكان سكن الشاهد', relation: 'صلة الشاهد بالمتداعيين', interest: 'المصلحة', testimony: 'نص الشهادة' };
+    const fieldLabels = { name: 'اسم الشاهد', nationality: 'جنسية الشاهد', idNum: 'رقم هوية/إقامة الشاهد', age: 'تاريخ الميلاد/العمر', job: 'المهنة', residence: 'مكان سكن الشاهد', relationPlaintiff: 'صلة الشاهد بالمدعي', relationDefendant: 'صلة الشاهد بالمدعى عليه', interest: 'المصلحة', testimony: 'نص الشهادة' };
     block.witnesses.forEach((wit, i) => {
         const ord = ordinalWordsMasc[i + 1] || `رقم ${i + 1}`;
         Object.keys(fieldLabels).forEach(k => {
             if (!String(wit[k] || '').trim()) w.push(`لم يُكمَل حقل "${fieldLabels[k]}" لشاهد ${ownerLabel} ${ord}.`);
         });
+        // رقم الهوية أو الإقامة عشرة أرقام كبيانات الطرفين
+        const idNum = String(wit.idNum || '').trim();
+        if (idNum && idNum.length !== 10) w.push(`رقم هوية/إقامة شاهد ${ownerLabel} ${ord} غير مكتمل (10 أرقام).`);
     });
     if (block.tazkiya === 'presented' && !String(block.tazkiyaNames || '').trim()) {
         w.push(`لم تُكتب أسماء معدِّلي شهود ${ownerLabel}.`);
@@ -1274,7 +1293,8 @@ function rulingWarnings(state) {
     if (r.pronounce !== 'نعم') return w;
     if (!String(r.reasonsText || '').trim()) w.push('لم تُكتب أسباب الحكم.');
     if (!String(r.rulingText || '').trim()) w.push('لم يُكتب منطوق الحكم.');
-    if (r.noticeKind === 'auto' && !mandatoryReviewNotice(state) && !String(r.claimValue || '').trim()) {
+    const claim = state.claim || {};
+    if (r.noticeKind === 'auto' && !mandatoryReviewNotice(state) && claim.claimType !== 'غير مالي' && !String(claim.claimValue || '').trim()) {
         w.push('لم تُدخل قيمة المطالبة، فتعذّر اشتقاق نوع الإفهام تلقائيًا (اعتُمد "قابل للاستئناف").');
     }
     if (!buildNoticeText(state)) {
@@ -1288,7 +1308,7 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         MINUTES_PLACEHOLDER, VIDEO_CALL_PHRASE, VIDEO_CALL_SHORT, VIDEO_CALL_BRIEF, VIDEO_CALL_BASIS,
         IN_PERSON_SHORT, SESSION_MODES, sessionMode, isInPersonSession,
-        NATIONALITY_OPTIONS, EVIDENCE_OPTIONS, YASEERA_CLAIM_LIMIT, ENTITY_TYPES,
+        NATIONALITY_OPTIONS, WITNESS_NATIONALITY_OPTIONS, EVIDENCE_OPTIONS, YASEERA_CLAIM_LIMIT, ENTITY_TYPES,
         isCorporateEntity, corporateDocLabel, mandatoryReviewNotice, closingTimeParts,
         minutesPhrase, buildTimeArabic, addMinutesToTime, validHoursForPeriod, convertArabicDigits,
         ordinalWord, partyLabel, multiPartyLabel, agentPossessive,

@@ -222,15 +222,16 @@ function updateKinshipHint(party) {
 
 // ==================== بحث الجنسيات ====================
 // يُستعمل للطرف الأول ولكل طرف إضافي، فبطاقة الهوية واحدة للجميع
-function attachNationalitySearch(input, list, onValue) {
+function attachNationalitySearch(input, list, onValue, options) {
     if (!input || !list) return;
+    const source = options || NATIONALITY_OPTIONS;
     let highlightedIdx = -1;
     let filtered = [];
 
     function renderList() {
         // تطبيع الهمزات والتشكيل حتى يجد «عماني» جنسية «عُماني»
         const q = normalizeArabicSearch(input.value);
-        filtered = q ? NATIONALITY_OPTIONS.filter(n => normalizeArabicSearch(n).includes(q)) : NATIONALITY_OPTIONS;
+        filtered = q ? source.filter(n => normalizeArabicSearch(n).includes(q)) : source;
         list.innerHTML = filtered.length === 0
             ? '<div class="nat-dropdown-empty">لا توجد نتائج مطابقة</div>'
             : filtered.map((n, i) => `<div class="nat-dropdown-item" data-idx="${i}">${n}</div>`).join('');
@@ -487,10 +488,21 @@ function updateStanceVisibility() {
     $('defendantWitnessObjectionBlock').style.display = state.plaintiff.attendance !== 'لم يحضر' ? 'block' : 'none';
 }
 
+// إظهار قيمة المطالبة مع الطلب المالي وحده
+function updateClaimTypeVisibility() {
+    const field = $('claimValueField');
+    if (field) field.style.display = state.claim.claimType === 'غير مالي' ? 'none' : 'block';
+    updateClaimValueHint();
+}
+
 function updateClaimValueHint() {
     const r = state.ruling;
     const hint = $('claimValueHint');
     if (!hint) return;
+    if (state.claim.claimType === 'غير مالي') {
+        hint.textContent = 'الطلب غير المالي لا يدخل حدّ الدعاوى اليسيرة، فيُعتمد في الإفهام "قابل للاستئناف" ما لم يُحدَّد غيره في مرحلة الحكم.';
+        return;
+    }
     if (mandatoryReviewNotice(state)) {
         hint.textContent = 'الحكم على وقف واجب التدقيق لزومًا، فلا أثر لقيمة المطالبة في نوع الإفهام.';
         return;
@@ -499,7 +511,7 @@ function updateClaimValueHint() {
         hint.textContent = 'نوع الإفهام محدَّد يدويًا، فلا أثر لقيمة المطالبة.';
         return;
     }
-    const value = Number(String(r.claimValue).replace(/[^0-9.]/g, ''));
+    const value = Number(String(state.claim.claimValue).replace(/[^0-9.]/g, ''));
     if (!value) {
         hint.textContent = `لم تُدخل قيمة المطالبة — سيُعتمد "قابل للاستئناف". حدّ الدعاوى اليسيرة: ${YASEERA_CLAIM_LIMIT.toLocaleString('en-US')} ريال.`;
         return;
@@ -538,6 +550,11 @@ function updateVisibility(party) {
 
 // ==================== معالجة أزرار الاختيار ====================
 function handleChoice(key, value) {
+    if (key === 'claim-type') {
+        state.claim.claimType = value;
+        updateClaimTypeVisibility();
+        return;
+    }
     if (key === 'evidence-choice') {
         state.claim.evidenceChoice = value;
         $('evidenceTextField').style.display = value === 'has' ? 'block' : 'none';
@@ -973,20 +990,37 @@ function witnessCardHTML(prefix, idx, w) {
     const ordinal = ordinalWord(idx + 1, 'م');
     const fields = [
         ['name', 'الاسم الكامل'], ['age', 'تاريخ الميلاد / العمر'], ['job', 'المهنة'],
-        ['residence', 'مكان الإقامة'], ['relation', 'وجه الاتصال بأطراف الدعوى'], ['interest', 'المصلحة في هذه الدعوى'],
-        ['testimony', 'نص الشهادة (أشهد بالله العظيم أن...)']
+        ['residence', 'مكان الإقامة'], ['relationPlaintiff', 'صلة الشاهد بالمدعي'], ['relationDefendant', 'صلة الشاهد بالمدعى عليه'],
+        ['interest', 'المصلحة في هذه الدعوى'], ['testimony', 'نص الشهادة (أشهد بالله العظيم أن...)']
     ];
+    const [nameField, ...restFields] = fields;
+    const textFieldHTML = ([key, label]) => `
+        <div class="field">
+            <label>${label} <span class="req">*</span></label>
+            <input type="text" class="form-control" data-witness-prefix="${prefix}" data-witness-idx="${idx}" data-witness-field="${key}" value="${escapeHtml(w[key])}" placeholder="${label}" required>
+        </div>`;
     return `
     <div class="extra-party-block">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
             <div class="party-title" style="margin-bottom:0;">الشاهد ${ordinal}</div>
             ${idx > 0 ? `<button type="button" class="remove-line-btn remove-witness-btn" data-prefix="${prefix}" data-idx="${idx}">✕ إزالة</button>` : ''}
         </div>
-        ${fields.map(([key, label]) => `
+        ${textFieldHTML(nameField)}
+        <div class="field" style="position:relative;">
+            <label>الجنسية <span class="req">*</span></label>
+            <input type="text" class="form-control" id="${prefix}-witness-${idx}-nationality" data-witness-prefix="${prefix}" data-witness-idx="${idx}" data-witness-field="nationality" value="${escapeHtml(w.nationality)}" placeholder="اكتب للبحث عن الجنسية" autocomplete="off" required>
+            <div class="nat-dropdown" id="${prefix}-witness-${idx}-nationality-list" style="display:none;"></div>
+        </div>
         <div class="field">
-            <label>${label} <span class="req">*</span></label>
-            <input type="text" class="form-control" data-witness-prefix="${prefix}" data-witness-idx="${idx}" data-witness-field="${key}" value="${escapeHtml(w[key])}" placeholder="${label}" required>
-        </div>`).join('')}
+            <label>رقم الهوية الوطنية / رقم الإقامة <span class="req">*</span></label>
+            <input type="text" class="form-control" data-witness-prefix="${prefix}" data-witness-idx="${idx}" data-witness-field="idNum" value="${escapeHtml(w.idNum)}" placeholder="أدخل 10 أرقام فقط" maxlength="10" inputmode="numeric" data-numeric-only="true" required>
+        </div>
+        ${restFields.map(textFieldHTML).join('')}
+        <div class="field">
+            <label>رقم جوال الشاهد</label>
+            <input type="text" class="form-control" data-witness-prefix="${prefix}" data-witness-idx="${idx}" data-witness-field="phone" value="${escapeHtml(w.phone)}" placeholder="رقم جوال الشاهد" inputmode="numeric" data-numeric-only="true">
+            <div class="hint">لا يظهر في نص الضبط، ويُحفظ للوصول إلى الشاهد عند الحاجة.</div>
+        </div>
     </div>`;
 }
 
@@ -998,11 +1032,22 @@ const plaintiffEvidenceBlock = () => ({
 });
 const defendantEvidenceBlock = () => state.claim.defendantEvidence;
 
+function setupWitnessNationalitySearch(prefix) {
+    witnessListOf(prefix).forEach((wit, i) => {
+        attachNationalitySearch($(`${prefix}-witness-${i}-nationality`), $(`${prefix}-witness-${i}-nationality-list`), value => {
+            wit.nationality = value;
+            render();
+        }, WITNESS_NATIONALITY_OPTIONS);
+    });
+}
+
 function renderWitnesses() {
     $('witnessContainer').innerHTML = state.claim.witnesses.map((w, i) => witnessCardHTML('plaintiff', i, w)).join('');
+    setupWitnessNationalitySearch('plaintiff');
 }
 function renderDefendantWitnesses() {
     $('defendantWitnessContainer').innerHTML = state.claim.defendantEvidence.witnesses.map((w, i) => witnessCardHTML('defendant', i, w)).join('');
+    setupWitnessNationalitySearch('defendant');
 }
 
 function witnessListOf(prefix) {
@@ -1208,7 +1253,7 @@ updateReasonsTemplateCounts();
 $('reasonsText').addEventListener('input', e => { state.ruling.reasonsText = e.target.value; render(); });
 $('rulingText').addEventListener('input', e => { state.ruling.rulingText = e.target.value; render(); });
 $('claimValue').addEventListener('input', e => {
-    state.ruling.claimValue = e.target.value;
+    state.claim.claimValue = e.target.value;
     updateClaimValueHint();
     render();
 });
@@ -1467,9 +1512,9 @@ function applySnapshot(snap) {
     renderExtraCards('defendant');
 
     state.claim.evidenceItems = snap.evidenceItems || [];
-    state.claim.witnesses = snap.witnesses || [];
+    state.claim.witnesses = (snap.witnesses || []).map(w => Object.assign(freshWitness(), w));
     state.claim.defendantEvidence.items = snap.defendantEvidenceItems || [];
-    state.claim.defendantEvidence.witnesses = snap.defendantWitnesses || [];
+    state.claim.defendantEvidence.witnesses = (snap.defendantWitnesses || []).map(w => Object.assign(freshWitness(), w));
     state.followUp = Object.assign(freshFollowUpState(), snap.followUp || {});
     $('followUpPlaintiffEvidence').checked = !!state.followUp.plaintiffEvidence;
     $('followUpDefendantEvidence').checked = !!state.followUp.defendantEvidence;
@@ -1516,6 +1561,7 @@ function applySnapshot(snap) {
     updateOathAbsenceFieldVisibility();
     updateVisibility('defendant');
     updateStanceVisibility();
+    updateClaimTypeVisibility();
     updateNoticeKindLock();
     showStep();
     render();
