@@ -336,7 +336,8 @@ function freshRulingState() {
         presence: 'حضوري',          // 'حضوري' | 'غيابي'
         claimValue: '',             // قيمة المطالبة — يُشتق منها نوع الإفهام
         noticeKind: 'auto',         // 'auto' | 'final' | 'appealable' | 'sulh'
-        mandatoryReview: 'لا'       // 'لا' | 'نعم' | 'إعادة'
+        // إجراء التدقيق الوجوبي — لا يُسأل عنه إلا مع إفهام (واجب التدقيق)، وهو صيغته لا فقرة زائدة عليه
+        mandatoryReview: 'نعم'      // 'نعم' رفع الملف بعد مدة الاعتراض | 'إعادة' إعادة القضية للاستئناف
     };
 }
 
@@ -989,18 +990,16 @@ function noticeKindFor(state) {
 // نص الإفهام مأخوذ من تصنيف (إفهامات بعد النطق) في مكتبة النماذج
 function buildNoticeText(state) {
     const kind = noticeKindFor(state);
-    if (kind === 'review') return findTemplate('إفهامات بعد النطق', 'واجب التدقيق') || '';
+    // إفهام واجب التدقيق له صيغتان: رفع الملف بعد مدة الاعتراض، أو إعادة القضية لمحكمة الاستئناف
+    if (kind === 'review') {
+        const keyword = state.ruling.mandatoryReview === 'إعادة' ? 'واجب التدقيق /إعادة القضية' : 'واجب التدقيق';
+        return findTemplate('إفهامات بعد النطق', keyword) || '';
+    }
     if (kind === 'sulh') return findTemplate('إفهامات بعد النطق', 'صلح1') || '';
     if (kind === 'final') return findTemplate('إفهامات بعد النطق', 'ف1') || '';
     // ف3 تتضمن إفهام الطرفين وكالةً استناداً للمادة (165)
     const bothByAgent = state.plaintiff.attendance === 'تمثيل' && state.defendant.attendance === 'تمثيل';
     return findTemplate('إفهامات بعد النطق', bothByAgent ? 'ف3' : 'ف2') || '';
-}
-
-function buildMandatoryReviewText(ruling) {
-    if (ruling.mandatoryReview === 'نعم') return findTemplate('إفهامات بعد النطق', 'واجب التدقيق') || '';
-    if (ruling.mandatoryReview === 'إعادة') return findTemplate('إفهامات بعد النطق', 'واجب التدقيق /إعادة القضية') || '';
-    return '';
 }
 
 function buildPresenceClause(state) {
@@ -1019,9 +1018,6 @@ function buildRulingSection(state) {
     out += `\n${buildPresenceClause(state)}`;
     const notice = buildNoticeText(state);
     if (notice) out += `\n\n${notice}`;
-    const review = buildMandatoryReviewText(r);
-    // لا يُكرَّر نص واجب التدقيق إن كان هو نص الإفهام نفسه (حالة الوقف)
-    if (review && review !== notice) out += `\n\n${review}`;
     return out;
 }
 
@@ -1309,7 +1305,7 @@ if (typeof module !== 'undefined' && module.exports) {
         buildClaimEvidenceText, buildProceedingsAfterClaim, buildDefendantAnswerClause,
         buildAdmissionClause, buildFormalPleaClause,
         buildPlaintiffEvidenceText, buildDefendantEvidenceText, buildFollowUpProceedings,
-        noticeKindFor, buildNoticeText, buildMandatoryReviewText, buildPresenceClause, buildRulingSection,
+        noticeKindFor, buildNoticeText, buildPresenceClause, buildRulingSection,
         getOathDefendantStatus, composeMinutes, collectWarnings, evidenceWarnings, rulingWarnings
     };
 }
