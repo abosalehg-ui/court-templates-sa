@@ -727,16 +727,35 @@ test('findTemplate: الوصول لمكتبة النماذج في data/templates
     assert.equal(M.templatesOfCategory('تصنيف غير موجود').length, 0);
 });
 
+test('noticeKindFor: الطلب غير المالي لا يدخل حدّ الدعاوى اليسيرة', () => {
+    const state = rulingState();
+    assert.equal(M.freshClaimState().claimType, 'مالي');
+    state.claim.claimValue = '10000';
+    assert.equal(M.noticeKindFor(state), 'final');
+    state.claim.claimType = 'غير مالي';
+    assert.equal(M.noticeKindFor(state), 'appealable');
+    // التحديد اليدوي يتقدم على الاشتقاق في الحالين
+    state.ruling.noticeKind = 'sulh';
+    assert.equal(M.noticeKindFor(state), 'sulh');
+});
+
+test('rulingWarnings: الطلب غير المالي لا يُطالَب بقيمة المطالبة', () => {
+    const state = rulingState();
+    assert.ok(M.rulingWarnings(state).some(w => w.includes('قيمة المطالبة')));
+    state.claim.claimType = 'غير مالي';
+    assert.ok(!M.rulingWarnings(state).some(w => w.includes('قيمة المطالبة')));
+});
+
 test('noticeKindFor: يُشتق نوع الإفهام من قيمة المطالبة', () => {
     const state = rulingState();
-    state.ruling.claimValue = '45000';
+    state.claim.claimValue = '45000';
     assert.equal(M.noticeKindFor(state), 'final');
-    state.ruling.claimValue = String(M.YASEERA_CLAIM_LIMIT);
+    state.claim.claimValue = String(M.YASEERA_CLAIM_LIMIT);
     assert.equal(M.noticeKindFor(state), 'final');
-    state.ruling.claimValue = '50001';
+    state.claim.claimValue = '50001';
     assert.equal(M.noticeKindFor(state), 'appealable');
     // بلا قيمة يُحتاط بالقابلية للاستئناف
-    state.ruling.claimValue = '';
+    state.claim.claimValue = '';
     assert.equal(M.noticeKindFor(state), 'appealable');
     // التحديد اليدوي يتقدم على الاشتقاق
     state.ruling.noticeKind = 'sulh';
@@ -745,10 +764,10 @@ test('noticeKindFor: يُشتق نوع الإفهام من قيمة المطال
 
 test('buildNoticeText: النص مأخوذ من مكتبة النماذج لا مكتوب هنا', () => {
     const state = rulingState();
-    state.ruling.claimValue = '10000';
+    state.claim.claimValue = '10000';
     assert.equal(M.buildNoticeText(state), M.findTemplate('إفهامات بعد النطق', 'ف1'));
 
-    state.ruling.claimValue = '900000';
+    state.claim.claimValue = '900000';
     assert.equal(M.buildNoticeText(state), M.findTemplate('إفهامات بعد النطق', 'ف2'));
 
     // حضور الطرفين وكالةً يستدعي صيغة إفهام الوكلاء (المادة 165)
@@ -762,7 +781,7 @@ test('buildNoticeText: النص مأخوذ من مكتبة النماذج لا �
 
 test('noticeKindFor: صفة الوقف تُلزم بواجب التدقيق ولا تُترك للاختيار', () => {
     const state = rulingState();
-    state.ruling.claimValue = '10000';
+    state.claim.claimValue = '10000';
     assert.equal(M.noticeKindFor(state), 'final');
     state.defendant.entityType = M.ENTITY_TYPES.WAQF;
     assert.equal(M.mandatoryReviewNotice(state), true);
@@ -775,7 +794,7 @@ test('noticeKindFor: صفة الوقف تُلزم بواجب التدقيق ول
 
 test('noticeKindFor: صفة الوقف للمدعي لا تُغيّر نوع الإفهام', () => {
     const state = rulingState();
-    state.ruling.claimValue = '10000';
+    state.claim.claimValue = '10000';
     state.plaintiff.entityType = M.ENTITY_TYPES.WAQF;
     assert.equal(M.noticeKindFor(state), 'final');
 });
@@ -839,7 +858,7 @@ test('buildNoticeText: إفهام واجب التدقيق له صيغتان يخ
 
 test('buildRulingSection: إجراء التدقيق لا يُلحق فقرة زائدة على إفهام غير واجب التدقيق', () => {
     const state = rulingState();
-    state.ruling.claimValue = '900000';
+    state.claim.claimValue = '900000';
     state.ruling.mandatoryReview = 'إعادة';
     const text = M.buildRulingSection(state);
     assert.match(text, /قابل للاستئناف/);
@@ -848,7 +867,7 @@ test('buildRulingSection: إجراء التدقيق لا يُلحق فقرة ز�
 
 test('composeMinutes: مرحلة الحكم تُلحق بالضبط بعد قفل باب المرافعة', () => {
     const state = rulingState();
-    state.ruling.claimValue = '900000';
+    state.claim.claimValue = '900000';
     const text = M.composeMinutes(state);
     const closeAt = text.indexOf('قفل باب المرافعة');
     const reasonsAt = text.indexOf('\n\nالأسباب:\n');

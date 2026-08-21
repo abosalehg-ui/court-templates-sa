@@ -470,7 +470,21 @@
                     <!-- الخطوة 2: الدعوى والإجابة والبينات -->
                     <div class="step" id="claimEvidenceCard" style="display:none;">
 
-                        <!-- 2/أ — الدعوى وجواب المدعى عليه -->
+                        <!-- 2/أ — نوع الدعوى وقيمة المطالبة (يُشتق منها نوع الإفهام في مرحلة الحكم) -->
+                        <div class="m-card" id="claimTypeCard">
+                            <h2>نوع الدعوى</h2>
+                            <div class="choice-group" data-group="claim-type">
+                                <div class="choice-btn active" data-value="مالي">طلب مالي</div>
+                                <div class="choice-btn" data-value="غير مالي">طلب غير مالي</div>
+                            </div>
+                            <div class="field" id="claimValueField">
+                                <label>قيمة المطالبة (ريال)</label>
+                                <input type="text" class="form-control" id="claimValue" placeholder="مثال: 45000" inputmode="numeric" data-numeric-only="true">
+                            </div>
+                            <div class="hint" id="claimValueHint"></div>
+                        </div>
+
+                        <!-- 2/ب — الدعوى وجواب المدعى عليه -->
                         <div class="m-card" id="claimAndAnswerCard">
                             <h2>الدعوى وجواب المدعى عليه</h2>
 
@@ -524,7 +538,7 @@
                             </div>
                         </div>
 
-                        <!-- 2/ب — بينة المدعي -->
+                        <!-- 2/ج — بينة المدعي -->
                         <div class="m-card" id="plaintiffEvidenceCard">
                             <h2>بينة المدعي</h2>
                             <div class="notice-box" id="evidenceOrderNotice">
@@ -602,7 +616,7 @@
                             </div>
                         </div>
 
-                        <!-- 2/ج — دفوع المدعى عليه وبينته -->
+                        <!-- 2/د — دفوع المدعى عليه وبينته -->
                         <div class="m-card" id="defendantEvidenceCard">
                             <h2>دفوع المدعى عليه وبينته</h2>
                             <div id="askDefendantEvidenceBlock">
@@ -720,11 +734,6 @@
 
                             <div class="m-card">
                                 <h2>نوع الإفهام والتدقيق</h2>
-                                <div class="field">
-                                    <label>قيمة المطالبة (ريال)</label>
-                                    <input type="text" class="form-control" id="claimValue" placeholder="مثال: 45000" inputmode="numeric" data-numeric-only="true">
-                                    <div class="hint" id="claimValueHint"></div>
-                                </div>
                                 <label>نوع الإفهام</label>
                                 <div class="choice-group vertical" data-group="ruling-noticeKind">
                                     <div class="choice-btn active" data-value="auto">اشتقاق تلقائي من قيمة المطالبة</div>

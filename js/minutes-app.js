@@ -489,10 +489,21 @@ function updateStanceVisibility() {
     $('defendantWitnessObjectionBlock').style.display = state.plaintiff.attendance !== 'لم يحضر' ? 'block' : 'none';
 }
 
+// إظهار قيمة المطالبة مع الطلب المالي وحده
+function updateClaimTypeVisibility() {
+    const field = $('claimValueField');
+    if (field) field.style.display = state.claim.claimType === 'غير مالي' ? 'none' : 'block';
+    updateClaimValueHint();
+}
+
 function updateClaimValueHint() {
     const r = state.ruling;
     const hint = $('claimValueHint');
     if (!hint) return;
+    if (state.claim.claimType === 'غير مالي') {
+        hint.textContent = 'الطلب غير المالي لا يدخل حدّ الدعاوى اليسيرة، فيُعتمد في الإفهام "قابل للاستئناف" ما لم يُحدَّد غيره في مرحلة الحكم.';
+        return;
+    }
     if (mandatoryReviewNotice(state)) {
         hint.textContent = 'الحكم على وقف واجب التدقيق لزومًا، فلا أثر لقيمة المطالبة في نوع الإفهام.';
         return;
@@ -501,7 +512,7 @@ function updateClaimValueHint() {
         hint.textContent = 'نوع الإفهام محدَّد يدويًا، فلا أثر لقيمة المطالبة.';
         return;
     }
-    const value = Number(String(r.claimValue).replace(/[^0-9.]/g, ''));
+    const value = Number(String(state.claim.claimValue).replace(/[^0-9.]/g, ''));
     if (!value) {
         hint.textContent = `لم تُدخل قيمة المطالبة — سيُعتمد "قابل للاستئناف". حدّ الدعاوى اليسيرة: ${YASEERA_CLAIM_LIMIT.toLocaleString('en-US')} ريال.`;
         return;
@@ -540,6 +551,11 @@ function updateVisibility(party) {
 
 // ==================== معالجة أزرار الاختيار ====================
 function handleChoice(key, value) {
+    if (key === 'claim-type') {
+        state.claim.claimType = value;
+        updateClaimTypeVisibility();
+        return;
+    }
     if (key === 'evidence-choice') {
         state.claim.evidenceChoice = value;
         $('evidenceTextField').style.display = value === 'has' ? 'block' : 'none';
@@ -1219,7 +1235,7 @@ updateReasonsTemplateCounts();
 $('reasonsText').addEventListener('input', e => { state.ruling.reasonsText = e.target.value; render(); });
 $('rulingText').addEventListener('input', e => { state.ruling.rulingText = e.target.value; render(); });
 $('claimValue').addEventListener('input', e => {
-    state.ruling.claimValue = e.target.value;
+    state.claim.claimValue = e.target.value;
     updateClaimValueHint();
     render();
 });
@@ -1527,6 +1543,7 @@ function applySnapshot(snap) {
     updateOathAbsenceFieldVisibility();
     updateVisibility('defendant');
     updateStanceVisibility();
+    updateClaimTypeVisibility();
     updateNoticeKindLock();
     showStep();
     render();

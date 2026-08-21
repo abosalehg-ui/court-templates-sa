@@ -313,6 +313,9 @@ function freshEvidenceBlock() {
 function freshClaimState() {
     return {
         text: '',
+        // نوع الدعوى: الطلب المالي وحده تُشتق من قيمته صفة الحكم (يسير أو قابل للاستئناف)
+        claimType: 'مالي',          // 'مالي' | 'غير مالي'
+        claimValue: '',             // قيمة المطالبة — يُشتق منها نوع الإفهام
         // جواب المدعى عليه — يُعرض عليه قبل تكليف المدعي بالبينة
         defendantStance: 'إنكار',   // 'إقرار' | 'إنكار' | 'دفع شكلي'
         defendantResponseText: '',
@@ -340,7 +343,6 @@ function freshRulingState() {
         reasonsText: '',
         rulingText: '',
         presence: 'حضوري',          // 'حضوري' | 'غيابي'
-        claimValue: '',             // قيمة المطالبة — يُشتق منها نوع الإفهام
         noticeKind: 'auto',         // 'auto' | 'final' | 'appealable' | 'sulh'
         // إجراء التدقيق الوجوبي — لا يُسأل عنه إلا مع إفهام (واجب التدقيق)، وهو صيغته لا فقرة زائدة عليه
         mandatoryReview: 'نعم'      // 'نعم' رفع الملف بعد مدة الاعتراض | 'إعادة' إعادة القضية للاستئناف
@@ -994,7 +996,10 @@ function noticeKindFor(state) {
     const r = state.ruling;
     if (mandatoryReviewNotice(state)) return 'review';
     if (r.noticeKind && r.noticeKind !== 'auto') return r.noticeKind;
-    const value = Number(String(r.claimValue).replace(/[^0-9.]/g, ''));
+    const c = state.claim || {};
+    // حدّ الدعاوى اليسيرة قيمةٌ مالية، فالطلب غير المالي لا يدخله ويبقى قابلاً للاستئناف
+    if (c.claimType === 'غير مالي') return 'appealable';
+    const value = Number(String(c.claimValue).replace(/[^0-9.]/g, ''));
     if (!value) return 'appealable';
     return value <= YASEERA_CLAIM_LIMIT ? 'final' : 'appealable';
 }
@@ -1291,7 +1296,8 @@ function rulingWarnings(state) {
     if (r.pronounce !== 'نعم') return w;
     if (!String(r.reasonsText || '').trim()) w.push('لم تُكتب أسباب الحكم.');
     if (!String(r.rulingText || '').trim()) w.push('لم يُكتب منطوق الحكم.');
-    if (r.noticeKind === 'auto' && !mandatoryReviewNotice(state) && !String(r.claimValue || '').trim()) {
+    const claim = state.claim || {};
+    if (r.noticeKind === 'auto' && !mandatoryReviewNotice(state) && claim.claimType !== 'غير مالي' && !String(claim.claimValue || '').trim()) {
         w.push('لم تُدخل قيمة المطالبة، فتعذّر اشتقاق نوع الإفهام تلقائيًا (اعتُمد "قابل للاستئناف").');
     }
     if (!buildNoticeText(state)) {
