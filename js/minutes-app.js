@@ -92,8 +92,13 @@ $('courtName').addEventListener('input', e => { state.opening.court = e.target.v
 // مُغلق افتراضًا لأن جدول نظام تقاضي أعلى صفحة الضبط والصك يحمل اسم الطرف ورقم هويته،
 // فيُخفى حقلا الاسم والهوية ويُوصف الطرف بلقبه وحده. ويبقى تحديد النوع (فرد/شركة،
 // مذكر/مؤنث) لأن عليه تدور المطابقة النحوية. وبيانات الوكيل لا يشملها المفتاح.
+// البطاقة مُخفاة حاليًا بطلب ناظر القضية (قد يُحتاج إليها مستقبلاً)؛ اجعلها true لإعادتها،
+// واحذف style="display:none" من بطاقة partyDataCard في minutes.html
+const PARTY_DATA_TOGGLE_ENABLED = false;
+
 $('includePartyDataInText').addEventListener('change', e => {
-    state.includePartyDataInText = e.target.checked;
+    // مع تعطيل المفتاح يبقى مغلقًا ولو حملت مسودّة محفوظة قديمة قيمة مفعّلة
+    state.includePartyDataInText = PARTY_DATA_TOGGLE_ENABLED && e.target.checked;
     updateVisibility('plaintiff');
     updateVisibility('defendant');
     renderExtraCards('plaintiff');
@@ -102,10 +107,12 @@ $('includePartyDataInText').addEventListener('change', e => {
 });
 
 // ==================== طريقة انعقاد الجلسة ====================
+// فقرة الافتتاح لم تعد تذكر طريقة الانعقاد، وأثر الخيار باقٍ في فقرات الغياب والشطب
+// والحالات الاستثنائية (انظر SHOW_SESSION_MODE_IN_OPENING في js/minutes.js)
 const SESSION_MODE_HINTS = {
     videoFull: 'تُدرج صيغة الانعقاد كاملة مع الاستناد لقرار رئيس المجلس الأعلى للقضاء رقم (17388) وتاريخ 5/10/1441هـ.',
-    video: 'تُدرج عبارة «عبر الاتصال المرئي» وحدها في الافتتاح دون نص القرار، وتبقى بقية فقرات المحضر كما هي.',
-    inPerson: 'يُفتتح المحضر دون ذكر الاتصال المرئي، وتُحذف الإشارة لرابط غرفة الاتصال المرئي من فقرات الغياب والشطب وتُستبدل بصيغة الحضور المباشر.'
+    video: 'تُعتمد صيغة «- بالاتصال المرئي -» ورابط غرفة الاتصال المرئي في فقرات الغياب والشطب.',
+    inPerson: 'تُحذف الإشارة لرابط غرفة الاتصال المرئي من فقرات الغياب والشطب وتُستبدل بصيغة الحضور المباشر بمقر المحكمة.'
 };
 
 function updateSessionModeUI() {

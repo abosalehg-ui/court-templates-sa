@@ -108,9 +108,10 @@ test('buildKinshipPhrase: قرابة مقبولة وخارج الدرجات', ()
 
 // ==================== بناة الجمل ====================
 
-test('buildOpening: الافتراضي عبر الاتصال المرئي مختصراً بلا نص القرار', () => {
-    const text = M.buildOpening({ judge: 'فلان', court: 'الرياض' });
-    assert.equal(text, 'فلديّ أنا فلان القاضي في المحكمة الرياض افتتحتُ الجلسة عبر الاتصال المرئي،');
+test('buildOpening: الافتتاح بلا ذكر الانعقاد، وصفة القاضي من حقل الاسم', () => {
+    const text = M.buildOpening({ judge: 'فلان القاضي في الدائرة الأولى', court: 'الرياض' });
+    assert.equal(text, 'لدي أنا فلان القاضي في الدائرة الأولى في المحكمة الرياض،');
+    assert.ok(!text.includes('افتتحتُ الجلسة'));
     assert.ok(!text.includes('17388'));
 });
 
@@ -120,18 +121,13 @@ test('buildOpening: لا يُذكر وقت الافتتاح في المتن (م�
     assert.equal(M.freshMinutesState().opening.hour, undefined);
 });
 
-test('buildOpening: خيار «مع المستند» يدرج نص قرار المجلس الأعلى للقضاء', () => {
-    const text = M.buildOpening({ judge: 'فلان', court: 'الرياض', mode: M.SESSION_MODES.VIDEO_FULL });
-    assert.match(text, /^فلديّ أنا فلان القاضي في المحكمة الرياض افتتحتُ الجلسة عبر الاتصال المرئي/);
-    assert.match(text, /قرار فضيلة رئيس المجلس الأعلى للقضاء رقم 17388/);
-    assert.match(text, /المتضمن إطلاق خدمة التقاضي عن بعد/);
-    assert.match(text, /،$/);
-});
-
-test('buildOpening: الجلسة الحضورية تحذف صيغة الاتصال المرئي كاملة', () => {
-    const text = M.buildOpening({ judge: 'فلان', court: 'الرياض', mode: M.SESSION_MODES.IN_PERSON });
-    assert.equal(text, 'فلديّ أنا فلان القاضي في المحكمة الرياض افتتحتُ الجلسة،');
-    assert.ok(!text.includes('المرئي'));
+test('buildOpening: طريقة الانعقاد لا تُذكر في الافتتاح مهما كان الخيار', () => {
+    [M.SESSION_MODES.VIDEO, M.SESSION_MODES.VIDEO_FULL, M.SESSION_MODES.IN_PERSON].forEach(mode => {
+        const text = M.buildOpening({ judge: 'فلان', court: 'الرياض', mode });
+        assert.equal(text, 'لدي أنا فلان في المحكمة الرياض،');
+        assert.ok(!text.includes('المرئي'));
+        assert.ok(!text.includes('17388'));
+    });
 });
 
 test('closingTimeParts: الوقت المُدخل، ومع الحالات القديمة يُشتق من الافتتاح + 30 دقيقة', () => {
@@ -173,20 +169,29 @@ test('buildIdentityClause: تسقط العبارة عند إغلاق مفتاح 
     assert.equal(M.buildIdentityClause(s, false), '');
 });
 
-test('buildPartyClause: إغلاق المفتاح يحذف اسم الطرف وهويته ويُبقي لقبه', () => {
+test('buildPartyClause: الحضور أصالةً بلا بيانات لا يُثبت في المتن', () => {
     const state = readyState();
     state.includePartyDataInText = false;
-    assert.equal(M.buildPartyClause(state, 'plaintiff'), 'حضر المدعي أصالة');
+    assert.equal(M.buildPartyClause(state, 'plaintiff'), '');
     state.plaintiff.gender = 'ف';
-    assert.equal(M.buildPartyClause(state, 'plaintiff'), 'حضرت المدعية أصالة');
+    assert.equal(M.buildPartyClause(state, 'plaintiff'), '');
     state.defendant.gender = 'ف';
-    assert.equal(M.buildPartyClause(state, 'defendant'), 'حضرت المدعى عليها أصالة');
+    assert.equal(M.buildPartyClause(state, 'defendant'), '');
 });
 
-test('buildPartyClause: إغلاق المفتاح مع التعدد يُبقي ترقيم الأطراف', () => {
+test('buildPartyClause: إسقاط فقرة الأصالة يشمل حال تعدد الأطراف', () => {
     const state = readyState({ includePartyDataInText: false });
     state.extraPlaintiffs.push(M.freshExtraParty());
-    assert.equal(M.buildPartyClause(state, 'plaintiff'), 'حضر المدعي الأول أصالة');
+    assert.equal(M.buildPartyClause(state, 'plaintiff'), '');
+});
+
+test('buildPartyClause: الوكيل المرافق يُبقي فقرة الحضور أصالةً ولو أُغلق المفتاح', () => {
+    const state = readyState({ includePartyDataInText: false });
+    state.plaintiff.hasAccompanyingAgent = true;
+    state.plaintiff.agentName = 'خالد';
+    state.plaintiff.agentId = '1020304050';
+    state.plaintiff.wakalaNum = '123';
+    assert.match(M.buildPartyClause(state, 'plaintiff'), /^حضر المدعي أصالة، وحضر معه وكيله المحامي خالد/);
 });
 
 test('buildPartyClause: إغلاق المفتاح يُبقي غياب الطرف وتبليغه بلا اسم', () => {
@@ -227,13 +232,13 @@ test('buildPartyClause: إغلاق المفتاح مع وكيل مرافق يُ�
     assert.match(clause, /بموجب الوكالة الشرعية رقم \(777\)/);
 });
 
-test('buildExtraClause: إغلاق المفتاح يحذف اسم الطرف الإضافي وهويته', () => {
+test('buildExtraClause: إغلاق المفتاح يُسقط فقرة الطرف الإضافي الحاضر أصالةً', () => {
     const p = M.freshExtraParty();
     p.name = 'ناصر';
     p.saudiId = '1010101010';
-    assert.equal(M.buildExtraClause('plaintiff', 0, p, false), 'حضر المدعي الثاني أصالة');
+    assert.equal(M.buildExtraClause('plaintiff', 0, p, false), '');
     p.gender = 'ف';
-    assert.equal(M.buildExtraClause('defendant', 0, p, false), 'حضرت المدعى عليها الثانية أصالة');
+    assert.equal(M.buildExtraClause('defendant', 0, p, false), '');
 });
 
 test('composeMinutes: إغلاق المفتاح يحذف الأسماء والهوية من نص الضبط للأطراف كافة', () => {
@@ -247,8 +252,9 @@ test('composeMinutes: إغلاق المفتاح يحذف الأسماء واله
     assert.ok(!text.includes('الإقامة النظامية'));
     assert.ok(!text.includes('سعد'));
     assert.ok(!text.includes('ناصر'));
-    assert.match(text, /حضر المدعي الأول أصالة/);
-    assert.match(text, /حضر المدعي الثاني أصالة/);
+    // فقرات الحضور أصالةً تسقط كلها، فيتصل الافتتاح بالاطلاع على صحيفة الدعوى
+    assert.ok(!text.includes('أصالة'));
+    assert.match(text, /^لدي أنا فلان بن فلان في المحكمة الرياض، جرى الاطلاع على صحيفة الدعوى/);
 });
 
 test('collectWarnings: إغلاق المفتاح يُسقط تحذيرات الاسم والهوية معًا', () => {
@@ -519,7 +525,7 @@ test('buildWitnessSection: تعديل الشهود وتزكيتهم', () => {
 
 test('التسلسل: عرض الدعوى على المدعى عليه يسبق سؤال المدعي عن بينته', () => {
     const text = M.composeMinutes(readyState());
-    const answerAt = text.indexOf('وبعرض دعوى المدعي على المدعى عليه');
+    const answerAt = text.indexOf('وبعرضها على المدعى عليه');
     const evidenceAt = text.indexOf('عن بينته');
     assert.ok(answerAt > -1 && evidenceAt > -1);
     assert.ok(answerAt < evidenceAt, 'جواب المدعى عليه يجب أن يسبق سؤال المدعي عن البينة');
@@ -564,7 +570,7 @@ test('التسلسل: غياب المدعى عليه يُبقي سؤال الب�
     state.defendant.tabligh = '789';
     const text = M.composeMinutes(state);
     assert.match(text, /عن بينته/);
-    assert.ok(!text.includes('وبعرض دعوى المدعي على'));
+    assert.ok(!text.includes('وبعرضها على'));
     assert.ok(!text.includes('جرى تكليف المدعي بإحضار بينته'));
 });
 
@@ -610,7 +616,7 @@ test('composeMinutes: سماع بينة المدعي وشهوده في الجل�
     assert.match(text, /وتنفيذاً لما تقرر في الجلسة السابقة من تكليف المدعي بالبينة/);
     assert.match(text, /ثم أحضر المدعي للشهادة الشاهد الأول/);
     // نص الدعوى لا يُعاد عرضه في الجلسة التالية
-    assert.ok(!text.includes('وبالاطلاع على دعوى'));
+    assert.ok(!text.includes('جرى الاطلاع على صحيفة الدعوى'));
 });
 
 test('composeMinutes: سماع دفوع المدعى عليه وبينته في الجلسة التالية', () => {
@@ -625,13 +631,33 @@ test('composeMinutes: سماع دفوع المدعى عليه وبينته في 
 
 // ==================== التوليد الكامل ====================
 
+// النص المعتمد للجلسة التحضيرية كما أقرَّه ناظر القضية — أي تعديل في الصياغة يجب أن يمر من هنا
+test('composeMinutes: النص المعتمد للجلسة التحضيرية بلا بيانات الطرفين', () => {
+    const state = M.freshMinutesState();
+    state.sessionType = 'new';
+    state.claim.defendantStance = 'إنكار';
+    state.claim.evidenceChoice = 'none';
+    assert.equal(
+        M.composeMinutes(state),
+        'لدي أنا ........... في المحكمة ...........، جرى الاطلاع على صحيفة الدعوى ونصها : (( ....... تنسخ من نظام ناجز ....... )) أ. هـ وبعرضها على المدعى عليه أجاب قائلاً: ........... هكذا أجاب. ولمَّا كانت إجابة المدعى عليه إنكاراً لما جاء في الدعوى، وأن البينة على المدعي، فقد جرى تكليف المدعي بإحضار بينته. وبسؤاله عن بينته قرر قائلاً: لا بينة لدي، ثم جرى من الدائرة سؤال أطراف الدعوى هل لديكما ما تضيفانه؟ فقررا: ليس لدينا سوى ما قدمنا. هكذا قررا، واستناداً للمادة (69) والمادة (159) من نظام المرافعات الشرعية فقد قررت الدائرة قفل باب المرافعة للنطق بالحكم في هذه الجلسة، وأغلقت الجلسة الساعة الثامنة والنصف صباحًا.'
+    );
+});
+
+test('composeMinutes: خلوّ فقرات الحضور لا يُكرِّر الفاصلة بعد الافتتاح', () => {
+    const state = readyState({ includePartyDataInText: false });
+    state.sessionType = 'previous';
+    const text = M.composeMinutes(state);
+    assert.ok(!text.includes('،،'));
+    assert.match(text, /^لدي أنا فلان بن فلان في المحكمة الرياض، ثم جرى من الدائرة سؤال أطراف الدعوى/);
+});
+
 test('composeMinutes: جلسة تحضيرية مكتملة بطرفين حاضرين', () => {
     const text = M.composeMinutes(readyState());
-    assert.match(text, /^فلديّ أنا فلان بن فلان القاضي في المحكمة الرياض/);
+    assert.match(text, /^لدي أنا فلان بن فلان في المحكمة الرياض/);
     assert.match(text, /حضر المدعي سعد أصالة/);
     assert.match(text, /حضر المدعى عليه فهد أصالة/);
-    assert.match(text, /وبالاطلاع على دعوى المدعي ونصها: "أطالب بمبلغ مئة ألف ريال"/);
-    assert.match(text, /وبعرض دعوى المدعي على المدعى عليه أجاب قائلاً: ما ذكره المدعي غير صحيح/);
+    assert.match(text, /جرى الاطلاع على صحيفة الدعوى ونصها : \(\( أطالب بمبلغ مئة ألف ريال \)\) أ\. هـ/);
+    assert.match(text, /وبعرضها على المدعى عليه أجاب قائلاً: ما ذكره المدعي غير صحيح/);
     assert.match(text, /قفل باب المرافعة/);
     assert.match(text, /وأغلقت الجلسة الساعة التاسعة والنصف صباحًا\.$/);
     // لا موضع ناقص في حالة مكتملة
@@ -653,7 +679,7 @@ test('composeMinutes: مدعى عليه لم يتبلّغ — رفع الجلس�
     state.defendant.notifyStatus = 'لم يتبلغ';
     const text = M.composeMinutes(state);
     assert.match(text, /لم يحضر المدعى عليه، ولم يتبلّغ بالجلسة، وعليه رُفعت الجلسة لإعادة تبليغه بحسب حاله/);
-    assert.ok(!text.includes('وبالاطلاع على دعوى'));
+    assert.ok(!text.includes('جرى الاطلاع على صحيفة الدعوى'));
 });
 
 test('composeMinutes: حالة استثنائية تستبدل المحضر بالكامل', () => {
@@ -661,7 +687,7 @@ test('composeMinutes: حالة استثنائية تستبدل المحضر با
     state.plaintiff.specialCase = 'systemNoVideo';
     const text = M.composeMinutes(state);
     assert.match(text, /تبيّن حضور المدعي في النظام الإلكتروني/);
-    assert.ok(!text.includes('وبالاطلاع على دعوى'));
+    assert.ok(!text.includes('جرى الاطلاع على صحيفة الدعوى'));
 });
 
 test('composeMinutes: جلسة منظورة سابقًا بقاضٍ مختلف تتضمن المادة (167) والمصادقة', () => {
