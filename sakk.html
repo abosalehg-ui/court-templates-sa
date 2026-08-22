@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+    <title>معالج الصكوك — قوالب ضبط القضايا</title>
+    <link rel="stylesheet" href="css/fonts.css">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/minutes.css">
+    <link rel="stylesheet" href="css/sakk.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <div class="logo-icon">📜</div>
+                <div class="logo-text">
+                    <h1>معالج الصكوك</h1>
+                </div>
+            </div>
+            <div class="header-actions">
+                <a class="btn btn-icon btn-secondary" href="index.html" title="الرئيسية" aria-label="الرئيسية">⚖️</a>
+                <button class="btn btn-icon btn-secondary" id="darkModeToggle" title="الوضع الليلي" aria-label="تبديل الوضع الليلي">🌙</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="sakk-container">
+
+        <!-- ===== الإدخال ===== -->
+        <div class="m-card" id="inputCard">
+            <h2>نص الضبط</h2>
+
+            <div id="draftBanner" class="notice-box" style="display:none;">
+                يوجد نص غير معالَج محفوظ على هذا الجهاز من جلسة سابقة.
+                <div style="display:flex; gap:0.5rem; margin-top:0.75rem; flex-wrap:wrap;">
+                    <button type="button" class="btn btn-primary" id="restoreDraftBtn">استرجاعه</button>
+                    <button type="button" class="btn btn-secondary" id="discardDraftBtn">تجاهله وابدأ جديد</button>
+                </div>
+            </div>
+
+            <div class="sakk-label-row">
+                <label for="inputText">الصق نص الضبط أو افتحه من ملف نصي</label>
+                <div class="sakk-file-actions">
+                    <button type="button" class="btn btn-secondary" id="openFileBtn">📂 فتح ملف نصي</button>
+                    <button type="button" class="btn btn-secondary" id="downloadBtn" disabled>💾 حفظ كملف نصي</button>
+                </div>
+                <input type="file" id="fileInput" accept=".txt,text/plain" style="display:none;">
+            </div>
+
+            <textarea class="form-control" id="inputText" placeholder="الصق النص هنا... (Ctrl+Enter للمعالجة السريعة)" aria-label="نص الضبط"></textarea>
+            <div class="char-counter" id="inputCharCount">عدد الأحرف: ٠</div>
+        </div>
+
+        <!-- ===== الخيارات ===== -->
+        <div class="m-card" id="optionsCard">
+            <h2>خيارات المعالجة</h2>
+            <div class="sakk-option">
+                <input type="checkbox" id="enableCorrection" checked>
+                <label for="enableCorrection">تفعيل التشكيل التلقائي والتصحيح الإملائي</label>
+            </div>
+            <p class="hint">
+                يصحّح الهمزات والتاء المربوطة والصيغ الشائعة وفق قاموس من ٢١٨ مدخلاً، ويضبط بعض الكلمات بالشكل.
+                أطفئه إذا أردت الاقتصار على تنظيف المسافات ودمج الجلسات وحذف جلسات الشطب.
+            </p>
+        </div>
+
+        <!-- ===== أزرار العمليات ===== -->
+        <div class="sakk-actions">
+            <button type="button" class="btn btn-primary" id="processBtn">⚙️ معالجة النص</button>
+            <button type="button" class="btn btn-secondary" id="clearBtn">🧹 محو النص</button>
+            <button type="button" class="btn btn-secondary" id="copyBtn" disabled>📋 نسخ النتيجة</button>
+            <button type="button" class="btn btn-secondary" id="printBtn" disabled>🖨️ طباعة</button>
+        </div>
+
+        <!-- ===== الإحصائيات ===== -->
+        <div class="m-card" id="statsCard" style="display:none;">
+            <h2>إحصائيات العمليات</h2>
+            <div id="skippedWarning" class="warning-box" style="display:none;"></div>
+            <div class="sakk-stats-grid">
+                <div class="sakk-stat">
+                    <span class="sakk-stat-label">عمليات دمج الجلسات</span>
+                    <span class="sakk-stat-value" id="sessionsCount">٠</span>
+                </div>
+                <div class="sakk-stat">
+                    <span class="sakk-stat-label">المسافات المزدوجة المستبدلة</span>
+                    <span class="sakk-stat-value" id="spacesCount">٠</span>
+                </div>
+                <div class="sakk-stat">
+                    <span class="sakk-stat-label">جلسات الشطب المحذوفة</span>
+                    <span class="sakk-stat-value" id="deletedCount">٠</span>
+                </div>
+                <div class="sakk-stat">
+                    <span class="sakk-stat-label">النقطتان المستبدلتان</span>
+                    <span class="sakk-stat-value" id="colonsCount">٠</span>
+                </div>
+                <div class="sakk-stat">
+                    <span class="sakk-stat-label">الكلمات المصححة والمشكَّلة</span>
+                    <span class="sakk-stat-value" id="correctionsCount">٠</span>
+                </div>
+                <div class="sakk-stat">
+                    <span class="sakk-stat-label">الأسطر الفارغة المحذوفة</span>
+                    <span class="sakk-stat-value" id="emptyLinesCount">٠</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== المقارنة ===== -->
+        <div class="sakk-comparison" id="comparison" style="display:none;">
+            <div class="m-card sakk-text-box" id="originalBox">
+                <h2>📄 النص الأصلي</h2>
+                <div class="sakk-text-content" id="originalText"></div>
+                <div class="char-counter" id="originalCharCount">عدد الأحرف: ٠</div>
+            </div>
+            <div class="m-card sakk-text-box">
+                <h2>✨ النص المعالَج</h2>
+                <div class="sakk-legend">
+                    <span><span class="merged-session">نص</span> موضع دمج جلسات</span>
+                    <span><span class="deleted-session">⟦ ⟧</span> موضع حذف جلسة شطب</span>
+                    <span><span class="corrected-word">نص</span> كلمة مصححة</span>
+                </div>
+                <div class="sakk-text-content" id="processedText"></div>
+                <div class="char-counter" id="processedCharCount">عدد الأحرف: ٠</div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script src="data/sakk-corrections.js"></script>
+    <script src="js/sakk.js"></script>
+    <script src="js/sakk-app.js"></script>
+</body>
+</html>

@@ -1,0 +1,232 @@
+/* ==================== أنماط صفحة معالج الصكوك ==================== */
+/* تعتمد على متغيرات التصميم ومكوّنات css/style.css و css/minutes.css */
+
+/* ألوان التظليل الثلاثة — تُعرَّف كمتغيرات لأن نظائرها الفاتحة
+   غير مقروءة في الوضع الليلي، فتُقلب مع السمة لا مع الشيفرة */
+:root {
+    --sakk-merge-bg: #dcefd8;
+    --sakk-merge-text: #1c4a2c;
+    --sakk-delete-bg: #f9e3df;
+    --sakk-delete-text: #8a2a1c;
+    --sakk-correct: #c0392b;
+}
+
+[data-theme="dark"] {
+    --sakk-merge-bg: #1e3a2a;
+    --sakk-merge-text: #9fd9b4;
+    --sakk-delete-bg: #3a2020;
+    --sakk-delete-text: #f0a99c;
+    --sakk-correct: #f08a7a;
+}
+
+.sakk-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 1.5rem;
+    padding-bottom: 4rem;
+}
+
+/* ملاحظة: ترويسة صفحات الخدمات (إبقاء أزرار الهيدر ظاهرة على الجوال لغياب
+   الشريط السفلي، وتصغير الأزرار الأيقونية) معرَّفة في css/minutes.css
+   المحمَّل قبل هذا الملف، فلا تُكرَّر هنا. */
+
+/* أزرار btn-secondary داخل البطاقات (خارج الهيدر الداكن) */
+.sakk-container .btn-secondary {
+    background: var(--bg-card);
+    color: var(--primary);
+    border: 1px solid var(--primary-light);
+}
+
+.sakk-container .btn-secondary:hover {
+    background: rgba(26, 95, 74, 0.08);
+}
+
+/* ---------- الإدخال ---------- */
+.sakk-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.sakk-label-row label {
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.sakk-file-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+#inputText {
+    min-height: 220px;
+    resize: vertical;
+    line-height: 1.9;
+    font-family: 'Amiri', serif;
+    font-size: 1.05rem;
+}
+
+.char-counter {
+    font-size: 0.8rem;
+    color: var(--text-light);
+    margin-top: 0.4rem;
+    text-align: left;
+}
+
+/* ---------- الخيارات ---------- */
+.sakk-option {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.sakk-option input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--primary);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.sakk-option label {
+    cursor: pointer;
+    font-size: 0.92rem;
+    color: var(--text-primary);
+}
+
+/* ---------- أزرار العمليات ---------- */
+.sakk-actions {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.25rem;
+}
+
+.sakk-actions .btn { flex: 1 1 auto; }
+
+/* ---------- الإحصائيات ---------- */
+.sakk-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 0.5rem 2rem;
+}
+
+.sakk-stat {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px dashed var(--border);
+}
+
+.sakk-stat-label {
+    color: var(--text-secondary);
+    font-size: 0.88rem;
+}
+
+.sakk-stat-value {
+    color: var(--secondary);
+    font-weight: 700;
+    font-size: 1.05rem;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---------- المقارنة ---------- */
+.sakk-comparison {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+}
+
+.sakk-text-box {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.sakk-text-content {
+    background: var(--bg-main);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem;
+    max-height: 460px;
+    overflow-y: auto;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+    line-height: 2;
+    font-family: 'Amiri', serif;
+    font-size: 1.05rem;
+    color: var(--text-primary);
+}
+
+/* ---------- وسيلة الإيضاح ---------- */
+.sakk-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.25rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.6rem;
+}
+
+/* ---------- التظليل: جزء من عقد المحرّك ---------- */
+/* هذه الفئات الثلاث يولّدها js/sakk-app.js في نص العرض،
+   فتغيير أسمائها يكسر التظليل ما لم يُعدَّل المولّد معها. */
+.corrected-word {
+    color: var(--sakk-correct);
+    border-bottom: 2px solid var(--sakk-correct);
+    font-weight: 600;
+}
+
+.merged-session {
+    background: var(--sakk-merge-bg);
+    color: var(--sakk-merge-text);
+    border-radius: 4px;
+    padding: 0 0.25rem;
+    font-weight: 600;
+}
+
+.deleted-session {
+    background: var(--sakk-delete-bg);
+    color: var(--sakk-delete-text);
+    border-radius: 4px;
+    padding: 0 0.35rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+/* ---------- التجاوب ---------- */
+@media (max-width: 900px) {
+    .sakk-comparison { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 768px) {
+    .sakk-container { padding: 1rem; }
+    .m-card { padding: 1rem; }
+    .sakk-actions .btn { flex: 1 1 100%; }
+    .sakk-text-content { max-height: 340px; }
+}
+
+/* ---------- الطباعة: النص المعالج فقط ---------- */
+@media print {
+    .header, .sakk-actions, .sakk-file-actions, .sakk-option,
+    .sakk-legend, .toast, #inputCard, #optionsCard { display: none !important; }
+    .sakk-container { padding: 0; }
+    .sakk-comparison { display: block; }
+    #originalBox { display: none !important; }
+    .m-card { border: none; box-shadow: none; padding: 0; }
+    .m-card h2 { display: none; }
+    .sakk-text-content {
+        border: none;
+        background: #fff;
+        max-height: none;
+        overflow: visible;
+        font-size: 14pt;
+    }
+}
