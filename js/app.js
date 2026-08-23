@@ -51,6 +51,7 @@ document.addEventListener('DOMContentLoaded', function () {
     setupSearch();
     setupQuickTafqit();
     setupDelegatedListeners();
+    setupCalculatorInputs();
     loadFavorites();
     loadHistory();
 
@@ -101,6 +102,64 @@ function migrateStorageKeys() {
     localStorage.setItem('courtKeysVersion', '2');
 }
 
+// ==================== موزّع الأفعال العام ====================
+// كل أزرار الصفحة تحمل data-action بدل onclick السطري — نقل المعالجات إلى هنا
+// هو ما سمح بحذف 'unsafe-inline' من script-src في CSP فصارت فعالة ضد أي حقن
+const CLICK_ACTIONS = {
+    'open-modal': el => openModal(el.dataset.target),
+    'close-modal': el => closeModal(el.dataset.target),
+    'select-calc': el => selectCalc(el.dataset.target),
+    'select-mobile-calc': el => selectMobileCalc(el.dataset.target),
+    'open-mobile-calcs': () => openMobileCalcs(),
+    'toggle-dropdown': (el, e) => toggleDropdown(e),
+    'toggle-theme': () => toggleTheme(),
+    'toggle-sidebar': () => toggleSidebar(),
+    'toggle-tool': el => toggleTool(el),
+    'navigate': el => { location.href = el.dataset.target; },
+    'switch-tab': el => switchTab(el, el.dataset.target),
+    'calculate-inheritance': () => calculateInheritance(),
+    'toggle-favorite': () => toggleFavorite(),
+    'back-to-list': () => backToList(),
+    'copy-template': () => copyCurrentTemplate(),
+    'print-page': () => printTemplate(),
+    'copy-quick-tafqit': () => copyQuickTafqit(),
+    'copy-tafqit': () => copyTafqitResult(),
+    'copy-expert': () => copyExpertResult(),
+    'copy-damages': () => copyDamagesResult(),
+    'copy-traffic': () => copyTrafficResult(),
+    'copy-eos': () => copyEOSResult(),
+    'copy-diyat': () => copyDiyatResult(),
+    'diyat-option': el => setDiyatOption(el),
+    'eos-duration-mode': el => setEosDurationMode(el)
+};
+
+document.addEventListener('click', function (e) {
+    const el = e.target.closest('[data-action]');
+    if (!el) return;
+    const action = CLICK_ACTIONS[el.dataset.action];
+    if (action) action(el, e);
+});
+
+// ربط حقول الحاسبات بأحداثها (بديل oninput/onchange السطرية في index.html)
+function setupCalculatorInputs() {
+    const bind = (id, evt, fn) => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener(evt, fn);
+    };
+    bind('tafqitNumber', 'input', convertToText);
+    bind('tafqitCurrency', 'change', convertToText);
+    bind('tafqitStyle', 'change', convertToText);
+    ['claimAmount', 'awardedAmount', 'expertFees'].forEach(id => bind(id, 'input', calculateExpertFees));
+    ['damageValue', 'responsibilityRatio'].forEach(id => bind(id, 'input', calculateDamages));
+    ['trafficDamages', 'trafficFees', 'trafficShipping', 'trafficOther'].forEach(id => bind(id, 'input', calculateTraffic));
+    bind('diyatSearch', 'input', filterDiyatList);
+    bind('eosReason', 'change', calculateEOS);
+    bind('eosWage', 'input', calculateEOS);
+    bind('eosStartDate', 'change', calculateEOS);
+    bind('eosEndDate', 'change', calculateEOS);
+    ['eosYears', 'eosMonths', 'eosDays'].forEach(id => bind(id, 'input', calculateEOS));
+}
+
 // ==================== DELEGATED LISTENERS ====================
 // معالجة النقر عبر data-* بدل حقن onclick داخل HTML مبني من بيانات (حماية من XSS)
 function setupDelegatedListeners() {
@@ -131,6 +190,8 @@ function setupDelegatedListeners() {
         if (ph) editPlaceholder(ph);
     });
     detailContent.addEventListener('keydown', function (e) {
+        // أثناء التحرير السطري تُترك المفاتيح للحقل نفسه (وإلا حُجزت المسافة عن الكتابة)
+        if (e.target.isContentEditable) return;
         if ((e.key === 'Enter' || e.key === ' ') && e.target.classList.contains('placeholder')) {
             e.preventDefault();
             editPlaceholder(e.target);
@@ -285,14 +346,52 @@ function formatContent(content) {
         .replace(/\(\s*اسم القاضي\s*\)/g, '<span class="placeholder" role="button" tabindex="0">(اسم القاضي)</span>');
 }
 
+// تحرير الحقل القابل للتعبئة في موضعه (بدل نافذة prompt الفجّة):
+// Enter يعتمد القيمة، وEscape يلغي التحرير ويعيد النص الأصلي
 function editPlaceholder(el) {
-    const newValue = prompt('أدخل القيمة الجديدة:', el.textContent);
-    if (newValue !== null) {
-        el.textContent = newValue;
-        el.classList.remove('placeholder');
-        el.removeAttribute('role');
-        el.removeAttribute('tabindex');
-    }
+    if (el.isContentEditable) return;
+    const original = el.textContent;
+
+    // plaintext-only يمنع لصق HTML داخل الحقل، مع تراجع لـ true حيث لا يُدعم
+    el.contentEditable = 'plaintext-only';
+    if (el.contentEditable !== 'plaintext-only') el.contentEditable = 'true';
+    el.classList.add('editing');
+    el.focus();
+
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    let cancelled = false;
+    const onKeydown = (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            el.blur();
+        } else if (e.key === 'Escape') {
+            cancelled = true;
+            el.blur();
+        }
+    };
+    const onBlur = () => {
+        el.removeEventListener('keydown', onKeydown);
+        el.removeAttribute('contenteditable');
+        el.classList.remove('editing');
+        if (cancelled) {
+            el.textContent = original;
+            return;
+        }
+        const value = el.textContent.trim();
+        el.textContent = value || original;
+        if (value && value !== original.trim()) {
+            el.classList.remove('placeholder');
+            el.removeAttribute('role');
+            el.removeAttribute('tabindex');
+        }
+    };
+    el.addEventListener('keydown', onKeydown);
+    el.addEventListener('blur', onBlur, { once: true });
 }
 
 // ==================== COPY ====================
@@ -438,23 +537,38 @@ function clearHistory() {
 }
 
 // ==================== SEARCH ====================
+// فهرس بحث مطبَّع لكل نموذج، يُبنى كسولًا ويُحفظ في WeakMap — البحث يُستدعى مع كل
+// حرف يُكتب فوق +550 نموذجًا، والتطبيع (normalizeArabicSearch من text-utils.js)
+// يجعل «انكار» تجد «إنكار» ويتجاوز التشكيل والأرقام العربية
+const templateSearchCache = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
+
+function templateSearchText(t) {
+    const cached = templateSearchCache && templateSearchCache.get(t);
+    if (cached) return cached;
+    const text = normalizeArabicSearch(
+        String(t.num || '') + ' ' + String(t.keyword || '') + ' ' + String(t.content || '')
+    );
+    if (templateSearchCache) templateSearchCache.set(t, text);
+    return text;
+}
+
 function setupSearch() {
     document.getElementById('searchInput').addEventListener('input', debounce(function () {
-        const query = this.value.trim().toLowerCase();
-        if (query.length < 2) {
+        const query = this.value.trim();
+        const terms = normalizeArabicSearch(query).split(' ').filter(Boolean);
+        if (query.length < 2 || terms.length === 0) {
             if (currentCategory) {
                 showTemplatesList(templatesData[currentCategory], currentCategory);
             }
             return;
         }
 
-        // Search all categories (مقارنة غير حساسة لحالة الأحرف من الجهتين)
+        // بحث مطبَّع بكلمات متعددة: يكفي أن ترد كل كلمة في أي موضع من النموذج
         const results = [];
         for (let cat in templatesData) {
             templatesData[cat].forEach((t, idx) => {
-                if (t.content.toLowerCase().includes(query) ||
-                    (t.keyword && t.keyword.toLowerCase().includes(query)) ||
-                    (t.num && String(t.num).toLowerCase().includes(query))) {
+                const haystack = templateSearchText(t);
+                if (terms.every(term => haystack.includes(term))) {
                     results.push({ ...t, category: cat, originalIdx: idx });
                 }
             });
@@ -645,30 +759,7 @@ function convertToText() {
         return;
     }
 
-    const intPart = Math.floor(num);
-    const decPart = Math.round((num - intPart) * 100);
-
-    let result = numberToArabicWords(intPart, style);
-
-    const curr = currencies[currency];
-    if (currency !== 'NONE') {
-        if (intPart === 1) result += ' ' + curr.singular;
-        else if (intPart === 2) result = result.replace('اثنان', '') + curr.dual;
-        else if (intPart >= 3 && intPart <= 10) result += ' ' + curr.plural;
-        else result += ' ' + curr.singular;
-
-        if (decPart > 0) {
-            result += ' و' + numberToArabicWords(decPart, style);
-            if (decPart === 1) result += ' ' + curr.subunit;
-            else if (decPart === 2) result += ' ' + curr.subunit + 'ان';
-            else if (decPart >= 3 && decPart <= 10) result += ' ' + curr.subunitPlural;
-            else result += ' ' + curr.subunit;
-        }
-
-        result += ' فقط لا غير';
-    }
-
-    resultDiv.textContent = result;
+    resultDiv.textContent = tafqitAmount(num, currency, style);
 }
 
 function copyTafqitResult() {
@@ -689,16 +780,7 @@ function setupQuickTafqit() {
             return;
         }
 
-        const intPart = Math.floor(num);
-        let result = numberToArabicWords(intPart);
-
-        if (intPart === 1) result += ' ريال سعودي';
-        else if (intPart === 2) result = result.replace('اثنان', '') + 'ريالان سعوديان';
-        else if (intPart >= 3 && intPart <= 10) result += ' ريالات سعودية';
-        else result += ' ريال سعودي';
-
-        result += ' فقط لا غير';
-        resultDiv.textContent = result;
+        resultDiv.textContent = tafqitSAR(num);
     });
 }
 
@@ -784,9 +866,8 @@ function displayInheritanceResult(result, estateValue) {
         `;
     }
 
-    // حساب المبالغ التفصيلية
-    const fardTotal = result.shares.filter(s => s.type === 'فرض').reduce((sum, s) => sum + s.shareValue, 0);
-    const remainingForAsaba = estateValue > 0 ? estateValue * (1 - Math.min(fardTotal, 1)) : 0;
+    // المبالغ التفصيلية تُحسب في دالة صافية مختبرة (العول والرد والباقي التعصيبي)
+    const groupAmounts = computeInheritanceAmounts(result, estateValue);
 
     // جدول الورثة
     html += `
@@ -803,20 +884,9 @@ function displayInheritanceResult(result, estateValue) {
             <tbody>
     `;
 
-    result.shares.forEach(share => {
-        // حساب المبلغ الإجمالي للمجموعة
-        let totalAmount = 0;
-        if (estateValue > 0) {
-            if (share.shareValue > 0) {
-                let adjustedShare = share.shareValue;
-                if (result.awl) {
-                    adjustedShare = share.shareValue / result.awl.adjusted;
-                }
-                totalAmount = estateValue * adjustedShare;
-            } else if (share.type.includes('تعصيب')) {
-                totalAmount = remainingForAsaba;
-            }
-        }
+    result.shares.forEach((share, shareIdx) => {
+        // المبلغ الإجمالي للمجموعة (يشمل نصيب «فرض + تعصيب» كاملًا ونصيب الرد)
+        const totalAmount = groupAmounts[shareIdx] || 0;
 
         // تحديد عدد الذكور والإناث للتعصيب
         let maleCount = 0, femaleCount = 0;
@@ -1008,7 +1078,7 @@ function loadDiyatList() {
 
     const list = document.getElementById('diyatList');
     list.innerHTML = diyatData.map(item => `
-        <button type="button" class="diyat-item" data-num="${item.num}" data-name="${escapeHtml(item.name)}" onclick="selectDiyatItem(${item.num})">
+        <button type="button" class="diyat-item" data-num="${item.num}" data-name="${escapeHtml(item.name)}">
             <div style="display: flex; align-items: center; flex: 1;">
                 <div class="diyat-item-num">${item.num}</div>
                 <div class="diyat-item-name">${escapeHtml(item.name)}</div>
@@ -1062,13 +1132,7 @@ function showDiyatResult(item) {
     if (diyatState.unit === 'riyal' && /^\d+(\.\d+)?$/.test(value)) {
         const num = Math.floor(parseFloat(value));
         displayValue = num.toLocaleString('ar-SA') + ' ريال';
-        let words = numberToArabicWords(num);
-        if (num === 1) words += ' ريال سعودي';
-        else if (num === 2) words = words.replace('اثنان', '') + 'ريالان سعوديان';
-        else if (num >= 3 && num <= 10) words += ' ريالات سعودية';
-        else words += ' ريال سعودي';
-        words += ' فقط لا غير';
-        tafqit = words;
+        tafqit = tafqitSAR(num);
     } else if (diyatState.unit === 'camel' && /^\d+(\.\d+)?$/.test(value)) {
         displayValue = value + ' من الإبل';
     } else if (value === 'حكومة') {
@@ -1096,7 +1160,7 @@ function showDiyatResult(item) {
             </div>
             <div class="value">${escapeHtml(displayValue)}</div>
             ${tafqit ? `<div class="tafqit">${escapeHtml(tafqit)}</div>` : ''}
-            <button type="button" class="btn" style="background: white; color: var(--primary); margin-top: 0.75rem;" onclick="copyDiyatResult()">
+            <button type="button" class="btn" style="background: white; color: var(--primary); margin-top: 0.75rem;" data-action="copy-diyat">
                 📋 نسخ النتيجة
             </button>
         </div>
@@ -1126,18 +1190,27 @@ function copyDiyatResult() {
     copyToClipboard(text);
 }
 
-// تحميل القائمة عند فتح المودال
+// تحميل قائمة الديات وربط اختيار عناصرها (السكربتات متزامنة فلا حاجة لأي تأخير)
 document.addEventListener('DOMContentLoaded', function () {
-    setTimeout(loadDiyatList, 500);
+    loadDiyatList();
+    document.getElementById('diyatList').addEventListener('click', function (e) {
+        const btn = e.target.closest('.diyat-item[data-num]');
+        if (btn) selectDiyatItem(Number(btn.dataset.num));
+    });
 });
 
 // ==================== EXPERT FEES CALCULATOR ====================
+// نتيجة آخر حساب تُخزن ويقرؤها زر النسخ (نمط lastResult في sakk-app.js) —
+// بدل إعادة الحساب في دالة النسخ بما قد يخالف المعروض
+let lastExpertResult = null;
+
 function calculateExpertFees() {
     const claim = parseFloat(document.getElementById('claimAmount').value) || 0;
     const awarded = parseFloat(document.getElementById('awardedAmount').value) || 0;
     const fees = parseFloat(document.getElementById('expertFees').value) || 0;
 
     const container = document.getElementById('expertResult');
+    lastExpertResult = null;
 
     if (claim <= 0 || fees <= 0) {
         container.innerHTML = '<div class="result-box">أدخل البيانات لحساب التوزيع</div>';
@@ -1153,6 +1226,7 @@ function calculateExpertFees() {
     const lossRatio = (claim - awarded) / claim;
     const plaintiffShare = fees * lossRatio;
     const defendantShare = fees - plaintiffShare;
+    lastExpertResult = { claim, awarded, fees, lossRatio, plaintiffShare, defendantShare };
 
     const formatNum = (n) => n.toLocaleString('ar-SA', { maximumFractionDigits: 2 });
     const formatPercent = (n) => (n * 100).toLocaleString('ar-SA', { maximumFractionDigits: 2 }) + '%';
@@ -1177,40 +1251,36 @@ function calculateExpertFees() {
 }
 
 function copyExpertResult() {
-    const claim = parseFloat(document.getElementById('claimAmount').value) || 0;
-    const awarded = parseFloat(document.getElementById('awardedAmount').value) || 0;
-    const fees = parseFloat(document.getElementById('expertFees').value) || 0;
-
-    if (claim <= 0 || fees <= 0) {
+    if (!lastExpertResult) {
         showToast('أدخل البيانات أولاً', '');
         return;
     }
 
-    const lossRatio = (claim - awarded) / claim;
-    const plaintiffShare = fees * lossRatio;
-    const defendantShare = fees - plaintiffShare;
-
+    const r = lastExpertResult;
     const formatNum = (n) => n.toLocaleString('ar-SA', { maximumFractionDigits: 2 });
     const formatPercent = (n) => (n * 100).toLocaleString('ar-SA', { maximumFractionDigits: 2 }) + '%';
 
     const text = `حاسبة أتعاب الخبرة
-أصل المطالبة: ${formatNum(claim)} ريال
-المبلغ المحكوم به: ${formatNum(awarded)} ريال
-أتعاب الخبير: ${formatNum(fees)} ريال
+أصل المطالبة: ${formatNum(r.claim)} ريال
+المبلغ المحكوم به: ${formatNum(r.awarded)} ريال
+أتعاب الخبير: ${formatNum(r.fees)} ريال
 
 النتيجة:
-- نسبة خسارة المدعي: ${formatPercent(lossRatio)}
-- يتحمله المدعي: ${formatNum(plaintiffShare)} ريال
-- يتحمله المدعى عليه: ${formatNum(defendantShare)} ريال`;
+- نسبة خسارة المدعي: ${formatPercent(r.lossRatio)}
+- يتحمله المدعي: ${formatNum(r.plaintiffShare)} ريال
+- يتحمله المدعى عليه: ${formatNum(r.defendantShare)} ريال`;
 
     copyToClipboard(text);
 }
 
 // ==================== DAMAGES CALCULATOR ====================
+let lastDamagesResult = null;
+
 function calculateDamages() {
     const value = parseFloat(document.getElementById('damageValue').value) || 0;
     const ratio = parseFloat(document.getElementById('responsibilityRatio').value) || 0;
     const container = document.getElementById('damagesResult');
+    lastDamagesResult = null;
 
     if (value <= 0 || ratio < 0) {
         container.innerHTML = '<div class="result-box">أدخل البيانات لحساب التعويض</div>';
@@ -1223,17 +1293,10 @@ function calculateDamages() {
     }
 
     const compensation = value * (ratio / 100);
+    lastDamagesResult = { value, ratio, compensation };
     const remaining = value - compensation;
     const formatNum = (n) => n.toLocaleString('ar-SA', { maximumFractionDigits: 2 });
-
-    // التفقيط
-    const intCompensation = Math.floor(compensation);
-    let words = numberToArabicWords(intCompensation);
-    if (intCompensation === 1) words += ' ريال سعودي';
-    else if (intCompensation === 2) words = words.replace('اثنان', '') + 'ريالان سعوديان';
-    else if (intCompensation >= 3 && intCompensation <= 10) words += ' ريالات سعودية';
-    else words += ' ريال سعودي';
-    words += ' فقط لا غير';
+    const words = tafqitSAR(compensation);
 
     container.innerHTML = `
         <div class="result-header">📊 نتيجة التعويض</div>
@@ -1262,32 +1325,32 @@ function calculateDamages() {
 }
 
 function copyDamagesResult() {
-    const value = parseFloat(document.getElementById('damageValue').value) || 0;
-    const ratio = parseFloat(document.getElementById('responsibilityRatio').value) || 0;
-
-    if (value <= 0 || ratio < 0 || ratio > 100) {
+    if (!lastDamagesResult) {
         showToast('أدخل البيانات أولاً', '');
         return;
     }
 
-    const compensation = value * (ratio / 100);
+    const r = lastDamagesResult;
     const formatNum = (n) => n.toLocaleString('ar-SA', { maximumFractionDigits: 2 });
 
     const text = `حاسبة تقدير الأضرار
-قيمة الضرر: ${formatNum(value)} ريال
-نسبة المسؤولية: ${ratio}%
-قيمة التعويض المستحق: ${formatNum(compensation)} ريال`;
+قيمة الضرر: ${formatNum(r.value)} ريال
+نسبة المسؤولية: ${r.ratio}%
+قيمة التعويض المستحق: ${formatNum(r.compensation)} ريال`;
 
     copyToClipboard(text);
 }
 
 // ==================== TRAFFIC DAMAGES CALCULATOR ====================
+let lastTrafficResult = null;
+
 function calculateTraffic() {
     const damages = parseFloat(document.getElementById('trafficDamages').value) || 0;
     const fees = parseFloat(document.getElementById('trafficFees').value) || 0;
     const shipping = parseFloat(document.getElementById('trafficShipping').value) || 0;
     const other = parseFloat(document.getElementById('trafficOther').value) || 0;
     const container = document.getElementById('trafficResult');
+    lastTrafficResult = null;
 
     const total = damages + fees + shipping + other;
 
@@ -1296,16 +1359,10 @@ function calculateTraffic() {
         return;
     }
 
-    const formatNum = (n) => n.toLocaleString('ar-SA', { maximumFractionDigits: 2 });
+    lastTrafficResult = { damages, fees, shipping, other, total };
 
-    // التفقيط
-    const intTotal = Math.floor(total);
-    let words = numberToArabicWords(intTotal);
-    if (intTotal === 1) words += ' ريال سعودي';
-    else if (intTotal === 2) words = words.replace('اثنان', '') + 'ريالان سعوديان';
-    else if (intTotal >= 3 && intTotal <= 10) words += ' ريالات سعودية';
-    else words += ' ريال سعودي';
-    words += ' فقط لا غير';
+    const formatNum = (n) => n.toLocaleString('ar-SA', { maximumFractionDigits: 2 });
+    const words = tafqitSAR(total);
 
     container.innerHTML = `
         <div class="result-header">📊 إجمالي الأضرار المرورية</div>
@@ -1338,25 +1395,20 @@ function calculateTraffic() {
 }
 
 function copyTrafficResult() {
-    const damages = parseFloat(document.getElementById('trafficDamages').value) || 0;
-    const fees = parseFloat(document.getElementById('trafficFees').value) || 0;
-    const shipping = parseFloat(document.getElementById('trafficShipping').value) || 0;
-    const other = parseFloat(document.getElementById('trafficOther').value) || 0;
-    const total = damages + fees + shipping + other;
-
-    if (total <= 0) {
+    if (!lastTrafficResult) {
         showToast('أدخل البيانات أولاً', '');
         return;
     }
 
+    const r = lastTrafficResult;
     const formatNum = (n) => n.toLocaleString('ar-SA', { maximumFractionDigits: 2 });
 
     const text = `حاسبة الأضرار المرورية
-تقدير التلفيات: ${formatNum(damages)} ريال
-رسوم التقدير: ${formatNum(fees)} ريال
-رسوم شحن المركبة: ${formatNum(shipping)} ريال
-تلفيات أخرى: ${formatNum(other)} ريال
-المجموع الكلي: ${formatNum(total)} ريال`;
+تقدير التلفيات: ${formatNum(r.damages)} ريال
+رسوم التقدير: ${formatNum(r.fees)} ريال
+رسوم شحن المركبة: ${formatNum(r.shipping)} ريال
+تلفيات أخرى: ${formatNum(r.other)} ريال
+المجموع الكلي: ${formatNum(r.total)} ريال`;
 
     copyToClipboard(text);
 }
@@ -1423,15 +1475,7 @@ function calculateEOS() {
     }
 
     const formatNum = (n) => n.toLocaleString('ar-SA', { maximumFractionDigits: 2 });
-
-    // التفقيط
-    const intDue = Math.floor(result.dueAward);
-    let words = numberToArabicWords(intDue);
-    if (intDue === 1) words += ' ريال سعودي';
-    else if (intDue === 2) words = words.replace('اثنان', '') + 'ريالان سعوديان';
-    else if (intDue >= 3 && intDue <= 10) words += ' ريالات سعودية';
-    else words += ' ريال سعودي';
-    words += ' فقط لا غير';
+    const words = tafqitSAR(result.dueAward);
 
     container.innerHTML = `
         <div class="result-header">📊 نتيجة الاحتساب</div>

@@ -87,20 +87,11 @@ function templatesOfCategory(category) {
 // ==================== بحث النماذج (بطاقة البحث في نماذج التسبيب) ====================
 // نصوص القوالب تُحدَّث من ملفات Word وتُطبَّع بـ tools/normalize_arabic.py، فتحمل تشكيلًا
 // وهمزات وعلامات اقتباس تُفشِل المطابقة الحرفية. لذلك يُطبَّع الطرفان قبل المقارنة.
-const TASHKEEL_RE = /[\u064B-\u065F\u0670\u0640]/g;
-
-function normalizeArabicSearch(text) {
-    return convertArabicDigits(String(text == null ? '' : text))
-        .replace(TASHKEEL_RE, '')
-        .replace(/[\u0623\u0625\u0622\u0671]/g, 'ا')
-        .replace(/[\u0649]/g, 'ي')
-        .replace(/[\u0624]/g, 'و')
-        .replace(/[\u0626]/g, 'ي')
-        .replace(/[\u0629]/g, 'ه')
-        .replace(/[^\u0621-\u064a0-9a-zA-Z]+/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim()
-        .toLowerCase();
+// دالتا التطبيع (normalizeArabicSearch وconvertArabicDigits) انتقلتا إلى js/text-utils.js
+// المشترك لأن بحث الصفحة الرئيسية يستهلكهما أيضًا: في المتصفح يُحمَّل text-utils.js قبل
+// هذا الملف فتكونان معرفتين عالميًا، وفي Node (الاختبارات) تُستوردان من هنا.
+if (typeof normalizeArabicSearch === 'undefined' && typeof require !== 'undefined') {
+    var { normalizeArabicSearch, convertArabicDigits } = require('./text-utils.js');
 }
 
 // مطلع نماذج التسبيب المنسّقة في مقدمة تصنيف (أسباب الحكم) — علامة تعرُّف على المجموعة
@@ -199,12 +190,6 @@ function addMinutesToTime(hour, minute, period, addMin) {
 // ساعات انعقاد الجلسات المتاحة لكل فترة
 function validHoursForPeriod(period) {
     return period === 'ص' ? [8, 9, 10, 11] : [12, 1, 2, 3];
-}
-
-// تحويل الأرقام العربية المشرقية إلى أرقام لاتينية
-function convertArabicDigits(str) {
-    const arabicDigits = '٠١٢٣٤٥٦٧٨٩';
-    return String(str).replace(/[٠-٩]/g, d => String(arabicDigits.indexOf(d)));
 }
 
 // ==================== المطابقة النحوية والألقاب ====================

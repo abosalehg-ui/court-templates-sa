@@ -8,7 +8,8 @@
             --bg-card: #ffffff;
             --text-primary: #2c2c2c;
             --text-secondary: #5a5a5a;
-            --text-light: #8a8a8a;
+            /* #767676 يحقق تباين 4.5:1 على الأبيض (WCAG AA) — كان #8a8a8a دون الحد */
+            --text-light: #767676;
             --border: #e0ddd5;
             --shadow: 0 4px 20px rgba(0,0,0,0.08);
             --shadow-lg: 0 8px 40px rgba(0,0,0,0.12);
@@ -121,6 +122,21 @@
             display: flex;
             gap: 0.75rem;
             align-items: center;
+        }
+
+        /* توحيد أحجام أزرار الهيدر: الروابط <a> ترث line-height الصفحة (1.8)
+           بينما الأزرار <button> لا ترثه، فكانت الأحجام متفاوتة */
+        .header-actions .btn {
+            justify-content: center;
+            line-height: 1.4;
+            min-height: 42px;
+            padding: 0.5rem 1.1rem;
+        }
+
+        /* زر الوضع الليلي دائري 40px فيبقى خارج قاعدة التوحيد */
+        .header-actions .btn-icon {
+            min-height: 40px;
+            padding: 0.6rem;
         }
 
         .btn {
@@ -1189,4 +1205,12 @@ select:focus-visible,
 .template-text .placeholder:focus-visible {
     outline: 2px solid #d97706;
     outline-offset: 1px;
+}
+
+/* الحقل القابل للتعبئة أثناء التحرير السطري (contenteditable) */
+.template-text .placeholder.editing {
+    outline: 2px solid #d97706;
+    outline-offset: 1px;
+    border-style: solid;
+    cursor: text;
 }

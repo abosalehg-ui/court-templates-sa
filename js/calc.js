@@ -4,18 +4,18 @@
 
 // ==================== TAFQIT (Number to Text) ====================
 const currencies = {
-    SAR: { singular: 'ريال سعودي', dual: 'ريالان سعوديان', plural: 'ريالات سعودية', gender: 'm', subunit: 'هللة', subunitPlural: 'هللات' },
-    USD: { singular: 'دولار أمريكي', dual: 'دولاران أمريكيان', plural: 'دولارات أمريكية', gender: 'm', subunit: 'سنت', subunitPlural: 'سنتات' },
-    EUR: { singular: 'يورو', dual: 'يورو', plural: 'يورو', gender: 'm', subunit: 'سنت', subunitPlural: 'سنتات' },
-    GBP: { singular: 'جنيه إسترليني', dual: 'جنيهان إسترلينيان', plural: 'جنيهات إسترلينية', gender: 'm', subunit: 'بنس', subunitPlural: 'بنسات' },
-    AED: { singular: 'درهم إماراتي', dual: 'درهمان إماراتيان', plural: 'دراهم إماراتية', gender: 'm', subunit: 'فلس', subunitPlural: 'فلوس' },
-    KWD: { singular: 'دينار كويتي', dual: 'ديناران كويتيان', plural: 'دنانير كويتية', gender: 'm', subunit: 'فلس', subunitPlural: 'فلوس' },
-    QAR: { singular: 'ريال قطري', dual: 'ريالان قطريان', plural: 'ريالات قطرية', gender: 'm', subunit: 'درهم', subunitPlural: 'دراهم' },
-    BHD: { singular: 'دينار بحريني', dual: 'ديناران بحرينيان', plural: 'دنانير بحرينية', gender: 'm', subunit: 'فلس', subunitPlural: 'فلوس' },
-    OMR: { singular: 'ريال عماني', dual: 'ريالان عمانيان', plural: 'ريالات عمانية', gender: 'm', subunit: 'بيسة', subunitPlural: 'بيسات' },
-    EGP: { singular: 'جنيه مصري', dual: 'جنيهان مصريان', plural: 'جنيهات مصرية', gender: 'm', subunit: 'قرش', subunitPlural: 'قروش' },
-    JOD: { singular: 'دينار أردني', dual: 'ديناران أردنيان', plural: 'دنانير أردنية', gender: 'm', subunit: 'قرش', subunitPlural: 'قروش' },
-    NONE: { singular: '', dual: '', plural: '', gender: 'm', subunit: '', subunitPlural: '' }
+    SAR: { singular: 'ريال سعودي', dual: 'ريالان سعوديان', plural: 'ريالات سعودية', gender: 'm', subunit: 'هللة', subunitDual: 'هللتان', subunitPlural: 'هللات' },
+    USD: { singular: 'دولار أمريكي', dual: 'دولاران أمريكيان', plural: 'دولارات أمريكية', gender: 'm', subunit: 'سنت', subunitDual: 'سنتان', subunitPlural: 'سنتات' },
+    EUR: { singular: 'يورو', dual: 'يورو', plural: 'يورو', gender: 'm', subunit: 'سنت', subunitDual: 'سنتان', subunitPlural: 'سنتات' },
+    GBP: { singular: 'جنيه إسترليني', dual: 'جنيهان إسترلينيان', plural: 'جنيهات إسترلينية', gender: 'm', subunit: 'بنس', subunitDual: 'بنسان', subunitPlural: 'بنسات' },
+    AED: { singular: 'درهم إماراتي', dual: 'درهمان إماراتيان', plural: 'دراهم إماراتية', gender: 'm', subunit: 'فلس', subunitDual: 'فلسان', subunitPlural: 'فلوس' },
+    KWD: { singular: 'دينار كويتي', dual: 'ديناران كويتيان', plural: 'دنانير كويتية', gender: 'm', subunit: 'فلس', subunitDual: 'فلسان', subunitPlural: 'فلوس' },
+    QAR: { singular: 'ريال قطري', dual: 'ريالان قطريان', plural: 'ريالات قطرية', gender: 'm', subunit: 'درهم', subunitDual: 'درهمان', subunitPlural: 'دراهم' },
+    BHD: { singular: 'دينار بحريني', dual: 'ديناران بحرينيان', plural: 'دنانير بحرينية', gender: 'm', subunit: 'فلس', subunitDual: 'فلسان', subunitPlural: 'فلوس' },
+    OMR: { singular: 'ريال عماني', dual: 'ريالان عمانيان', plural: 'ريالات عمانية', gender: 'm', subunit: 'بيسة', subunitDual: 'بيستان', subunitPlural: 'بيسات' },
+    EGP: { singular: 'جنيه مصري', dual: 'جنيهان مصريان', plural: 'جنيهات مصرية', gender: 'm', subunit: 'قرش', subunitDual: 'قرشان', subunitPlural: 'قروش' },
+    JOD: { singular: 'دينار أردني', dual: 'ديناران أردنيان', plural: 'دنانير أردنية', gender: 'm', subunit: 'قرش', subunitDual: 'قرشان', subunitPlural: 'قروش' },
+    NONE: { singular: '', dual: '', plural: '', gender: 'm', subunit: '', subunitDual: '', subunitPlural: '' }
 };
 
 const ones = ['', 'واحد', 'اثنان', 'ثلاثة', 'أربعة', 'خمسة', 'ستة', 'سبعة', 'ثمانية', 'تسعة', 'عشرة', 'أحد عشر', 'اثنا عشر', 'ثلاثة عشر', 'أربعة عشر', 'خمسة عشر', 'ستة عشر', 'سبعة عشر', 'ثمانية عشر', 'تسعة عشر'];
@@ -64,7 +64,8 @@ function numberToArabicWords(num, style = 'مائة') {
     // Hundreds
     if (num >= 100) {
         let h = hundreds[Math.floor(num / 100)];
-        if (style === 'مئة') h = h.replace('مائة', 'مئة');
+        // «مائتان» لا تحوي «مائة» حرفيًا فتُعالج على حدة، وإلا خرج النص مختلط الأسلوب عند 200
+        if (style === 'مئة') h = h.replace('مائتان', 'مئتان').replace('مائة', 'مئة');
         words += h + ' ';
         num %= 100;
         if (num > 0) words += 'و';
@@ -86,8 +87,49 @@ function numberToArabicWords(num, style = 'مائة') {
     return words.trim();
 }
 
+// صياغة التفقيط الكاملة لمبلغ بعملة: الجزء الصحيح، وكسوره بالوحدة الفرعية، وخاتمة «فقط لا غير».
+// هذه هي الصياغة الوحيدة في المشروع — كانت مكررة في ست حاسبات داخل js/app.js.
+function tafqitAmount(num, currencyCode = 'SAR', style = 'مائة') {
+    const value = Number(num);
+    if (isNaN(value) || value < 0) return '';
+
+    const intPart = Math.floor(value);
+    const decPart = Math.round((value - intPart) * 100);
+    let result = numberToArabicWords(intPart, style);
+
+    const curr = currencies[currencyCode];
+    if (!curr || currencyCode === 'NONE') return result;
+
+    if (intPart === 1) result += ' ' + curr.singular;
+    else if (intPart === 2) result = curr.dual;
+    else if (intPart >= 3 && intPart <= 10) result += ' ' + curr.plural;
+    else result += ' ' + curr.singular;
+
+    if (decPart > 0) {
+        if (decPart === 2) {
+            // المثنى صيغة قائمة بذاتها («هللتان») لا عدد + مفرد («اثنان هللة»)
+            result += ' و' + curr.subunitDual;
+        } else {
+            result += ' و' + numberToArabicWords(decPart, style);
+            if (decPart === 1) result += ' ' + curr.subunit;
+            else if (decPart >= 3 && decPart <= 10) result += ' ' + curr.subunitPlural;
+            else result += ' ' + curr.subunit;
+        }
+    }
+
+    return result + ' فقط لا غير';
+}
+
+// اللاحقة السعودية الموحدة للحاسبات (تُسقط الكسور كما كانت تفعل الحاسبات كلها)
+function tafqitSAR(num) {
+    return tafqitAmount(Math.floor(Number(num) || 0), 'SAR');
+}
+
 // ==================== INHERITANCE ====================
 function computeInheritance(heirs, estate) {
+    // نسخة محلية حتى لا تتغير مدخلات المستدعي (الحجب يصفّر بعض الحقول أثناء الحساب)
+    const originalHeirs = { ...heirs };
+    heirs = { ...heirs };
     const shares = [];
     const blocked = [];
     let totalShares = 0;
@@ -160,7 +202,7 @@ function computeInheritance(heirs, estate) {
         const share = hasBranch ? '1/8' : '1/4';
         const shareValue = hasBranch ? 1 / 8 : 1 / 4;
         shares.push({
-            heir: 'الزوجة' + (heirs.wives > 1 ? 'ات' : ''),
+            heir: heirs.wives > 1 ? 'الزوجات' : 'الزوجة',
             count: heirs.wives,
             share: share + (heirs.wives > 1 ? ' (يقتسمن)' : ''),
             shareValue: shareValue,
@@ -279,7 +321,7 @@ function computeInheritance(heirs, estate) {
     const grandmothers = heirs.grandmotherMother + heirs.grandmotherFather;
     if (grandmothers > 0 && heirs.mother === 0) {
         shares.push({
-            heir: 'الجدة' + (grandmothers > 1 ? 'ات' : ''),
+            heir: grandmothers > 1 ? 'الجدات' : 'الجدة',
             count: grandmothers,
             share: '1/6' + (grandmothers > 1 ? ' (يقتسمن)' : ''),
             shareValue: 1 / 6,
@@ -556,8 +598,48 @@ function computeInheritance(heirs, estate) {
         awl,
         radd,
         baseValue,
-        originalHeirs: { ...heirs }
+        originalHeirs
     };
+}
+
+// ==================== توزيع مبالغ التركة ====================
+// يعيد لكل مجموعة في result.shares مبلغها الإجمالي بالريال (بمحاذاة الفهارس)، ويعالج:
+// - العول: إنقاص كل الفروض بنسبها عند تجاوز مجموعها الواحد.
+// - الباقي التعصيبي: للعصبة المحضة، وإلا فلصاحب «فرض + تعصيب» (كالأب مع البنات).
+// - الرد: عند غياب العصبة يُرد الباقي على أصحاب الفروض (عدا الزوجين) بنسبة فروضهم.
+function computeInheritanceAmounts(result, estateValue) {
+    const shares = result && Array.isArray(result.shares) ? result.shares : [];
+    const estate = Number(estateValue) || 0;
+    if (estate <= 0) return shares.map(() => 0);
+
+    const fardTotal = shares.reduce((sum, s) => sum + (s.shareValue > 0 ? s.shareValue : 0), 0);
+
+    // العول: لا باقي بعده، وتُنقص الفروض كلها بنسبها
+    if (fardTotal > 1) {
+        return shares.map(s => (s.shareValue > 0 ? estate * (s.shareValue / fardTotal) : 0));
+    }
+
+    const amounts = shares.map(s => (s.shareValue > 0 ? estate * s.shareValue : 0));
+    const remainder = estate * (1 - fardTotal);
+    if (remainder <= 0) return amounts;
+
+    // العصبة المحضة أولى بالباقي (الفرع الوارث)، ثم صاحب الفرض والتعصيب
+    let asabaIdx = shares.findIndex(s => s.type === 'تعصيب');
+    if (asabaIdx === -1) asabaIdx = shares.findIndex(s => s.type === 'فرض + تعصيب');
+    if (asabaIdx > -1) {
+        amounts[asabaIdx] += remainder;
+        return amounts;
+    }
+
+    // الرد على أصحاب الفروض عدا الزوجين؛ فإن لم يوجد غيرهما بقي الباقي دون توزيع
+    const isSpouse = s => s.heir === 'الزوج' || s.heir === 'الزوجة' || s.heir === 'الزوجات';
+    const raddBase = shares.reduce((sum, s) => sum + (s.shareValue > 0 && !isSpouse(s) ? s.shareValue : 0), 0);
+    if (raddBase > 0) {
+        shares.forEach((s, i) => {
+            if (s.shareValue > 0 && !isSpouse(s)) amounts[i] += remainder * (s.shareValue / raddBase);
+        });
+    }
+    return amounts;
 }
 
 // ==================== END OF SERVICE ====================
@@ -631,7 +713,10 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         currencies,
         numberToArabicWords,
+        tafqitAmount,
+        tafqitSAR,
         computeInheritance,
+        computeInheritanceAmounts,
         dateDiffYMD,
         computeEOSCore
     };

@@ -831,8 +831,8 @@ function extraIdentityHTML(role, idx, p) {
         <div class="sub-fields">
             <label>الجنسية</label>
             <div class="choice-group">
-                <div class="choice-btn extra-choice ${isSaudi ? 'active' : ''}" ${attrs} data-field="nationalityType" data-value="سعودي">سعودي</div>
-                <div class="choice-btn extra-choice ${isSaudi ? '' : 'active'}" ${attrs} data-field="nationalityType" data-value="غير ذلك">غير ذلك</div>
+                <button type="button" class="choice-btn extra-choice ${isSaudi ? 'active' : ''}" ${attrs} data-field="nationalityType" data-value="سعودي">سعودي</button>
+                <button type="button" class="choice-btn extra-choice ${isSaudi ? '' : 'active'}" ${attrs} data-field="nationalityType" data-value="غير ذلك">غير ذلك</button>
             </div>
             ${isSaudi ? `
             <div class="field">
@@ -867,14 +867,14 @@ function extraCardHTML(role, idx, p) {
         </div>` : ''}
         <label>الجنس</label>
         <div class="choice-group">
-            <div class="choice-btn extra-choice ${p.gender === 'م' ? 'active' : ''}" data-role="${role}" data-idx="${idx}" data-field="gender" data-value="م">مذكر</div>
-            <div class="choice-btn extra-choice ${p.gender === 'ف' ? 'active' : ''}" data-role="${role}" data-idx="${idx}" data-field="gender" data-value="ف">مؤنث</div>
+            <button type="button" class="choice-btn extra-choice ${p.gender === 'م' ? 'active' : ''}" data-role="${role}" data-idx="${idx}" data-field="gender" data-value="م">مذكر</button>
+            <button type="button" class="choice-btn extra-choice ${p.gender === 'ف' ? 'active' : ''}" data-role="${role}" data-idx="${idx}" data-field="gender" data-value="ف">مؤنث</button>
         </div>
         <label>حالة الحضور</label>
         <div class="choice-group">
-            <div class="choice-btn extra-choice ${p.attendance === 'أصالة' ? 'active' : ''}" data-role="${role}" data-idx="${idx}" data-field="attendance" data-value="أصالة">${p.gender === 'م' ? 'حضر أصالة' : 'حضرت أصالة'}</div>
-            <div class="choice-btn extra-choice ${p.attendance === 'تمثيل' ? 'active' : ''}" data-role="${role}" data-idx="${idx}" data-field="attendance" data-value="تمثيل">حضر وكيل</div>
-            <div class="choice-btn extra-choice ${p.attendance === 'لم يحضر' ? 'active' : ''}" data-role="${role}" data-idx="${idx}" data-field="attendance" data-value="لم يحضر">${p.gender === 'م' ? 'لم يحضر' : 'لم تحضر'}</div>
+            <button type="button" class="choice-btn extra-choice ${p.attendance === 'أصالة' ? 'active' : ''}" data-role="${role}" data-idx="${idx}" data-field="attendance" data-value="أصالة">${p.gender === 'م' ? 'حضر أصالة' : 'حضرت أصالة'}</button>
+            <button type="button" class="choice-btn extra-choice ${p.attendance === 'تمثيل' ? 'active' : ''}" data-role="${role}" data-idx="${idx}" data-field="attendance" data-value="تمثيل">حضر وكيل</button>
+            <button type="button" class="choice-btn extra-choice ${p.attendance === 'لم يحضر' ? 'active' : ''}" data-role="${role}" data-idx="${idx}" data-field="attendance" data-value="لم يحضر">${p.gender === 'م' ? 'لم يحضر' : 'لم تحضر'}</button>
         </div>
         ${p.attendance === 'أصالة' && state.includePartyDataInText ? extraIdentityHTML(role, idx, p) : ''}
         ${p.attendance === 'تمثيل' ? `

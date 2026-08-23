@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
     <title>مولّد الجلسة — قوالب ضبط القضايا</title>
     <link rel="stylesheet" href="css/fonts.css">
     <link rel="stylesheet" href="css/style.css">
@@ -42,8 +42,8 @@
             <div class="m-card">
                 <h2>نوع الجلسة</h2>
                 <div class="choice-group vertical" data-group="session-landing">
-                    <div class="choice-btn landing-btn" data-value="new">جلسة تحضيرية (جديدة)</div>
-                    <div class="choice-btn landing-btn" data-value="previous">جلسة منظورة سابقًا</div>
+                    <button type="button" class="choice-btn landing-btn" data-value="new">جلسة تحضيرية (جديدة)</button>
+                    <button type="button" class="choice-btn landing-btn" data-value="previous">جلسة منظورة سابقًا</button>
                 </div>
             </div>
         </div>
@@ -76,10 +76,10 @@
                             <div class="field">
                                 <label>طريقة انعقاد الجلسة</label>
                                 <div class="choice-group vertical" data-group="session-mode">
-                                    <div class="choice-btn active" data-value="video">عبر الاتصال المرئي</div>
+                                    <button type="button" class="choice-btn active" data-value="video">عبر الاتصال المرئي</button>
                                     <!-- خيار «مع المستند» مُخفى حاليًا (قد يُحتاج إليه مستقبلاً): احذف class="locked" والستر أدناه لإعادته -->
-                                    <div class="choice-btn locked" data-value="videoFull" style="display:none;">عبر الاتصال المرئي (مع المستند)</div>
-                                    <div class="choice-btn" data-value="inPerson">حضوري</div>
+                                    <button type="button" class="choice-btn locked" data-value="videoFull" style="display:none;">عبر الاتصال المرئي (مع المستند)</button>
+                                    <button type="button" class="choice-btn" data-value="inPerson">حضوري</button>
                                 </div>
                                 <div class="hint" id="sessionModeHint"></div>
                             </div>
@@ -89,8 +89,8 @@
                             <h2>استمرارية نظر القضية</h2>
                             <label>هل ناظر القضية السابق هو الناظر الحالي (نفس القاضي)؟</label>
                             <div class="choice-group" data-group="session-sameJudge">
-                                <div class="choice-btn active" data-value="نعم">نعم، نفس القاضي</div>
-                                <div class="choice-btn" data-value="لا">لا، قاضٍ مختلف</div>
+                                <button type="button" class="choice-btn active" data-value="نعم">نعم، نفس القاضي</button>
+                                <button type="button" class="choice-btn" data-value="لا">لا، قاضٍ مختلف</button>
                             </div>
                             <div class="hint">عند اختيار قاضٍ مختلف تُدرج تلقائيًا صيغة المادة (167) من نظام المرافعات الشرعية ومصادقة الأطراف على الجلسات السابقة.</div>
                         </div>
@@ -117,8 +117,8 @@
 
                                 <label>نوع الطرف</label>
                                 <div class="choice-group" data-group="plaintiff-entityType">
-                                    <div class="choice-btn active" data-value="فرد">فرد</div>
-                                    <div class="choice-btn" data-value="شركة">شركة</div>
+                                    <button type="button" class="choice-btn active" data-value="فرد">فرد</button>
+                                    <button type="button" class="choice-btn" data-value="شركة">شركة</button>
                                 </div>
 
                                 <div class="field" id="plaintiff-name-field">
@@ -130,8 +130,8 @@
                                     <div id="plaintiff-individualId-block">
                                         <label>الجنسية</label>
                                         <div class="choice-group" data-group="plaintiff-nationalityType">
-                                            <div class="choice-btn active" data-value="سعودي">سعودي</div>
-                                            <div class="choice-btn" data-value="غير ذلك">غير ذلك</div>
+                                            <button type="button" class="choice-btn active" data-value="سعودي">سعودي</button>
+                                            <button type="button" class="choice-btn" data-value="غير ذلك">غير ذلك</button>
                                         </div>
                                         <div class="field" id="plaintiff-saudiId-field">
                                             <label>رقم الهوية الوطنية <span class="req">*</span></label>
@@ -157,15 +157,15 @@
 
                                 <label id="plaintiff-gender-label">الجنس</label>
                                 <div class="choice-group" data-group="plaintiff-gender">
-                                    <div class="choice-btn active" data-value="م">مذكر</div>
-                                    <div class="choice-btn" data-value="ف">مؤنث</div>
+                                    <button type="button" class="choice-btn active" data-value="م">مذكر</button>
+                                    <button type="button" class="choice-btn" data-value="ف">مؤنث</button>
                                 </div>
 
                                 <label>حالة الحضور</label>
                                 <div class="choice-group" data-group="plaintiff-attendance">
-                                    <div class="choice-btn active" data-value="أصالة">حضر أصالة</div>
-                                    <div class="choice-btn" data-value="تمثيل">حضر وكيل / ممثل</div>
-                                    <div class="choice-btn" data-value="لم يحضر">لم يحضر</div>
+                                    <button type="button" class="choice-btn active" data-value="أصالة">حضر أصالة</button>
+                                    <button type="button" class="choice-btn" data-value="تمثيل">حضر وكيل / ممثل</button>
+                                    <button type="button" class="choice-btn" data-value="لم يحضر">لم يحضر</button>
                                 </div>
 
                                 <div id="plaintiff-accompany-toggle" style="display:none;">
@@ -179,22 +179,22 @@
                                     <div id="plaintiff-repType-chooser">
                                         <label>صفة من حضر عنه</label>
                                         <div class="choice-group" data-group="plaintiff-repType">
-                                            <div class="choice-btn active" data-value="وكيل">وكيل</div>
-                                            <div class="choice-btn" data-value="وكيل شركة">وكيل عن الشركة</div>
-                                            <div class="choice-btn" data-value="ممثل">ممثل نظامي</div>
+                                            <button type="button" class="choice-btn active" data-value="وكيل">وكيل</button>
+                                            <button type="button" class="choice-btn" data-value="وكيل شركة">وكيل عن الشركة</button>
+                                            <button type="button" class="choice-btn" data-value="ممثل">ممثل نظامي</button>
                                         </div>
                                     </div>
 
                                     <div id="plaintiff-wakeel-fields">
                                         <label>جنس الوكيل</label>
                                         <div class="choice-group" data-group="plaintiff-agentGender">
-                                            <div class="choice-btn active" data-value="م">ذكر</div>
-                                            <div class="choice-btn" data-value="ف">أنثى</div>
+                                            <button type="button" class="choice-btn active" data-value="م">ذكر</button>
+                                            <button type="button" class="choice-btn" data-value="ف">أنثى</button>
                                         </div>
                                         <label id="plaintiff-lawyer-q-label">هل الوكيل محامٍ؟</label>
                                         <div class="choice-group" data-group="plaintiff-repIsLawyer">
-                                            <div class="choice-btn" data-value="لا">لا</div>
-                                            <div class="choice-btn active" data-value="نعم">نعم</div>
+                                            <button type="button" class="choice-btn" data-value="لا">لا</button>
+                                            <button type="button" class="choice-btn active" data-value="نعم">نعم</button>
                                         </div>
                                         <div class="field">
                                             <label id="plaintiff-agent-name-label">اسم الوكيل <span class="req">*</span></label>
@@ -221,8 +221,8 @@
                                         <div class="field" id="plaintiff-kinship-field" style="display:none;">
                                             <label>نوع القرابة <span class="req">*</span></label>
                                             <div class="choice-group" data-group="plaintiff-kinshipType">
-                                                <div class="choice-btn active" data-value="نسب">نسب</div>
-                                                <div class="choice-btn" data-value="أصهار">أصهار (مصاهرة)</div>
+                                                <button type="button" class="choice-btn active" data-value="نسب">نسب</button>
+                                                <button type="button" class="choice-btn" data-value="أصهار">أصهار (مصاهرة)</button>
                                             </div>
                                             <div id="plaintiff-nasab-block">
                                                 <label>صلة القرابة (نسب) بالمدعي <span class="req">*</span></label>
@@ -231,8 +231,8 @@
                                             <div id="plaintiff-ashar-block" style="display:none;">
                                                 <label>من جهة</label>
                                                 <div class="choice-group" data-group="plaintiff-asharDirection">
-                                                    <div class="choice-btn active" data-value="الزوجة">الزوجة</div>
-                                                    <div class="choice-btn" data-value="الزوج">الزوج</div>
+                                                    <button type="button" class="choice-btn active" data-value="الزوجة">الزوجة</button>
+                                                    <button type="button" class="choice-btn" data-value="الزوج">الزوج</button>
                                                 </div>
                                                 <label>صلة القرابة (أصهار) بالمدعي <span class="req">*</span></label>
                                                 <select class="form-control" id="plaintiff-kinship-ashar" required></select>
@@ -254,14 +254,14 @@
                                 <div class="sub-fields" id="plaintiff-absence-fields" style="display:none;">
                                     <label>هل تبلّغ المدعي بالجلسة؟</label>
                                     <div class="choice-group" data-group="plaintiff-notifyStatus">
-                                        <div class="choice-btn active" data-value="تبلغ">تبلّغ</div>
-                                        <div class="choice-btn" data-value="لم يتبلغ">لم يتبلّغ</div>
+                                        <button type="button" class="choice-btn active" data-value="تبلغ">تبلّغ</button>
+                                        <button type="button" class="choice-btn" data-value="لم يتبلغ">لم يتبلّغ</button>
                                     </div>
                                     <div id="plaintiff-notified-fields">
                                         <label>هل هذا غياب المدعي الأول أم الثاني؟</label>
                                         <div class="choice-group" data-group="plaintiff-occurrence">
-                                            <div class="choice-btn active" data-value="1">غياب أول</div>
-                                            <div class="choice-btn" data-value="2">غياب ثانٍ</div>
+                                            <button type="button" class="choice-btn active" data-value="1">غياب أول</button>
+                                            <button type="button" class="choice-btn" data-value="2">غياب ثانٍ</button>
                                         </div>
                                         <div class="field">
                                             <label>رقم مهمّة التبليغ <span class="req">*</span></label>
@@ -277,9 +277,9 @@
                                 <div class="sub-fields" id="plaintiff-specialCase-section">
                                     <label>حالة استثنائية (اختياري — للمدعي فقط)</label>
                                     <div class="choice-group vertical" data-group="plaintiff-specialCase">
-                                        <div class="choice-btn active" data-value="none">لا يوجد — سير الجلسة طبيعي</div>
-                                        <div class="choice-btn" data-value="systemNoVideo">⚠ تبيّن حضوره بالنظام الإلكتروني، لكنه لم يحضر عبر الاتصال المرئي</div>
-                                        <div class="choice-btn" data-value="leftDuringSession">⚠ غادر المدعي أثناء انعقاد الجلسة ولم يعد للحضور</div>
+                                        <button type="button" class="choice-btn active" data-value="none">لا يوجد — سير الجلسة طبيعي</button>
+                                        <button type="button" class="choice-btn" data-value="systemNoVideo">⚠ تبيّن حضوره بالنظام الإلكتروني، لكنه لم يحضر عبر الاتصال المرئي</button>
+                                        <button type="button" class="choice-btn" data-value="leftDuringSession">⚠ غادر المدعي أثناء انعقاد الجلسة ولم يعد للحضور</button>
                                     </div>
                                     <div class="hint">عند اختيار أي حالة استثنائية تُستبدل صيغة المحضر بالكامل بفقرتها الخاصة، مع ذكر حضور المدعى عليه إن حضر فقط.</div>
                                 </div>
@@ -294,9 +294,9 @@
 
                                 <label>نوع الطرف</label>
                                 <div class="choice-group" data-group="defendant-entityType">
-                                    <div class="choice-btn active" data-value="فرد">فرد</div>
-                                    <div class="choice-btn" data-value="شركة">شركة</div>
-                                    <div class="choice-btn" data-value="وقف">وقف</div>
+                                    <button type="button" class="choice-btn active" data-value="فرد">فرد</button>
+                                    <button type="button" class="choice-btn" data-value="شركة">شركة</button>
+                                    <button type="button" class="choice-btn" data-value="وقف">وقف</button>
                                 </div>
                                 <div class="hint" id="defendant-entityType-hint"></div>
 
@@ -309,8 +309,8 @@
                                     <div id="defendant-individualId-block">
                                         <label>الجنسية</label>
                                         <div class="choice-group" data-group="defendant-nationalityType">
-                                            <div class="choice-btn active" data-value="سعودي">سعودي</div>
-                                            <div class="choice-btn" data-value="غير ذلك">غير ذلك</div>
+                                            <button type="button" class="choice-btn active" data-value="سعودي">سعودي</button>
+                                            <button type="button" class="choice-btn" data-value="غير ذلك">غير ذلك</button>
                                         </div>
                                         <div class="field" id="defendant-saudiId-field">
                                             <label>رقم الهوية الوطنية <span class="req">*</span></label>
@@ -336,15 +336,15 @@
 
                                 <label id="defendant-gender-label">الجنس</label>
                                 <div class="choice-group" data-group="defendant-gender">
-                                    <div class="choice-btn active" data-value="م">مذكر</div>
-                                    <div class="choice-btn" data-value="ف">مؤنث</div>
+                                    <button type="button" class="choice-btn active" data-value="م">مذكر</button>
+                                    <button type="button" class="choice-btn" data-value="ف">مؤنث</button>
                                 </div>
 
                                 <label>حالة الحضور</label>
                                 <div class="choice-group" data-group="defendant-attendance">
-                                    <div class="choice-btn active" data-value="أصالة">حضر أصالة</div>
-                                    <div class="choice-btn" data-value="تمثيل">حضر وكيل / ممثل</div>
-                                    <div class="choice-btn" data-value="لم يحضر">لم يحضر</div>
+                                    <button type="button" class="choice-btn active" data-value="أصالة">حضر أصالة</button>
+                                    <button type="button" class="choice-btn" data-value="تمثيل">حضر وكيل / ممثل</button>
+                                    <button type="button" class="choice-btn" data-value="لم يحضر">لم يحضر</button>
                                 </div>
 
                                 <div id="defendant-accompany-toggle" style="display:none;">
@@ -358,22 +358,22 @@
                                     <div id="defendant-repType-chooser">
                                         <label>صفة من حضر عنه</label>
                                         <div class="choice-group" data-group="defendant-repType">
-                                            <div class="choice-btn active" data-value="وكيل">وكيل</div>
-                                            <div class="choice-btn" data-value="وكيل شركة">وكيل عن الشركة</div>
-                                            <div class="choice-btn" data-value="ممثل">ممثل نظامي</div>
+                                            <button type="button" class="choice-btn active" data-value="وكيل">وكيل</button>
+                                            <button type="button" class="choice-btn" data-value="وكيل شركة">وكيل عن الشركة</button>
+                                            <button type="button" class="choice-btn" data-value="ممثل">ممثل نظامي</button>
                                         </div>
                                     </div>
 
                                     <div id="defendant-wakeel-fields">
                                         <label>جنس الوكيل</label>
                                         <div class="choice-group" data-group="defendant-agentGender">
-                                            <div class="choice-btn active" data-value="م">ذكر</div>
-                                            <div class="choice-btn" data-value="ف">أنثى</div>
+                                            <button type="button" class="choice-btn active" data-value="م">ذكر</button>
+                                            <button type="button" class="choice-btn" data-value="ف">أنثى</button>
                                         </div>
                                         <label id="defendant-lawyer-q-label">هل الوكيل محامٍ؟</label>
                                         <div class="choice-group" data-group="defendant-repIsLawyer">
-                                            <div class="choice-btn" data-value="لا">لا</div>
-                                            <div class="choice-btn active" data-value="نعم">نعم</div>
+                                            <button type="button" class="choice-btn" data-value="لا">لا</button>
+                                            <button type="button" class="choice-btn active" data-value="نعم">نعم</button>
                                         </div>
                                         <div class="field">
                                             <label id="defendant-agent-name-label">اسم الوكيل <span class="req">*</span></label>
@@ -400,8 +400,8 @@
                                         <div class="field" id="defendant-kinship-field" style="display:none;">
                                             <label>نوع القرابة <span class="req">*</span></label>
                                             <div class="choice-group" data-group="defendant-kinshipType">
-                                                <div class="choice-btn active" data-value="نسب">نسب</div>
-                                                <div class="choice-btn" data-value="أصهار">أصهار (مصاهرة)</div>
+                                                <button type="button" class="choice-btn active" data-value="نسب">نسب</button>
+                                                <button type="button" class="choice-btn" data-value="أصهار">أصهار (مصاهرة)</button>
                                             </div>
                                             <div id="defendant-nasab-block">
                                                 <label>صلة القرابة (نسب) بالمدعى عليه <span class="req">*</span></label>
@@ -410,8 +410,8 @@
                                             <div id="defendant-ashar-block" style="display:none;">
                                                 <label>من جهة</label>
                                                 <div class="choice-group" data-group="defendant-asharDirection">
-                                                    <div class="choice-btn active" data-value="الزوجة">الزوجة</div>
-                                                    <div class="choice-btn" data-value="الزوج">الزوج</div>
+                                                    <button type="button" class="choice-btn active" data-value="الزوجة">الزوجة</button>
+                                                    <button type="button" class="choice-btn" data-value="الزوج">الزوج</button>
                                                 </div>
                                                 <label>صلة القرابة (أصهار) بالمدعى عليه <span class="req">*</span></label>
                                                 <select class="form-control" id="defendant-kinship-ashar" required></select>
@@ -434,8 +434,8 @@
                                     <div id="defendant-oathAbsence-field" style="display:none;">
                                         <label>هل تبلّغ المدعى عليه باليمين؟</label>
                                         <div class="choice-group" data-group="defendant-oathAbsence">
-                                            <div class="choice-btn active" data-value="لا">لا</div>
-                                            <div class="choice-btn" data-value="نعم">نعم</div>
+                                            <button type="button" class="choice-btn active" data-value="لا">لا</button>
+                                            <button type="button" class="choice-btn" data-value="نعم">نعم</button>
                                         </div>
                                         <div class="field" id="defendant-oathTabligh-field" style="display:none;">
                                             <label>رقم التبليغ باليمين <span class="req">*</span></label>
@@ -448,8 +448,8 @@
                                     <div id="defendant-normal-absence-block">
                                         <label>هل تبلّغ المدعى عليه بالجلسة؟</label>
                                         <div class="choice-group" data-group="defendant-notifyStatus">
-                                            <div class="choice-btn active" data-value="تبلغ">تبلّغ</div>
-                                            <div class="choice-btn" data-value="لم يتبلغ">لم يتبلّغ</div>
+                                            <button type="button" class="choice-btn active" data-value="تبلغ">تبلّغ</button>
+                                            <button type="button" class="choice-btn" data-value="لم يتبلغ">لم يتبلّغ</button>
                                         </div>
                                         <div class="field" id="defendant-notified-fields">
                                             <label>رقم تبليغه بالجلسة <span class="req">*</span></label>
@@ -464,8 +464,8 @@
                                 <div class="sub-fields" id="defendant-oathPerformance-section" style="display:none;">
                                     <label>هل هذه الجلسة جلسة أداء يمين من قبل المدعى عليه؟</label>
                                     <div class="choice-group" data-group="defendant-oathPerformanceSession">
-                                        <div class="choice-btn" data-value="نعم">نعم</div>
-                                        <div class="choice-btn active" data-value="لا">لا</div>
+                                        <button type="button" class="choice-btn" data-value="نعم">نعم</button>
+                                        <button type="button" class="choice-btn active" data-value="لا">لا</button>
                                     </div>
                                     <div class="field" id="defendant-oathAnswer-field" style="display:none;">
                                         <label>إجابة المدعى عليه عند سؤاله عن الاستعداد لأداء اليمين <span class="req">*</span></label>
@@ -487,8 +487,8 @@
                         <div class="m-card" id="claimTypeCard">
                             <h2>نوع الدعوى</h2>
                             <div class="choice-group" data-group="claim-type">
-                                <div class="choice-btn active" data-value="مالي">طلب مالي</div>
-                                <div class="choice-btn" data-value="غير مالي">طلب غير مالي</div>
+                                <button type="button" class="choice-btn active" data-value="مالي">طلب مالي</button>
+                                <button type="button" class="choice-btn" data-value="غير مالي">طلب غير مالي</button>
                             </div>
                             <div class="field" id="claimValueField">
                                 <label>قيمة المطالبة (ريال)</label>
@@ -513,9 +513,9 @@
 
                                 <label style="margin-top:0.9rem;">تكييف الإجابة</label>
                                 <div class="choice-group vertical" data-group="defendant-stance">
-                                    <div class="choice-btn active" data-value="إنكار">إنكار — يُكلَّف المدعي بالبينة</div>
-                                    <div class="choice-btn" data-value="إقرار">إقرار — لا موجب للبينة</div>
-                                    <div class="choice-btn" data-value="دفع شكلي">دفع شكلي — يُنظر قبل الموضوع</div>
+                                    <button type="button" class="choice-btn active" data-value="إنكار">إنكار — يُكلَّف المدعي بالبينة</button>
+                                    <button type="button" class="choice-btn" data-value="إقرار">إقرار — لا موجب للبينة</button>
+                                    <button type="button" class="choice-btn" data-value="دفع شكلي">دفع شكلي — يُنظر قبل الموضوع</button>
                                 </div>
                                 <div class="hint" id="defendantStanceHint"></div>
 
@@ -530,8 +530,8 @@
                                     </div>
                                     <label>هل أجاب المدعى عليه في الموضوع أيضًا؟</label>
                                     <div class="choice-group" data-group="answered-on-merits">
-                                        <div class="choice-btn active" data-value="نعم">نعم — يُستكمل النظر في الموضوع</div>
-                                        <div class="choice-btn" data-value="لا">لا — يُنظر الدفع أولًا</div>
+                                        <button type="button" class="choice-btn active" data-value="نعم">نعم — يُستكمل النظر في الموضوع</button>
+                                        <button type="button" class="choice-btn" data-value="لا">لا — يُنظر الدفع أولًا</button>
                                     </div>
                                 </div>
                             </div>
@@ -560,8 +560,8 @@
 
                             <label>وبسؤاله عن بينته قرر قائلاً:</label>
                             <div class="choice-group" data-group="evidence-choice">
-                                <div class="choice-btn active" data-value="none">لا بينة لدي</div>
-                                <div class="choice-btn" data-value="has">بينتي هي:</div>
+                                <button type="button" class="choice-btn active" data-value="none">لا بينة لدي</button>
+                                <button type="button" class="choice-btn" data-value="has">بينتي هي:</button>
                             </div>
                             <div class="field" id="evidenceTextField" style="display:none;">
                                 <label>البينة (اختر كل ما ينطبق) <span class="req">*</span></label>
@@ -578,9 +578,9 @@
 
                                     <label style="margin-top:0.9rem;">تعديل الشهود وتزكيتهم</label>
                                     <div class="choice-group vertical" data-group="plaintiff-tazkiya">
-                                        <div class="choice-btn active" data-value="none">لا تزكية في هذه الجلسة</div>
-                                        <div class="choice-btn" data-value="delay">طلب الإمهال لإحضار المعدِّلين</div>
-                                        <div class="choice-btn" data-value="presented">حضر المعدِّلون وزكّوا الشهود</div>
+                                        <button type="button" class="choice-btn active" data-value="none">لا تزكية في هذه الجلسة</button>
+                                        <button type="button" class="choice-btn" data-value="delay">طلب الإمهال لإحضار المعدِّلين</button>
+                                        <button type="button" class="choice-btn" data-value="presented">حضر المعدِّلون وزكّوا الشهود</button>
                                     </div>
                                     <div class="field" id="plaintiffTazkiyaNamesField" style="display:none;">
                                         <label>أسماء المعدِّلين <span class="req">*</span></label>
@@ -590,8 +590,8 @@
                                     <div id="plaintiffWitnessObjectionBlock">
                                         <label style="margin-top:0.9rem;">مطعن المدعى عليه في الشهود أو في شهادتهم</label>
                                         <div class="choice-group" data-group="plaintiff-witnessObjection">
-                                            <div class="choice-btn active" data-value="لا">لا مطعن</div>
-                                            <div class="choice-btn" data-value="نعم">لديه مطعن</div>
+                                            <button type="button" class="choice-btn active" data-value="لا">لا مطعن</button>
+                                            <button type="button" class="choice-btn" data-value="نعم">لديه مطعن</button>
                                         </div>
                                         <div class="field" id="plaintiffWitnessObjectionField" style="display:none;">
                                             <label>نص المطعن <span class="req">*</span></label>
@@ -604,8 +604,8 @@
                             <div class="sub-fields" id="moreEvidenceSection" style="display:none;">
                                 <label>وبسؤاله هل لديه مزيد بينة؟</label>
                                 <div class="choice-group" data-group="more-evidence">
-                                    <div class="choice-btn active" data-value="نعم">نعم</div>
-                                    <div class="choice-btn" data-value="لا">لا</div>
+                                    <button type="button" class="choice-btn active" data-value="نعم">نعم</button>
+                                    <button type="button" class="choice-btn" data-value="لا">لا</button>
                                 </div>
                                 <div class="field" id="moreEvidenceTextField">
                                     <label>البينة الإضافية <span class="req">*</span></label>
@@ -635,8 +635,8 @@
                             <div id="askDefendantEvidenceBlock">
                                 <label>هل جرى سؤال المدعى عليه عن دفوعه وبينته في هذه الجلسة؟</label>
                                 <div class="choice-group" data-group="ask-defendant-evidence">
-                                    <div class="choice-btn active" data-value="لا">لا</div>
-                                    <div class="choice-btn" data-value="نعم">نعم</div>
+                                    <button type="button" class="choice-btn active" data-value="لا">لا</button>
+                                    <button type="button" class="choice-btn" data-value="نعم">نعم</button>
                                 </div>
                                 <div class="hint">الأصل أن البينة على المدعي، فلا يُكلَّف المدعى عليه بها إلا إذا ادّعى دفعًا يحتاج إلى إثبات (كالوفاء أو الإبراء).</div>
                             </div>
@@ -649,8 +649,8 @@
 
                                 <label>وبسؤاله عن بينته قرر قائلاً:</label>
                                 <div class="choice-group" data-group="defendant-evidence-choice">
-                                    <div class="choice-btn active" data-value="none">لا بينة لدي</div>
-                                    <div class="choice-btn" data-value="has">بينتي هي:</div>
+                                    <button type="button" class="choice-btn active" data-value="none">لا بينة لدي</button>
+                                    <button type="button" class="choice-btn" data-value="has">بينتي هي:</button>
                                 </div>
                                 <div class="field" id="defendantEvidenceTextField" style="display:none;">
                                     <label>البينة (اختر كل ما ينطبق) <span class="req">*</span></label>
@@ -666,9 +666,9 @@
 
                                         <label style="margin-top:0.9rem;">تعديل الشهود وتزكيتهم</label>
                                         <div class="choice-group vertical" data-group="defendant-tazkiya">
-                                            <div class="choice-btn active" data-value="none">لا تزكية في هذه الجلسة</div>
-                                            <div class="choice-btn" data-value="delay">طلب الإمهال لإحضار المعدِّلين</div>
-                                            <div class="choice-btn" data-value="presented">حضر المعدِّلون وزكّوا الشهود</div>
+                                            <button type="button" class="choice-btn active" data-value="none">لا تزكية في هذه الجلسة</button>
+                                            <button type="button" class="choice-btn" data-value="delay">طلب الإمهال لإحضار المعدِّلين</button>
+                                            <button type="button" class="choice-btn" data-value="presented">حضر المعدِّلون وزكّوا الشهود</button>
                                         </div>
                                         <div class="field" id="defendantTazkiyaNamesField" style="display:none;">
                                             <label>أسماء المعدِّلين <span class="req">*</span></label>
@@ -678,8 +678,8 @@
                                         <div id="defendantWitnessObjectionBlock">
                                             <label style="margin-top:0.9rem;">مطعن المدعي في الشهود أو في شهادتهم</label>
                                             <div class="choice-group" data-group="defendant-witnessObjection">
-                                                <div class="choice-btn active" data-value="لا">لا مطعن</div>
-                                                <div class="choice-btn" data-value="نعم">لديه مطعن</div>
+                                                <button type="button" class="choice-btn active" data-value="لا">لا مطعن</button>
+                                                <button type="button" class="choice-btn" data-value="نعم">لديه مطعن</button>
                                             </div>
                                             <div class="field" id="defendantWitnessObjectionField" style="display:none;">
                                                 <label>نص المطعن <span class="req">*</span></label>
@@ -698,8 +698,8 @@
                             <h2>الأسباب والحكم</h2>
                             <label>هل يُنطق بالحكم في هذه الجلسة؟</label>
                             <div class="choice-group" data-group="ruling-pronounce">
-                                <div class="choice-btn active" data-value="لا">لا — تُرفع الجلسة</div>
-                                <div class="choice-btn" data-value="نعم">نعم — يُلحق الحكم بالضبط</div>
+                                <button type="button" class="choice-btn active" data-value="لا">لا — تُرفع الجلسة</button>
+                                <button type="button" class="choice-btn" data-value="نعم">نعم — يُلحق الحكم بالضبط</button>
                             </div>
                             <div class="hint">هذه مرحلة مستقلة عن ضبط الجلسة، تُلحق به بعد قفل باب المرافعة.</div>
                         </div>
@@ -740,8 +740,8 @@
                                 </div>
                                 <label>صفة الحكم</label>
                                 <div class="choice-group" data-group="ruling-presence">
-                                    <div class="choice-btn active" data-value="حضوري">حضوري</div>
-                                    <div class="choice-btn" data-value="غيابي">غيابي في حق المدعى عليه</div>
+                                    <button type="button" class="choice-btn active" data-value="حضوري">حضوري</button>
+                                    <button type="button" class="choice-btn" data-value="غيابي">غيابي في حق المدعى عليه</button>
                                 </div>
                             </div>
 
@@ -749,11 +749,11 @@
                                 <h2>نوع الإفهام والتدقيق</h2>
                                 <label>نوع الإفهام</label>
                                 <div class="choice-group vertical" data-group="ruling-noticeKind">
-                                    <div class="choice-btn active" data-value="auto">اشتقاق تلقائي من قيمة المطالبة</div>
-                                    <div class="choice-btn" data-value="final">نهائي مكتسب للقطعية (دعوى يسيرة)</div>
-                                    <div class="choice-btn" data-value="appealable">قابل للاستئناف خلال ثلاثين يومًا</div>
-                                    <div class="choice-btn" data-value="sulh">حكم صلح</div>
-                                    <div class="choice-btn" data-value="review">واجب التدقيق</div>
+                                    <button type="button" class="choice-btn active" data-value="auto">اشتقاق تلقائي من قيمة المطالبة</button>
+                                    <button type="button" class="choice-btn" data-value="final">نهائي مكتسب للقطعية (دعوى يسيرة)</button>
+                                    <button type="button" class="choice-btn" data-value="appealable">قابل للاستئناف خلال ثلاثين يومًا</button>
+                                    <button type="button" class="choice-btn" data-value="sulh">حكم صلح</button>
+                                    <button type="button" class="choice-btn" data-value="review">واجب التدقيق</button>
                                 </div>
                                 <div class="notice-box" id="noticeKindLockNotice" style="display:none;">
                                     صفة المدعى عليه «وقف»، والحكم على الوقف واجب التدقيق لزومًا لا اختيارًا، فقد ثُبِّت نوع الإفهام على «واجب التدقيق».
@@ -765,8 +765,8 @@
                                 <div id="mandatoryReviewBlock" style="display:none;">
                                     <label style="margin-top:0.9rem;">إجراء التدقيق الوجوبي</label>
                                     <div class="choice-group vertical" data-group="ruling-mandatoryReview">
-                                        <div class="choice-btn active" data-value="نعم">يُرفع كامل ملف الدعوى بعد انتهاء مدة الاعتراض</div>
-                                        <div class="choice-btn" data-value="إعادة">تُعاد القضية لمحكمة الاستئناف بعد مدة الاعتراض (قرار المحكمة العليا 19/م)</div>
+                                        <button type="button" class="choice-btn active" data-value="نعم">يُرفع كامل ملف الدعوى بعد انتهاء مدة الاعتراض</button>
+                                        <button type="button" class="choice-btn" data-value="إعادة">تُعاد القضية لمحكمة الاستئناف بعد مدة الاعتراض (قرار المحكمة العليا 19/م)</button>
                                     </div>
                                 </div>
                                 <div class="hint">نصوص الإفهام والتدقيق تُجلب من مكتبة النماذج في الصفحة الرئيسية (تصنيف: إفهامات بعد النطق) فلا تتعارض معها.</div>
@@ -885,6 +885,7 @@
     <!-- Toast -->
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+    <script src="js/text-utils.js"></script>
     <script src="data/templates.js"></script>
     <script src="js/minutes.js"></script>
     <script src="js/minutes-app.js"></script>

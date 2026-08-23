@@ -137,6 +137,8 @@
     cursor: pointer;
     font-family: inherit;
     font-size: 0.9rem;
+    /* الأزرار لا ترث line-height تلقائيًا كما كانت ترثه عناصر div، فيُثبت هنا */
+    line-height: 1.8;
     text-align: center;
     transition: all 0.2s;
     user-select: none;
