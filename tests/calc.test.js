@@ -5,7 +5,10 @@ const assert = require('node:assert/strict');
 
 const {
     numberToArabicWords,
+    tafqitAmount,
+    tafqitSAR,
     computeInheritance,
+    computeInheritanceAmounts,
     dateDiffYMD,
     computeEOSCore
 } = require('../js/calc.js');
@@ -53,6 +56,32 @@ test('التفقيط: الآلاف والملايين', () => {
 
 test('التفقيط: الأعداد السالبة', () => {
     assert.equal(numberToArabicWords(-5), 'سالب خمسة');
+});
+
+test('التفقيط بأسلوب «مئة»: تشمل المائتين لا المئات المركبة وحدها', () => {
+    assert.equal(numberToArabicWords(300, 'مئة'), 'ثلاثمئة');
+    assert.equal(numberToArabicWords(200, 'مئة'), 'مئتان');
+});
+
+// ==================== تفقيط المبالغ بالعملة ====================
+
+test('tafqitSAR: لاحقة الريال الموحدة للحاسبات', () => {
+    assert.equal(tafqitSAR(1), 'واحد ريال سعودي فقط لا غير');
+    assert.equal(tafqitSAR(2), 'ريالان سعوديان فقط لا غير');
+    assert.equal(tafqitSAR(5), 'خمسة ريالات سعودية فقط لا غير');
+    assert.equal(tafqitSAR(150), 'مائة وخمسون ريال سعودي فقط لا غير');
+    // الحاسبات تُسقط الكسور كما كانت تفعل كتلها المكررة
+    assert.equal(tafqitSAR(150.75), 'مائة وخمسون ريال سعودي فقط لا غير');
+});
+
+test('tafqitAmount: تثنية الوحدة الفرعية صحيحة (هللتان لا هللةان)', () => {
+    assert.equal(tafqitAmount(5.02, 'SAR'), 'خمسة ريالات سعودية وهللتان فقط لا غير');
+    assert.equal(tafqitAmount(1.25, 'SAR'), 'واحد ريال سعودي وخمسة وعشرون هللة فقط لا غير');
+    assert.equal(tafqitAmount(3.02, 'OMR'), 'ثلاثة ريالات عمانية وبيستان فقط لا غير');
+});
+
+test('tafqitAmount: بدون عملة يخرج العدد وحده بلا خاتمة', () => {
+    assert.equal(tafqitAmount(7, 'NONE'), 'سبعة');
 });
 
 // ==================== المواريث: العمريتان (البند 2) ====================
@@ -224,4 +253,77 @@ test('dateDiffYMD: فرق بسيط', () => {
 test('dateDiffYMD: نهاية قبل البداية تُعيد خطأ', () => {
     const d = dateDiffYMD('2025-01-01', '2020-01-01');
     assert.ok(d.error);
+});
+
+// ==================== توزيع مبالغ التركة (computeInheritanceAmounts) ====================
+
+// مبلغ مجموعة وارث معين من نتيجة التوزيع
+function amountOf(result, amounts, heirName) {
+    const idx = result.shares.findIndex(s => s.heir === heirName);
+    return idx > -1 ? amounts[idx] : undefined;
+}
+
+test('فرض + تعصيب: الأب مع بنت يأخذ السدس والباقي معاً', () => {
+    const r = computeInheritance(emptyHeirs({ father: 1, daughters: 1 }), 60000);
+    const amounts = computeInheritanceAmounts(r, 60000);
+    assert.equal(Math.round(amountOf(r, amounts, 'البنت')), 30000);
+    // الأب: 10000 فرضاً (السدس) + 20000 الباقي تعصيباً
+    assert.equal(Math.round(amountOf(r, amounts, 'الأب')), 30000);
+    const total = amounts.reduce((a, b) => a + b, 0);
+    assert.equal(Math.round(total), 60000);
+});
+
+test('الرد: بنت + أم بلا عصبة — الباقي يُرد بنسبة الفرضين ويستغرق التركة', () => {
+    const r = computeInheritance(emptyHeirs({ daughters: 1, mother: 1 }), 80000);
+    assert.ok(r.radd, 'المسألة ردّية');
+    const amounts = computeInheritanceAmounts(r, 80000);
+    // الفرضان 1/2 و1/6 (نسبة 3:1)، فالرد يوصلهما إلى 3/4 و1/4
+    assert.equal(Math.round(amountOf(r, amounts, 'البنت')), 60000);
+    assert.equal(Math.round(amountOf(r, amounts, 'الأم')), 20000);
+});
+
+test('الرد لا يشمل الزوجين: زوج + أم — الرد كله للأم', () => {
+    const r = computeInheritance(emptyHeirs({ husband: 1, mother: 1 }), 60000);
+    const amounts = computeInheritanceAmounts(r, 60000);
+    // الزوج نصفه فرضاً بلا زيادة، والأم ثلثها + الباقي رداً = النصف
+    assert.equal(Math.round(amountOf(r, amounts, 'الزوج')), 30000);
+    assert.equal(Math.round(amountOf(r, amounts, 'الأم')), 30000);
+});
+
+test('العول: زوج + شقيقتان — تُنقص الفروض بنسبها ويستغرق المجموع التركة', () => {
+    const r = computeInheritance(emptyHeirs({ husband: 1, sistersFull: 2 }), 70000);
+    assert.ok(r.awl, 'المسألة عائلة');
+    const amounts = computeInheritanceAmounts(r, 70000);
+    // الفروض 1/2 و2/3 (عالت إلى 7/6): الزوج 3/7 والأخوات 4/7
+    assert.equal(Math.round(amountOf(r, amounts, 'الزوج')), 30000);
+    assert.equal(Math.round(amountOf(r, amounts, 'الأخوات الشقيقات')), 40000);
+});
+
+test('التعصيب المحض: زوجة + ابن — الباقي بعد الثمن للعصبة', () => {
+    const r = computeInheritance(emptyHeirs({ wives: 1, sons: 1 }), 80000);
+    const amounts = computeInheritanceAmounts(r, 80000);
+    assert.equal(Math.round(amountOf(r, amounts, 'الزوجة')), 10000);
+    assert.equal(Math.round(amountOf(r, amounts, 'الأبناء')), 70000);
+});
+
+test('بلا قيمة تركة: المبالغ كلها صفر', () => {
+    const r = computeInheritance(emptyHeirs({ daughters: 1 }), 0);
+    const amounts = computeInheritanceAmounts(r, 0);
+    assert.ok(amounts.every(a => a === 0));
+});
+
+test('computeInheritance لا تعدّل كائن المدخلات وتعيد الورثة الأصليين', () => {
+    const heirs = emptyHeirs({ father: 1, grandfather: 1, brothersFull: 2 });
+    const r = computeInheritance(heirs, 0);
+    // الحجب يصفّر الجد والإخوة داخلياً، لكن مدخلات المستدعي تبقى كما هي
+    assert.equal(heirs.grandfather, 1);
+    assert.equal(heirs.brothersFull, 2);
+    assert.equal(r.originalHeirs.brothersFull, 2);
+});
+
+test('تسميات الجمع سليمة: الزوجات والجدات', () => {
+    const withWives = computeInheritance(emptyHeirs({ wives: 2, sons: 1 }), 0);
+    assert.ok(shareOf(withWives, 'الزوجات'), 'زوجتان تُعرضان باسم «الزوجات»');
+    const withGrandmas = computeInheritance(emptyHeirs({ grandmotherMother: 1, grandmotherFather: 1, sons: 1 }), 0);
+    assert.ok(shareOf(withGrandmas, 'الجدات'), 'جدتان تُعرضان باسم «الجدات»');
 });

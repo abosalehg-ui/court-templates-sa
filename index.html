@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
     <title>قوالب ضبط القضايا</title>
     <link rel="stylesheet" href="css/fonts.css">
     <link rel="stylesheet" href="css/style.css">
@@ -19,41 +19,41 @@
                 </div>
             </div>
             <div class="header-actions">
-                <button class="btn btn-secondary" onclick="openModal('tafqitModal')">🔢 تفقيط</button>
+                <button class="btn btn-secondary" data-action="open-modal" data-target="tafqitModal">🔢 تفقيط</button>
 <a class="btn btn-secondary" href="minutes.html">📝 مولّد الجلسة</a>
 <a class="btn btn-secondary" href="sakk.html">📜 معالج الصكوك</a>
 <div class="dropdown" id="calcDropdown">
-    <button class="btn btn-secondary" onclick="toggleDropdown(event)">
+    <button class="btn btn-secondary" data-action="toggle-dropdown">
         🧮 الحاسبات <span class="dropdown-arrow">▼</span>
     </button>
     <div class="dropdown-menu">
-        <button type="button" class="dropdown-item" onclick="selectCalc('inheritanceModal')">
+        <button type="button" class="dropdown-item" data-action="select-calc" data-target="inheritanceModal">
             <span class="dropdown-item-icon">📊</span>
             <span>المواريث</span>
         </button>
-        <button type="button" class="dropdown-item" onclick="selectCalc('expertModal')">
+        <button type="button" class="dropdown-item" data-action="select-calc" data-target="expertModal">
             <span class="dropdown-item-icon">💼</span>
             <span>أتعاب الخبرة</span>
         </button>
-        <button type="button" class="dropdown-item" onclick="selectCalc('damagesModal')">
+        <button type="button" class="dropdown-item" data-action="select-calc" data-target="damagesModal">
             <span class="dropdown-item-icon">⚠️</span>
             <span>تقدير الأضرار</span>
         </button>
-        <button type="button" class="dropdown-item" onclick="selectCalc('trafficModal')">
+        <button type="button" class="dropdown-item" data-action="select-calc" data-target="trafficModal">
             <span class="dropdown-item-icon">🚗</span>
             <span>الأضرار المرورية</span>
         </button>
-        <button type="button" class="dropdown-item" onclick="selectCalc('diyatModal')">
+        <button type="button" class="dropdown-item" data-action="select-calc" data-target="diyatModal">
         <span class="dropdown-item-icon">📜</span>
         <span>الديات والشجاج</span>
         </button>
-        <button type="button" class="dropdown-item" onclick="selectCalc('eosModal')">
+        <button type="button" class="dropdown-item" data-action="select-calc" data-target="eosModal">
         <span class="dropdown-item-icon">💰</span>
         <span>مكافأة نهاية الخدمة</span>
         </button>
     </div>
 </div>
-                <button class="btn btn-icon btn-secondary" onclick="toggleTheme()" title="الوضع الليلي" aria-label="تبديل الوضع الليلي">🌙</button>
+                <button class="btn btn-icon btn-secondary" data-action="toggle-theme" title="الوضع الليلي" aria-label="تبديل الوضع الليلي">🌙</button>
             </div>
         </div>
     </header>
@@ -86,14 +86,14 @@
                 <div class="template-detail-header">
                     <span class="template-detail-title" id="detailTitle"></span>
                     <div style="display: flex; gap: 0.5rem; align-items: center;">
-                        <button class="fav-btn" id="favBtn" onclick="toggleFavorite()" title="إضافة للمفضلة" aria-label="إضافة للمفضلة" aria-pressed="false">☆</button>
-                        <button class="back-btn" onclick="backToList()">→ رجوع للقائمة</button>
+                        <button class="fav-btn" id="favBtn" data-action="toggle-favorite" title="إضافة للمفضلة" aria-label="إضافة للمفضلة" aria-pressed="false">☆</button>
+                        <button class="back-btn" data-action="back-to-list">→ رجوع للقائمة</button>
                     </div>
                 </div>
                 <div class="template-text" id="detailContent"></div>
                 <div class="detail-actions">
-                    <button class="btn btn-primary" onclick="copyCurrentTemplate()">📋 نسخ النموذج</button>
-                    <button class="btn btn-secondary" onclick="printTemplate()">🖨️ طباعة</button>
+                    <button class="btn btn-primary" data-action="copy-template">📋 نسخ النموذج</button>
+                    <button class="btn btn-secondary" data-action="print-page">🖨️ طباعة</button>
                 </div>
             </div>
         </main>
@@ -117,14 +117,14 @@
 
             <!-- Quick Tafqit -->
             <div class="tool-card">
-                <button type="button" class="tool-header" onclick="toggleTool(this)" aria-expanded="true">🔢 تفقيط سريع</button>
+                <button type="button" class="tool-header" data-action="toggle-tool" aria-expanded="true">🔢 تفقيط سريع</button>
                 <div class="tool-body">
                     <div class="form-group">
                         <label>المبلغ بالريال</label>
                         <input type="number" class="form-control" id="quickTafqitInput" placeholder="أدخل المبلغ">
                     </div>
                     <div class="result-box" id="quickTafqitResult">أدخل المبلغ لتحويله</div>
-                    <button class="btn btn-primary" style="width: 100%; margin-top: 0.75rem;" onclick="copyQuickTafqit()">📋 نسخ</button>
+                    <button class="btn btn-primary" style="width: 100%; margin-top: 0.75rem;" data-action="copy-quick-tafqit">📋 نسخ</button>
                 </div>
             </div>
 
@@ -139,7 +139,7 @@
 
             <!-- Favorites -->
             <div class="tool-card">
-                <button type="button" class="tool-header" onclick="toggleTool(this)" aria-expanded="true">⭐ المفضلة</button>
+                <button type="button" class="tool-header" data-action="toggle-tool" aria-expanded="true">⭐ المفضلة</button>
                 <div class="tool-body">
                     <div class="favorites-list" id="favoritesList">
                         <div class="empty-state" style="padding: 1rem; font-size: 0.9rem;">
@@ -151,7 +151,7 @@
 
             <!-- History -->
             <div class="tool-card">
-                <button type="button" class="tool-header" onclick="toggleTool(this)" aria-expanded="true">📜 السجل</button>
+                <button type="button" class="tool-header" data-action="toggle-tool" aria-expanded="true">📜 السجل</button>
                 <div class="tool-body">
                     <div class="history-list" id="historyList">
                         <div class="empty-state" style="padding: 1rem; font-size: 0.9rem;">
@@ -170,12 +170,12 @@
 
     <!-- Mobile Nav -->
     <nav class="mobile-nav" aria-label="التنقل السفلي">
-        <button type="button" class="mobile-nav-item active" onclick="toggleSidebar()">📁<span>التصنيفات</span></button>
-        <button type="button" class="mobile-nav-item" onclick="openModal('tafqitModal')">🔢<span>تفقيط</span></button>
-        <button type="button" class="mobile-nav-item" onclick="location.href='minutes.html'">📝<span>مولّد الجلسة</span></button>
-        <button type="button" class="mobile-nav-item" onclick="location.href='sakk.html'">📜<span>الصكوك</span></button>
-        <button type="button" class="mobile-nav-item" onclick="openMobileCalcs()">🧮<span>الحاسبات</span></button>
-        <button type="button" class="mobile-nav-item" onclick="toggleTheme()">🌙<span>الوضع</span></button>
+        <button type="button" class="mobile-nav-item active" data-action="toggle-sidebar">📁<span>التصنيفات</span></button>
+        <button type="button" class="mobile-nav-item" data-action="open-modal" data-target="tafqitModal">🔢<span>تفقيط</span></button>
+        <button type="button" class="mobile-nav-item" data-action="navigate" data-target="minutes.html">📝<span>مولّد الجلسة</span></button>
+        <button type="button" class="mobile-nav-item" data-action="navigate" data-target="sakk.html">📜<span>الصكوك</span></button>
+        <button type="button" class="mobile-nav-item" data-action="open-mobile-calcs">🧮<span>الحاسبات</span></button>
+        <button type="button" class="mobile-nav-item" data-action="toggle-theme">🌙<span>الوضع</span></button>
     </nav>
 
     <!-- Tafqit Modal -->
@@ -183,16 +183,16 @@
         <div class="modal">
             <div class="modal-header">
                 <h2 id="tafqitModalTitle">🔢 تحويل الأرقام إلى كتابة (التفقيط)</h2>
-                <button type="button" class="modal-close" aria-label="إغلاق النافذة" onclick="closeModal('tafqitModal')">&times;</button>
+                <button type="button" class="modal-close" aria-label="إغلاق النافذة" data-action="close-modal" data-target="tafqitModal">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="form-group">
                     <label>المبلغ</label>
-                    <input type="number" class="form-control" id="tafqitNumber" placeholder="أدخل الرقم" oninput="convertToText()">
+                    <input type="number" class="form-control" id="tafqitNumber" placeholder="أدخل الرقم">
                 </div>
                 <div class="form-group">
                     <label>العملة</label>
-                    <select class="form-control" id="tafqitCurrency" onchange="convertToText()">
+                    <select class="form-control" id="tafqitCurrency">
                         <option value="SAR">ريال سعودي</option>
                         <option value="USD">دولار أمريكي</option>
                         <option value="EUR">يورو</option>
@@ -209,7 +209,7 @@
                 </div>
                 <div class="form-group">
                     <label>طريقة كتابة المائة</label>
-                    <select class="form-control" id="tafqitStyle" onchange="convertToText()">
+                    <select class="form-control" id="tafqitStyle">
                         <option value="مائة">مائة</option>
                         <option value="مئة">مئة</option>
                     </select>
@@ -217,7 +217,7 @@
                 <div class="result-box" id="tafqitResult" style="font-size: 1.2rem; min-height: 80px;">
                     أدخل الرقم لتحويله إلى كتابة
                 </div>
-                <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;" onclick="copyTafqitResult()">
+                <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;" data-action="copy-tafqit">
                     📋 نسخ النتيجة
                 </button>
             </div>
@@ -229,12 +229,12 @@
         <div class="modal" style="max-width: 1000px;">
             <div class="modal-header">
                 <h2 id="inheritanceModalTitle">📊 حاسبة المواريث الشرعية</h2>
-                <button type="button" class="modal-close" aria-label="إغلاق النافذة" onclick="closeModal('inheritanceModal')">&times;</button>
+                <button type="button" class="modal-close" aria-label="إغلاق النافذة" data-action="close-modal" data-target="inheritanceModal">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="tabs">
-                    <button type="button" class="tab active" onclick="switchTab(this, 'heirsTab')">الورثة</button>
-                    <button type="button" class="tab" onclick="switchTab(this, 'resultTab')">النتيجة</button>
+                    <button type="button" class="tab active" data-action="switch-tab" data-target="heirsTab">الورثة</button>
+                    <button type="button" class="tab" data-action="switch-tab" data-target="resultTab">النتيجة</button>
                 </div>
 
                 <div id="heirsTab" class="tab-content active">
@@ -357,7 +357,7 @@
                         <input type="number" class="form-control" id="estateValue" placeholder="أدخل قيمة التركة بالريال">
                     </div>
 
-                    <button class="btn btn-primary" style="width: 100%; margin-top: 1rem; padding: 1rem;" onclick="calculateInheritance()">
+                    <button class="btn btn-primary" style="width: 100%; margin-top: 1rem; padding: 1rem;" data-action="calculate-inheritance">
                         حساب المواريث
                     </button>
                 </div>
@@ -378,27 +378,27 @@
     <div class="modal">
         <div class="modal-header">
             <h2 id="expertModalTitle">💼 حاسبة أتعاب الخبرة</h2>
-            <button type="button" class="modal-close" aria-label="إغلاق النافذة" onclick="closeModal('expertModal')">&times;</button>
+            <button type="button" class="modal-close" aria-label="إغلاق النافذة" data-action="close-modal" data-target="expertModal">&times;</button>
         </div>
         <div class="modal-body">
             <div class="form-group">
                 <label>أصل المطالبة (ريال)</label>
-                <input type="number" class="form-control" id="claimAmount" placeholder="المبلغ الذي طالب به المدعي" oninput="calculateExpertFees()">
+                <input type="number" class="form-control" id="claimAmount" placeholder="المبلغ الذي طالب به المدعي">
             </div>
             <div class="form-group">
                 <label>المبلغ المحكوم به (ريال)</label>
-                <input type="number" class="form-control" id="awardedAmount" placeholder="المبلغ الذي حكمت به المحكمة" oninput="calculateExpertFees()">
+                <input type="number" class="form-control" id="awardedAmount" placeholder="المبلغ الذي حكمت به المحكمة">
             </div>
             <div class="form-group">
                 <label>قيمة أتعاب الخبير (ريال)</label>
-                <input type="number" class="form-control" id="expertFees" placeholder="إجمالي أتعاب الخبير" oninput="calculateExpertFees()">
+                <input type="number" class="form-control" id="expertFees" placeholder="إجمالي أتعاب الخبير">
             </div>
             
             <div id="expertResult" style="margin-top: 1.5rem;">
                 <div class="result-box">أدخل البيانات لحساب التوزيع</div>
             </div>
             
-            <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;" onclick="copyExpertResult()">
+            <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;" data-action="copy-expert">
                 📋 نسخ النتيجة
             </button>
             
@@ -414,23 +414,23 @@
     <div class="modal">
         <div class="modal-header">
             <h2 id="damagesModalTitle">⚠️ حاسبة تقدير الأضرار</h2>
-            <button type="button" class="modal-close" aria-label="إغلاق النافذة" onclick="closeModal('damagesModal')">&times;</button>
+            <button type="button" class="modal-close" aria-label="إغلاق النافذة" data-action="close-modal" data-target="damagesModal">&times;</button>
         </div>
         <div class="modal-body">
             <div class="form-group">
                 <label>قيمة الضرر (ريال)</label>
-                <input type="number" class="form-control" id="damageValue" placeholder="إجمالي قيمة الضرر" oninput="calculateDamages()">
+                <input type="number" class="form-control" id="damageValue" placeholder="إجمالي قيمة الضرر">
             </div>
             <div class="form-group">
                 <label>نسبة المسؤولية (%)</label>
-                <input type="number" class="form-control" id="responsibilityRatio" placeholder="من 0 إلى 100" min="0" max="100" oninput="calculateDamages()">
+                <input type="number" class="form-control" id="responsibilityRatio" placeholder="من 0 إلى 100" min="0" max="100">
             </div>
             
             <div id="damagesResult" style="margin-top: 1.5rem;">
                 <div class="result-box">أدخل البيانات لحساب التعويض</div>
             </div>
             
-            <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;" onclick="copyDamagesResult()">
+            <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;" data-action="copy-damages">
                 📋 نسخ النتيجة
             </button>
         </div>
@@ -442,31 +442,31 @@
     <div class="modal">
         <div class="modal-header">
             <h2 id="trafficModalTitle">🚗 حاسبة الأضرار المرورية</h2>
-            <button type="button" class="modal-close" aria-label="إغلاق النافذة" onclick="closeModal('trafficModal')">&times;</button>
+            <button type="button" class="modal-close" aria-label="إغلاق النافذة" data-action="close-modal" data-target="trafficModal">&times;</button>
         </div>
         <div class="modal-body">
             <div class="form-group">
                 <label>تقدير التلفيات (ريال)</label>
-                <input type="number" class="form-control" id="trafficDamages" placeholder="قيمة التلفيات" oninput="calculateTraffic()">
+                <input type="number" class="form-control" id="trafficDamages" placeholder="قيمة التلفيات">
             </div>
             <div class="form-group">
                 <label>رسوم التقدير (ريال)</label>
-                <input type="number" class="form-control" id="trafficFees" placeholder="رسوم تقدير الأضرار" oninput="calculateTraffic()">
+                <input type="number" class="form-control" id="trafficFees" placeholder="رسوم تقدير الأضرار">
             </div>
             <div class="form-group">
                 <label>رسوم شحن المركبة (ريال)</label>
-                <input type="number" class="form-control" id="trafficShipping" placeholder="رسوم سطحة/شحن" oninput="calculateTraffic()">
+                <input type="number" class="form-control" id="trafficShipping" placeholder="رسوم سطحة/شحن">
             </div>
             <div class="form-group">
                 <label>تلفيات أو أضرار أخرى (ريال)</label>
-                <input type="number" class="form-control" id="trafficOther" placeholder="أضرار إضافية" oninput="calculateTraffic()">
+                <input type="number" class="form-control" id="trafficOther" placeholder="أضرار إضافية">
             </div>
             
             <div id="trafficResult" style="margin-top: 1.5rem;">
                 <div class="result-box">أدخل البيانات لحساب المجموع</div>
             </div>
             
-            <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;" onclick="copyTrafficResult()">
+            <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;" data-action="copy-traffic">
                 📋 نسخ النتيجة
             </button>
         </div>
@@ -478,30 +478,30 @@
     <div class="modal" style="max-width: 400px;">
         <div class="modal-header">
             <h2 id="mobileCalcsModalTitle">🧮 اختر الحاسبة</h2>
-            <button type="button" class="modal-close" aria-label="إغلاق النافذة" onclick="closeModal('mobileCalcsModal')">&times;</button>
+            <button type="button" class="modal-close" aria-label="إغلاق النافذة" data-action="close-modal" data-target="mobileCalcsModal">&times;</button>
         </div>
         <div class="modal-body">
-            <button type="button" class="dropdown-item" style="border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 0.75rem; padding: 1rem 1.25rem;" onclick="selectMobileCalc('inheritanceModal')">
+            <button type="button" class="dropdown-item" style="border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 0.75rem; padding: 1rem 1.25rem;" data-action="select-mobile-calc" data-target="inheritanceModal">
                 <span class="dropdown-item-icon">📊</span>
                 <span>المواريث</span>
             </button>
-            <button type="button" class="dropdown-item" style="border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 0.75rem; padding: 1rem 1.25rem;" onclick="selectMobileCalc('expertModal')">
+            <button type="button" class="dropdown-item" style="border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 0.75rem; padding: 1rem 1.25rem;" data-action="select-mobile-calc" data-target="expertModal">
                 <span class="dropdown-item-icon">💼</span>
                 <span>أتعاب الخبرة</span>
             </button>
-            <button type="button" class="dropdown-item" style="border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 0.75rem; padding: 1rem 1.25rem;" onclick="selectMobileCalc('damagesModal')">
+            <button type="button" class="dropdown-item" style="border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 0.75rem; padding: 1rem 1.25rem;" data-action="select-mobile-calc" data-target="damagesModal">
                 <span class="dropdown-item-icon">⚠️</span>
                 <span>تقدير الأضرار</span>
             </button>
-            <button type="button" class="dropdown-item" style="border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 0.75rem; padding: 1rem 1.25rem;" onclick="selectMobileCalc('trafficModal')">
+            <button type="button" class="dropdown-item" style="border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 0.75rem; padding: 1rem 1.25rem;" data-action="select-mobile-calc" data-target="trafficModal">
                 <span class="dropdown-item-icon">🚗</span>
                 <span>الأضرار المرورية</span>
             </button>
-            <button type="button" class="dropdown-item" style="border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 0.75rem; padding: 1rem 1.25rem;" onclick="selectMobileCalc('diyatModal')">
+            <button type="button" class="dropdown-item" style="border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 0.75rem; padding: 1rem 1.25rem;" data-action="select-mobile-calc" data-target="diyatModal">
                 <span class="dropdown-item-icon">📜</span>
                 <span>الديات والشجاج</span>
             </button>
-            <button type="button" class="dropdown-item" style="border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem;" onclick="selectMobileCalc('eosModal')">
+            <button type="button" class="dropdown-item" style="border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem;" data-action="select-mobile-calc" data-target="eosModal">
                 <span class="dropdown-item-icon">💰</span>
                 <span>مكافأة نهاية الخدمة</span>
             </button>
@@ -514,35 +514,35 @@
     <div class="modal" style="max-width: 800px;">
         <div class="modal-header">
             <h2 id="diyatModalTitle">📜 حاسبة الديات والشجاج</h2>
-            <button type="button" class="modal-close" aria-label="إغلاق النافذة" onclick="closeModal('diyatModal')">&times;</button>
+            <button type="button" class="modal-close" aria-label="إغلاق النافذة" data-action="close-modal" data-target="diyatModal">&times;</button>
         </div>
         <div class="modal-body">
             <div class="diyat-options">
                 <div class="option-group">
                     <label>الجنس</label>
                     <div class="option-buttons">
-                        <button class="option-btn active" data-type="gender" data-value="male" onclick="setDiyatOption(this)">رجل</button>
-                        <button class="option-btn" data-type="gender" data-value="female" onclick="setDiyatOption(this)">امرأة</button>
+                        <button class="option-btn active" data-type="gender" data-value="male" data-action="diyat-option">رجل</button>
+                        <button class="option-btn" data-type="gender" data-value="female" data-action="diyat-option">امرأة</button>
                     </div>
                 </div>
                 <div class="option-group">
                     <label>نوع الجناية</label>
                     <div class="option-buttons">
-                        <button class="option-btn active" data-type="crime" data-value="Amd" onclick="setDiyatOption(this)">عمد وشبهه</button>
-                        <button class="option-btn" data-type="crime" data-value="Khata" onclick="setDiyatOption(this)">خطأ</button>
+                        <button class="option-btn active" data-type="crime" data-value="Amd" data-action="diyat-option">عمد وشبهه</button>
+                        <button class="option-btn" data-type="crime" data-value="Khata" data-action="diyat-option">خطأ</button>
                     </div>
                 </div>
                 <div class="option-group">
                     <label>وحدة الدية</label>
                     <div class="option-buttons">
-                        <button class="option-btn active" data-type="unit" data-value="riyal" onclick="setDiyatOption(this)">ريال</button>
-                        <button class="option-btn" data-type="unit" data-value="camel" onclick="setDiyatOption(this)">إبل</button>
+                        <button class="option-btn active" data-type="unit" data-value="riyal" data-action="diyat-option">ريال</button>
+                        <button class="option-btn" data-type="unit" data-value="camel" data-action="diyat-option">إبل</button>
                     </div>
                 </div>
             </div>
 
             <div class="form-group">
-                <input type="text" class="form-control" id="diyatSearch" placeholder="🔍 ابحث عن عضو أو منفعة (مثل: النفس، اللسان، الأنف...)" oninput="filterDiyatList()">
+                <input type="text" class="form-control" id="diyatSearch" placeholder="🔍 ابحث عن عضو أو منفعة (مثل: النفس، اللسان، الأنف...)">
             </div>
 
             <div class="diyat-list" id="diyatList"></div>
@@ -571,12 +571,12 @@
     <div class="modal" style="max-width: 700px;">
         <div class="modal-header">
             <h2 id="eosModalTitle">💰 حاسبة مكافأة نهاية الخدمة</h2>
-            <button type="button" class="modal-close" aria-label="إغلاق النافذة" onclick="closeModal('eosModal')">&times;</button>
+            <button type="button" class="modal-close" aria-label="إغلاق النافذة" data-action="close-modal" data-target="eosModal">&times;</button>
         </div>
         <div class="modal-body">
             <div class="form-group">
                 <label>سبب انتهاء العلاقة العمالية</label>
-                <select class="form-control" id="eosReason" onchange="calculateEOS()">
+                <select class="form-control" id="eosReason">
                     <option value="employer">انتهاء مدة العقد أو فسخه من قبل صاحب العمل (المادة 84)</option>
                     <option value="resignation">استقالة العامل (المادة 85)</option>
                     <option value="art81">فسخ العامل للعقد لإحدى حالات المادة (81)</option>
@@ -588,14 +588,14 @@
 
             <div class="form-group">
                 <label>الأجر الشهري الأخير (ريال)</label>
-                <input type="number" class="form-control" id="eosWage" min="0" placeholder="الأجر الفعلي الأخير (الأساسي + البدلات الثابتة)" oninput="calculateEOS()">
+                <input type="number" class="form-control" id="eosWage" min="0" placeholder="الأجر الفعلي الأخير (الأساسي + البدلات الثابتة)">
             </div>
 
             <div class="option-group" style="margin-bottom: 1rem;">
                 <label>طريقة إدخال مدة الخدمة</label>
                 <div class="option-buttons">
-                    <button class="option-btn active" data-value="dates" onclick="setEosDurationMode(this)">بالتواريخ</button>
-                    <button class="option-btn" data-value="manual" onclick="setEosDurationMode(this)">إدخال يدوي</button>
+                    <button class="option-btn active" data-value="dates" data-action="eos-duration-mode">بالتواريخ</button>
+                    <button class="option-btn" data-value="manual" data-action="eos-duration-mode">إدخال يدوي</button>
                 </div>
             </div>
 
@@ -603,11 +603,11 @@
                 <div class="heirs-grid">
                     <div class="heir-input">
                         <label>تاريخ بداية الخدمة</label>
-                        <input type="date" id="eosStartDate" onchange="calculateEOS()">
+                        <input type="date" id="eosStartDate">
                     </div>
                     <div class="heir-input">
                         <label>تاريخ انتهاء الخدمة</label>
-                        <input type="date" id="eosEndDate" onchange="calculateEOS()">
+                        <input type="date" id="eosEndDate">
                     </div>
                 </div>
             </div>
@@ -616,15 +616,15 @@
                 <div class="heirs-grid">
                     <div class="heir-input">
                         <label>سنوات</label>
-                        <input type="number" id="eosYears" min="0" value="0" oninput="calculateEOS()">
+                        <input type="number" id="eosYears" min="0" value="0">
                     </div>
                     <div class="heir-input">
                         <label>أشهر</label>
-                        <input type="number" id="eosMonths" min="0" max="11" value="0" oninput="calculateEOS()">
+                        <input type="number" id="eosMonths" min="0" max="11" value="0">
                     </div>
                     <div class="heir-input">
                         <label>أيام</label>
-                        <input type="number" id="eosDays" min="0" max="29" value="0" oninput="calculateEOS()">
+                        <input type="number" id="eosDays" min="0" max="29" value="0">
                     </div>
                 </div>
             </div>
@@ -633,7 +633,7 @@
                 <div class="result-box">أدخل البيانات لحساب المكافأة</div>
             </div>
 
-            <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;" onclick="copyEOSResult()">
+            <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;" data-action="copy-eos">
                 📋 نسخ النتيجة
             </button>
 
@@ -654,6 +654,7 @@
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 
+<script src="js/text-utils.js"></script>
 <script src="data/diyat-data.js"></script>
 <script src="data/templates.js"></script>
 <script src="js/calc.js"></script>
