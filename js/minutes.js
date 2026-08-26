@@ -94,21 +94,23 @@ if (typeof normalizeArabicSearch === 'undefined' && typeof require !== 'undefine
     var { normalizeArabicSearch, convertArabicDigits } = require('./text-utils.js');
 }
 
-// مطلع نماذج التسبيب المنسّقة في مقدمة تصنيف (أسباب الحكم) — علامة تعرُّف على المجموعة
-// (يُقارَن مطبَّعًا، فلا يضره تشكيل النص ولا اختلاف الألف المقصورة)
-const CURATED_REASON_OPENER = 'فبيان الدعوى';
-// احتياطي إن تغيّر مطلع النماذج المنسّقة مستقبلًا
+// مطالع نماذج التسبيب المنسّقة في مقدمة تصنيف (أسباب الحكم) — علامة تعرُّف على المجموعة
+// (تُقارَن مطبَّعة، فلا يضرها تشكيل النص ولا اختلاف الألف المقصورة والهمزات)
+const CURATED_REASON_OPENERS = ['فبيان الدعوى', 'فبناءً على ما تقدم من الدعوى'];
+const CURATED_REASON_OPENER = CURATED_REASON_OPENERS[0];
+// احتياطي إن تغيّرت مطالع النماذج المنسّقة مستقبلًا
 const CURATED_REASONS_FALLBACK = 31;
 
-// عدد النماذج المنسّقة = الطول المتصل في مقدمة التصنيف الذي يبدأ بمطلعها الموحّد
+// عدد النماذج المنسّقة = الطول المتصل في مقدمة التصنيف الذي يبدأ بأحد مطالعها المعتمدة
 function curatedReasonsCount(list) {
     const arr = Array.isArray(list) ? list : templatesOfCategory('أسباب الحكم');
-    const opener = normalizeArabicSearch(CURATED_REASON_OPENER);
+    const openers = CURATED_REASON_OPENERS.map(normalizeArabicSearch);
+    const headLen = Math.max(...openers.map(o => o.length)) * 3;
     let count = 0;
     for (let i = 0; i < arr.length; i++) {
         // يكفي مطلع النص، فلا حاجة لتطبيع النموذج كاملاً
-        const head = String((arr[i] && arr[i].content) || '').slice(0, opener.length * 3);
-        if (!normalizeArabicSearch(head).startsWith(opener)) break;
+        const head = normalizeArabicSearch(String((arr[i] && arr[i].content) || '').slice(0, headLen));
+        if (!openers.some(o => head.startsWith(o))) break;
         count++;
     }
     return count || Math.min(CURATED_REASONS_FALLBACK, arr.length);
@@ -855,10 +857,43 @@ function buildFormalPleaClause(state) {
     return out;
 }
 
+// ====== الغياب بلا سؤال عن البينة — الفقرة (3) من المادة (21) من نظام الإثبات ======
+// خيار «بدون سؤال عن البينة»: لا يُسأل المدعي عن بينته، ويُقفل باب المرافعة بهذه الصيغة
+// وحدها، فتُغني عن فقرة القفل التلقائية (buildClosingArgumentText) فلا يتكرر القفل.
+const NO_EVIDENCE_QUESTION_CLOSING = 'قررت الدائرة إغلاق باب المرافعة لصلاحية الدعوى للحكم';
+
+// صيغ التسبيب الثلاث بحسب صفة المدعى عليه — وهي نفسها نماذج (أسباب الحكم) 1-3 في المكتبة
+const ABSENCE_REASONS_M21 = {
+    male: 'فبناءً على ما تقدم من الدعوى، وبما أن المدعى عليه قد تبلّغ بموعد هذه الجلسة، ولم يحضر أو يحضر من يمثله في الموعد المحدد، كما لم يودع مذكرة بدفاعه، رغم ما أوجبته المادة الخامسة والأربعون من نظام المرافعات الشرعية من إيداع المدعى عليه مذكرة بدفاعه قبل الجلسة خلال الميعاد المقرر نظامًا؛ وبما أن المدعى عليه لم يقدم جوابًا عن الدعوى، ولم ينازع في استحقاق المدعي، ولم ينكر الحق المدعى به، رغم علمه بالدعوى وموعد نظرها؛ وبما أن البينة على من ادعى، واليمين على من أنكر، ولم يصدر من المدعى عليه إنكار يقتضي الانتقال إلى طلب البينة لمواجهته؛ واستنادًا إلى الفقرة الثالثة من المادة الحادية والعشرين من نظام الإثبات، التي أجازت للمحكمة أن تستخلص من تخلف الخصم عن الحضور أو امتناعه عن الإجابة ما تراه؛ فقد استخلصت الدائرة من تخلف المدعى عليه عن الحضور وعدم تقديمه جوابًا عدم منازعته في الحق المدعى به، وعدم قيام ما يعارض ظاهر الدعوى أو ينفي استحقاق المدعي له؛ الأمر الذي تنتهي معه الدائرة إلى الحكم بما يرد في منطوقه.',
+    female: 'فبناءً على ما تقدم من الدعوى، وبما أن المدعى عليها قد تبلّغت بموعد هذه الجلسة، ولم تحضر في الموعد المحدد، كما لم يحضر من يمثلها، ولم تودع مذكرة بدفاعها، رغم ما أوجبته المادة الخامسة والأربعون من نظام المرافعات الشرعية من إيداع المدعى عليه مذكرة بدفاعه قبل الجلسة خلال الميعاد المقرر نظامًا؛ وبما أن المدعى عليها لم تقدم جوابًا عن الدعوى، ولم تنازع في استحقاق المدعي، ولم تنكر الحق المدعى به، رغم علمها بالدعوى وموعد نظرها؛ وبما أن البينة على من ادعى، واليمين على من أنكر، ولم يصدر من المدعى عليها إنكار يقتضي الانتقال إلى طلب البينة لمواجهته؛ واستنادًا إلى الفقرة الثالثة من المادة الحادية والعشرين من نظام الإثبات، التي أجازت للمحكمة أن تستخلص من تخلف الخصم عن الحضور أو امتناعه عن الإجابة ما تراه؛ فقد استخلصت الدائرة من تخلف المدعى عليها عن الحضور وعدم تقديمها جوابًا عدم منازعتها في الحق المدعى به، وعدم قيام ما يعارض ظاهر الدعوى أو ينفي استحقاق المدعي له؛ الأمر الذي تنتهي معه الدائرة إلى الحكم بما يرد في منطوقه.',
+    company: 'فبناءً على ما تقدم من الدعوى، وبما أن المدعى عليها قد تبلّغت بموعد هذه الجلسة، ولم يحضر من يمثلها في الموعد المحدد، كما لم تودع مذكرة بدفاعها، رغم ما أوجبته المادة الخامسة والأربعون من نظام المرافعات الشرعية من إيداع المدعى عليه مذكرة بدفاعه قبل الجلسة خلال الميعاد المقرر نظامًا؛ وبما أن المدعى عليها لم تقدم جوابًا عن الدعوى، ولم تنازع في استحقاق المدعي، ولم تنكر الحق المدعى به، رغم علمها بالدعوى وموعد نظرها؛ وبما أن البينة على من ادعى، واليمين على من أنكر، ولم يصدر من المدعى عليها إنكار يقتضي الانتقال إلى طلب البينة لمواجهته؛ واستنادًا إلى الفقرة الثالثة من المادة الحادية والعشرين من نظام الإثبات، التي أجازت للمحكمة أن تستخلص من تخلف الخصم عن الحضور أو امتناعه عن الإجابة ما تراه؛ فقد استخلصت الدائرة من تخلف المدعى عليها عن الحضور وعدم تقديمها جوابًا عدم منازعتها في الحق المدعى به، وعدم قيام ما يعارض ظاهر الدعوى أو ينفي استحقاق المدعي له؛ الأمر الذي تنتهي معه الدائرة إلى الحكم بما يرد في منطوقه.'
+};
+
+// الوقف شخصية اعتبارية، غير أن المولد يعامله معاملة المذكر (حضر الوقف / المدعى عليه)،
+// فيأخذ صيغة المذكر وهي مستقيمة فيه: «ولم يحضر أو يحضر من يمثله»
+function absenceReasonsVariant(state) {
+    const d = (state && state.defendant) || {};
+    if (d.entityType === ENTITY_TYPES.COMPANY) return 'company';
+    return d.gender === 'ف' ? 'female' : 'male';
+}
+
+function absenceReasonsText(state) {
+    return ABSENCE_REASONS_M21[absenceReasonsVariant(state)];
+}
+
+// هل النص المكتوب في حقل الأسباب من توليد الخيار لا من كتابة القاضي؟
+// (يُميَّز بذلك ما يجوز استبداله تلقائيًا عند تغيّر صفة المدعى عليه أو الرجوع عن الخيار)
+function isAbsenceReasonsText(text) {
+    const t = String(text == null ? '' : text).trim();
+    return Object.keys(ABSENCE_REASONS_M21).some(k => ABSENCE_REASONS_M21[k] === t);
+}
+
 // تكليف المدعي بالبينة وعرضها — لا يقع إلا بعد إنكار المدعى عليه أو غيابه
 function buildPlaintiffEvidenceText(state, opts) {
     const options = opts || {};
     const c = state.claim;
+    // «بدون سؤال عن البينة»: تُسقط الفقرة كلها — تمهيدها وسؤالها واليمين — ويبقى قفل المرافعة
+    if (c.evidenceChoice === 'noQuestion') return ` ${NO_EVIDENCE_QUESTION_CLOSING}`;
     const s = state.plaintiff;
     const pGender = s.gender;
     const pName = partyLabel('plaintiff', pGender);
@@ -1161,7 +1196,8 @@ function composeMinutes(state) {
             // لا يُقفل باب المرافعة إذا وُجهت اليمين لمدعى عليه غائب (تُحدد جلسة قادمة)
             const oathNotificationAdjournment = state.sessionType === 'new' && state.claim.requestOath && !state.claim.declineOath && state.defendant.attendance === 'لم يحضر';
             if (!oathNotificationAdjournment) {
-                const closingArgument = buildClosingArgumentText(state);
+                // خيار «بدون سؤال عن البينة» يقفل باب المرافعة بصيغته، فلا تُضاف الفقرة التلقائية
+                const closingArgument = text.includes(NO_EVIDENCE_QUESTION_CLOSING) ? '' : buildClosingArgumentText(state);
                 if (closingArgument) text = `${appendClause(text, closingArgument)}.`;
                 rulingApplies = true;
             }
@@ -1364,7 +1400,7 @@ if (typeof module !== 'undefined' && module.exports) {
         ordinalWord, partyLabel, multiPartyLabel, agentPossessive,
         kinshipDegree, asharDegree, degreeOrdinal, asharTemplate,
         findTemplate, templatesOfCategory,
-        normalizeArabicSearch, searchTemplates, curatedReasonsCount, CURATED_REASON_OPENER,
+        normalizeArabicSearch, searchTemplates, curatedReasonsCount, CURATED_REASON_OPENER, CURATED_REASON_OPENERS,
         freshPartyState, freshExtraParty, freshWitness, freshEvidenceBlock,
         freshClaimState, freshRulingState, freshFollowUpState, freshMinutesState,
         buildOpening, buildAgencyVerificationClause, buildKinshipPhrase, buildAccompanyingAgentClause,
@@ -1376,6 +1412,7 @@ if (typeof module !== 'undefined' && module.exports) {
         buildClaimEvidenceText, buildProceedingsAfterClaim, buildDefendantAnswerClause,
         buildAdmissionClause, buildFormalPleaClause,
         buildPlaintiffEvidenceText, buildDefendantEvidenceText, buildFollowUpProceedings,
+        NO_EVIDENCE_QUESTION_CLOSING, ABSENCE_REASONS_M21, absenceReasonsVariant, absenceReasonsText, isAbsenceReasonsText,
         noticeKindFor, buildNoticeText, buildPresenceClause, buildRulingSection,
         getOathDefendantStatus, composeMinutes, collectWarnings, evidenceWarnings, rulingWarnings
     };

@@ -564,14 +564,20 @@ function handleChoice(key, value) {
     }
     if (key === 'evidence-choice') {
         state.claim.evidenceChoice = value;
-        $('evidenceTextField').style.display = value === 'has' ? 'block' : 'none';
-        $('moreEvidenceSection').style.display = value === 'has' ? 'block' : 'none';
-        $('oathSection').style.display = (value === 'none' || state.claim.hasMoreEvidence === 'لا') ? 'block' : 'none';
+        const hasEvidence = value === 'has';
+        $('evidenceTextField').style.display = hasEvidence ? 'block' : 'none';
+        $('moreEvidenceSection').style.display = hasEvidence ? 'block' : 'none';
+        // «بدون سؤال عن البينة»: لا سؤال يُوجَّه فلا محل لتوجيه اليمين
+        $('oathSection').style.display =
+            (value === 'none' || (hasEvidence && state.claim.hasMoreEvidence === 'لا')) ? 'block' : 'none';
+        $('noEvidenceQuestionHint').style.display = value === 'noQuestion' ? 'block' : 'none';
+        syncAbsenceReasons();
         return;
     }
     if (key === 'more-evidence') {
         state.claim.hasMoreEvidence = value;
-        $('oathSection').style.display = value === 'لا' ? 'block' : 'none';
+        $('oathSection').style.display =
+            (value === 'لا' && state.claim.evidenceChoice === 'has') ? 'block' : 'none';
         $('moreEvidenceTextField').style.display = value === 'نعم' ? 'block' : 'none';
         return;
     }
@@ -644,7 +650,8 @@ function handleChoice(key, value) {
     const party = key.slice(0, dashIdx);
     const field = key.slice(dashIdx + 1);
 
-    if (field === 'gender') { state[party].gender = value; updateGenderedLabels(party); }
+    // صفة المدعى عليه (جنسه ونوعه) تختار صيغة تسبيب الغياب، فتُزامَن معها
+    if (field === 'gender') { state[party].gender = value; updateGenderedLabels(party); syncAbsenceReasons(); }
     else if (field === 'attendance') {
         state[party].attendance = value;
         updateVisibility(party);
@@ -713,6 +720,7 @@ function handleChoice(key, value) {
         updateRepresentationTypeOptions(party);
         updateVisibility(party);
         if (party === 'defendant') updateNoticeKindLock();
+        syncAbsenceReasons();
     } else if (field === 'oathAbsence') {
         state.defendant.oathAbsence = value;
         $('defendant-oathTabligh-field').style.display = value === 'نعم' ? 'block' : 'none';
@@ -1260,6 +1268,19 @@ function updateReasonsTemplateCounts() {
         `تصنيف (أسباب الحكم) يضم ${all.length} نموذجًا. اختيار نموذج يُدرج نصه في الحقل أدناه، ويبقى قابلًا للتعديل الكامل.`;
 }
 updateReasonsTemplateCounts();
+
+// تسبيب الغياب (م21/3): يُملأ حقل الأسباب تلقائيًا مع خيار «بدون سؤال عن البينة»، ويتبدل
+// مع صفة المدعى عليه، ويُفرَّغ بالرجوع عن الخيار — وكل ذلك ما دام الحقل فارغًا أو يحمل إحدى
+// الصيغ المولَّدة، فلا يُمسّ نصٌّ كتبه القاضي أو أدرجه من مكتبة النماذج.
+function syncAbsenceReasons() {
+    const current = state.ruling.reasonsText || '';
+    if (current.trim() && !isAbsenceReasonsText(current)) return;
+    const next = state.claim.evidenceChoice === 'noQuestion' ? absenceReasonsText(state) : '';
+    if (next === current) return;
+    state.ruling.reasonsText = next;
+    $('reasonsText').value = next;
+    render();
+}
 
 $('reasonsText').addEventListener('input', e => { state.ruling.reasonsText = e.target.value; render(); });
 $('rulingText').addEventListener('input', e => { state.ruling.rulingText = e.target.value; render(); });
