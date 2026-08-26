@@ -1125,3 +1125,98 @@ test('نماذج التسبيب في المكتبة: التصنيف موجود �
     // البحث يجد نماذج محدَّثة رغم اختلاف التشكيل والهمزات في الكتابة
     assert.ok(M.searchTemplates(all, 'اجرة المثل').length > 0);
 });
+
+// ==================== الغياب بلا سؤال عن البينة — المادة (21/3) من نظام الإثبات ====================
+
+// حالة الغياب: جلسة تحضيرية والمدعى عليه لم يحضر ولا من يمثله
+function absentDefendantState(overrides = {}) {
+    const s = readyState();
+    s.defendant.attendance = 'لم يحضر';
+    s.defendant.tabligh = '123456';
+    s.claim.evidenceChoice = 'noQuestion';
+    return Object.assign(s, overrides);
+}
+
+test('خيار (بدون سؤال عن البينة): يُسقط سؤال المدعي ويطبع صيغة قفل المرافعة', () => {
+    const text = M.composeMinutes(absentDefendantState());
+    assert.ok(text.includes(M.NO_EVIDENCE_QUESTION_CLOSING));
+    assert.ok(!text.includes('عن بينته'));
+    assert.ok(!text.includes('لا بينة لدي'));
+});
+
+test('خيار (بدون سؤال عن البينة): لا يتكرر قفل باب المرافعة', () => {
+    const text = M.composeMinutes(absentDefendantState());
+    // الفقرة التلقائية (المادتان 69 و159) تُستبدل بصيغة الخيار، فلا يجتمع قفلان
+    assert.ok(!text.includes('قفل باب المرافعة'));
+    assert.equal(text.split('باب المرافعة').length - 1, 1);
+});
+
+test('خيار (بدون سؤال عن البينة): لا يُطبع مع خياري البينة الآخرين', () => {
+    ['none', 'has'].forEach(choice => {
+        const s = absentDefendantState();
+        s.claim.evidenceChoice = choice;
+        const text = M.composeMinutes(s);
+        assert.ok(!text.includes(M.NO_EVIDENCE_QUESTION_CLOSING));
+        assert.ok(text.includes('قفل باب المرافعة'));
+    });
+});
+
+test('خيار (بدون سؤال عن البينة): يُسقط توجيه اليمين ولو طُلبت', () => {
+    const s = absentDefendantState();
+    s.claim.requestOath = true;
+    const text = M.composeMinutes(s);
+    assert.ok(!text.includes('اليمين'));
+    assert.ok(text.includes(M.NO_EVIDENCE_QUESTION_CLOSING));
+});
+
+test('absenceReasonsVariant: الصيغة تُشتق من صفة المدعى عليه', () => {
+    const variantOf = (patch) => {
+        const s = absentDefendantState();
+        Object.assign(s.defendant, patch);
+        return M.absenceReasonsVariant(s);
+    };
+    assert.equal(variantOf({ entityType: 'فرد', gender: 'م' }), 'male');
+    assert.equal(variantOf({ entityType: 'فرد', gender: 'ف' }), 'female');
+    assert.equal(variantOf({ entityType: 'شركة', gender: 'ف' }), 'company');
+    // الوقف يعامله المولد معاملة المذكر، فيأخذ صيغة المذكر
+    assert.equal(variantOf({ entityType: 'وقف', gender: 'م' }), 'male');
+});
+
+test('absenceReasonsText: كل صيغة تطابق ألفاظ صفتها', () => {
+    const s = absentDefendantState();
+    s.defendant.gender = 'م';
+    assert.ok(M.absenceReasonsText(s).includes('ولم يحضر أو يحضر من يمثله'));
+    s.defendant.gender = 'ف';
+    assert.ok(M.absenceReasonsText(s).includes('ولم تحضر في الموعد المحدد، كما لم يحضر من يمثلها'));
+    s.defendant.entityType = 'شركة';
+    assert.ok(M.absenceReasonsText(s).includes('ولم يحضر من يمثلها في الموعد المحدد'));
+    // الصيغ الثلاث تستند جميعها إلى الفقرة الثالثة من المادة الحادية والعشرين
+    Object.keys(M.ABSENCE_REASONS_M21).forEach(k => {
+        assert.ok(M.ABSENCE_REASONS_M21[k].includes('الفقرة الثالثة من المادة الحادية والعشرين من نظام الإثبات'));
+    });
+});
+
+test('isAbsenceReasonsText: يميّز النص المولَّد من كتابة القاضي', () => {
+    assert.ok(M.isAbsenceReasonsText(M.ABSENCE_REASONS_M21.male));
+    assert.ok(M.isAbsenceReasonsText(`\n${M.ABSENCE_REASONS_M21.company}\n`));
+    assert.ok(!M.isAbsenceReasonsText(''));
+    assert.ok(!M.isAbsenceReasonsText('فبناء على ما تقدم من الدعوى والإجابة'));
+    assert.ok(!M.isAbsenceReasonsText(M.ABSENCE_REASONS_M21.female + ' وزيادة من القاضي'));
+});
+
+test('صيغ تسبيب الغياب مطابقة لنماذج المكتبة 1-3 في تصنيف (أسباب الحكم)', () => {
+    const all = M.templatesOfCategory('أسباب الحكم');
+    [['male', 0], ['female', 1], ['company', 2]].forEach(([key, idx]) => {
+        assert.equal(M.ABSENCE_REASONS_M21[key], all[idx].content);
+    });
+});
+
+test('نص الأسباب المولَّد يظهر في قسم الأسباب من المحضر', () => {
+    const s = absentDefendantState();
+    s.ruling.pronounce = 'نعم';
+    s.ruling.reasonsText = M.absenceReasonsText(s);
+    s.ruling.rulingText = 'إلزام المدعى عليه بأداء مئة ألف ريال';
+    const text = M.composeMinutes(s);
+    assert.ok(text.includes('الأسباب:'));
+    assert.ok(text.includes(M.ABSENCE_REASONS_M21.male));
+});
