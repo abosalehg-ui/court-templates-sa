@@ -1116,9 +1116,11 @@ test('نماذج التسبيب في المكتبة: التصنيف موجود �
     assert.ok(all.length > 100);
     const curated = M.curatedReasonsCount(all);
     assert.ok(curated > 0 && curated <= all.length);
-    // كل النماذج المنسّقة تبدأ بمطلعها الموحّد
+    // كل النماذج المنسّقة تبدأ بأحد مطالعها المعتمدة
+    const openers = M.CURATED_REASON_OPENERS.map(M.normalizeArabicSearch);
     all.slice(0, curated).forEach(t => {
-        assert.ok(M.normalizeArabicSearch(t.content).startsWith(M.normalizeArabicSearch(M.CURATED_REASON_OPENER)));
+        const head = M.normalizeArabicSearch(t.content);
+        assert.ok(openers.some(o => head.startsWith(o)));
     });
     // البحث يجد نماذج محدَّثة رغم اختلاف التشكيل والهمزات في الكتابة
     assert.ok(M.searchTemplates(all, 'اجرة المثل').length > 0);

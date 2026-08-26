@@ -94,21 +94,23 @@ if (typeof normalizeArabicSearch === 'undefined' && typeof require !== 'undefine
     var { normalizeArabicSearch, convertArabicDigits } = require('./text-utils.js');
 }
 
-// مطلع نماذج التسبيب المنسّقة في مقدمة تصنيف (أسباب الحكم) — علامة تعرُّف على المجموعة
-// (يُقارَن مطبَّعًا، فلا يضره تشكيل النص ولا اختلاف الألف المقصورة)
-const CURATED_REASON_OPENER = 'فبيان الدعوى';
-// احتياطي إن تغيّر مطلع النماذج المنسّقة مستقبلًا
+// مطالع نماذج التسبيب المنسّقة في مقدمة تصنيف (أسباب الحكم) — علامة تعرُّف على المجموعة
+// (تُقارَن مطبَّعة، فلا يضرها تشكيل النص ولا اختلاف الألف المقصورة والهمزات)
+const CURATED_REASON_OPENERS = ['فبيان الدعوى', 'فبناءً على ما تقدم من الدعوى'];
+const CURATED_REASON_OPENER = CURATED_REASON_OPENERS[0];
+// احتياطي إن تغيّرت مطالع النماذج المنسّقة مستقبلًا
 const CURATED_REASONS_FALLBACK = 31;
 
-// عدد النماذج المنسّقة = الطول المتصل في مقدمة التصنيف الذي يبدأ بمطلعها الموحّد
+// عدد النماذج المنسّقة = الطول المتصل في مقدمة التصنيف الذي يبدأ بأحد مطالعها المعتمدة
 function curatedReasonsCount(list) {
     const arr = Array.isArray(list) ? list : templatesOfCategory('أسباب الحكم');
-    const opener = normalizeArabicSearch(CURATED_REASON_OPENER);
+    const openers = CURATED_REASON_OPENERS.map(normalizeArabicSearch);
+    const headLen = Math.max(...openers.map(o => o.length)) * 3;
     let count = 0;
     for (let i = 0; i < arr.length; i++) {
         // يكفي مطلع النص، فلا حاجة لتطبيع النموذج كاملاً
-        const head = String((arr[i] && arr[i].content) || '').slice(0, opener.length * 3);
-        if (!normalizeArabicSearch(head).startsWith(opener)) break;
+        const head = normalizeArabicSearch(String((arr[i] && arr[i].content) || '').slice(0, headLen));
+        if (!openers.some(o => head.startsWith(o))) break;
         count++;
     }
     return count || Math.min(CURATED_REASONS_FALLBACK, arr.length);
@@ -1364,7 +1366,7 @@ if (typeof module !== 'undefined' && module.exports) {
         ordinalWord, partyLabel, multiPartyLabel, agentPossessive,
         kinshipDegree, asharDegree, degreeOrdinal, asharTemplate,
         findTemplate, templatesOfCategory,
-        normalizeArabicSearch, searchTemplates, curatedReasonsCount, CURATED_REASON_OPENER,
+        normalizeArabicSearch, searchTemplates, curatedReasonsCount, CURATED_REASON_OPENER, CURATED_REASON_OPENERS,
         freshPartyState, freshExtraParty, freshWitness, freshEvidenceBlock,
         freshClaimState, freshRulingState, freshFollowUpState, freshMinutesState,
         buildOpening, buildAgencyVerificationClause, buildKinshipPhrase, buildAccompanyingAgentClause,
