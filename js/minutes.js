@@ -792,7 +792,7 @@ const CLAIM_TEXT_PLACEHOLDER = '....... تنسخ من نظام ناجز .......'
 // قسم الدعوى والإجابة والبينات (الجلسة التحضيرية)
 function buildClaimEvidenceText(state) {
     const claimText = state.claim.text.trim() || CLAIM_TEXT_PLACEHOLDER;
-    return ` جرى الاطلاع على صحيفة الدعوى ونصها : (( ${claimText} )) أ. هـ، وبعرضها على المدعي صادق عليها` + buildProceedingsAfterClaim(state);
+    return ` جرى الاطلاع على صحيفة الدعوى ونصها : (( ${claimText} )) أ. هـ، وبعرضها على المدعي صادق عليها.` + buildProceedingsAfterClaim(state);
 }
 
 // ما يلي عرضَ الدعوى: جواب المدعى عليه ثم ما يترتب عليه من بينات
