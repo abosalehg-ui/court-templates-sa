@@ -217,6 +217,22 @@ function multiPartyLabel(role, gender, ordinalNum, name) {
     return `${base} ${ordinal}${namePart}`;
 }
 
+// حضور الطرف بوكيل شرعي (لا بممثل نظامي، فالممثل صفةٌ لا وكالة)
+function isAgentRepresented(s) {
+    return !!s && s.attendance === 'تمثيل' && (s.repType === 'وكيل' || s.repType === 'وكيل شركة');
+}
+
+// لقب الطرف مع بيان صفة حضوره: «المدعي» أصالةً، و«المدعي وكالة» إذا حضر عنه وكيله
+function partyAgencyLabel(role, s) {
+    const base = partyLabel(role, s.gender);
+    return isAgentRepresented(s) ? `${base} وكالة` : base;
+}
+
+// جنس المتكلم في الفقرة: الوكيل إن حضر عن الطرف، وإلا فالطرف نفسه
+function agencySpeakerGender(s) {
+    return isAgentRepresented(s) ? s.agentGender : s.gender;
+}
+
 // «وكيله / وكيلها / وكيلته / وكيلتها» حسب جنس الوكيل وجنس الأصيل
 function agentPossessive(agentGender, partySuffix) {
     if (agentGender === 'ف') {
@@ -257,6 +273,14 @@ const asharDegree = {};
 
 // صفات الأطراف المتاحة — الوقف يحمل خصائص الشركة نفسها ويفترق عنها في نوع الإفهام
 const ENTITY_TYPES = { INDIVIDUAL: 'فرد', COMPANY: 'شركة', WAQF: 'وقف' };
+
+// صور جواب المدعى عليه على الدعوى — كلها تقع بعد عرض صحيفة الدعوى عليه
+const DEFENDANT_ANSWER_MODES = {
+    FIRST_MEMO: 'firstMemo',        // مذكرة الدفاع الأولى المودعة في النظام
+    ORAL: 'oral',                   // إجابة شفهية يرصدها كاتب الضبط
+    WRITTEN_MEMO: 'writtenMemo',    // مذكرة مكتوبة يقدمها في الجلسة
+    DELAY: 'delay'                  // طلب مهلة للجواب في الجلسة القادمة
+};
 
 // ==================== حالات ابتدائية ====================
 
@@ -310,9 +334,16 @@ function freshClaimState() {
         // نوع الدعوى: الطلب المالي وحده تُشتق من قيمته صفة الحكم (يسير أو قابل للاستئناف)
         claimType: 'مالي',          // 'مالي' | 'غير مالي'
         claimValue: '',             // قيمة المطالبة — يُشتق منها نوع الإفهام
+        // إضافة المدعي على صحيفة دعواه بعد المصادقة عليها (اختيارية)
+        plaintiffAddition: false,
+        plaintiffAdditionText: '',
         // جواب المدعى عليه — يُعرض عليه قبل تكليف المدعي بالبينة
         defendantStance: 'إنكار',   // 'إقرار' | 'إنكار' | 'دفع شكلي'
+        // صورة الجواب: مذكرة دفاع أولى | إجابة شفهية يرصدها كاتب الضبط | مذكرة مكتوبة | طلب مهلة
+        defendantAnswerMode: DEFENDANT_ANSWER_MODES.ORAL,
         defendantResponseText: '',
+        defendantFirstMemoText: '',
+        defendantWrittenMemoText: '',
         formalPleaText: '',
         plaintiffReplyText: '',
         answeredOnMerits: 'نعم',    // مع الدفع الشكلي: هل أجاب في الموضوع أيضًا؟
@@ -516,10 +547,31 @@ function buildPartyClause(state, role) {
 
     // غياب الطرف المتبلّغ — المادة (45) من نظام المرافعات الشرعية: السير في الدعوى
     // مع إثبات أنه لم يحضر ولا من يمثله ولم يودع مذكرة بدفاعه
+    if (role === 'defendant') return buildDefendantAbsenceClause(s, name);
     const verb = s.gender === 'م' ? 'لم يحضر' : 'لم تحضر';
     const verbRepeat = s.gender === 'م' ? 'ولم يحضر' : 'ولم تحضر';
     const verbDeposit = s.gender === 'م' ? 'ولم يودع' : 'ولم تودع';
     return `${verb} ${name} رغم تبليغ${suffix} بالجلسة عبر الوسائل الإلكترونية بمهمة التبليغ رقم (${orDots(s.tabligh)}) بموعد هذه الجلسة ${verbRepeat} ولا من يمثل${suffix}، ${verbDeposit} مذكرة بدفاع${suffix} بناء على ما قررته المادة الخامسة والأربعون من نظام المرافعات الشرعية`;
+}
+
+// غياب المدعى عليه المتبلّغ — تُقدَّم فيه واقعة التبلّغ على واقعة الغياب،
+// ويُذيَّل بموجب المادة (45) من نظام المرافعات الشرعية في إيداع مذكرة الدفاع.
+// وتصدَّر الفقرة بـ«قد» لا بالواو، فالواو يزيدها واصلُها (فقرات الحضور أو نص الدعوى)
+function buildDefendantAbsenceClause(s, name) {
+    const suffix = s.gender === 'م' ? 'ه' : 'ها';
+    const verbNotified = s.gender === 'م' ? 'قد تبلَّغ' : 'قد تبلَّغت';
+    const verbAttend = s.gender === 'م' ? 'ولم يحضر هو' : 'ولم تحضر هي';
+    const verbDeposit = s.gender === 'م' ? 'ولم يودع' : 'ولم تودع';
+    return `${verbNotified} ${name} ${verbAttend} ولا من يمثل${suffix}، بمهمة التبليغ رقم (${orDots(s.tabligh)})، ${verbDeposit} مذكرة بدفاع${suffix} بناء على ما قررته المادة الخامسة والأربعون من نظام المرافعات الشرعية`;
+}
+
+// موضع فقرة غياب المدعى عليه: في الجلسة التحضيرية تُنقل إلى ما بعد رصد الدعوى
+// ومصادقة المدعي عليها (وإضافته إن وُجدت)، وفي غيرها تبقى مع فقرات الحضور
+function defendantAbsenceAfterClaim(state) {
+    const d = state.defendant;
+    return state.sessionType === 'new'
+        && d.attendance === 'لم يحضر'
+        && d.notifyStatus !== 'لم يتبلغ';
 }
 
 // فقرة طرف إضافي (عند تعدد المدعين أو المدعى عليهم)
@@ -792,7 +844,27 @@ const CLAIM_TEXT_PLACEHOLDER = '....... تنسخ من نظام ناجز .......'
 // قسم الدعوى والإجابة والبينات (الجلسة التحضيرية)
 function buildClaimEvidenceText(state) {
     const claimText = state.claim.text.trim() || CLAIM_TEXT_PLACEHOLDER;
-    return ` جرى الاطلاع على صحيفة الدعوى ونصها : (( ${claimText} )) أ. هـ، وبعرضها على المدعي صادق عليها.` + buildProceedingsAfterClaim(state);
+    const p = state.plaintiff;
+    // من حضر عنه وكيله فالمصادقة منه وكالةً، والفعل يتبع جنس المصادِق (الوكيل أو الأصيل)
+    const addressee = partyAgencyLabel('plaintiff', p);
+    const ratifyVerb = agencySpeakerGender(p) === 'ف' ? 'صادقت عليها' : 'صادق عليها';
+    let out = ` جرى الاطلاع على صحيفة الدعوى ونصها : (( ${claimText} )) أ. هـ، وبعرضها على ${addressee} ${ratifyVerb}.`;
+    out += buildPlaintiffAdditionClause(state);
+    // فقرة غياب المدعى عليه موضعها بعد رصد الدعوى ومصادقة المدعي عليها
+    if (defendantAbsenceAfterClaim(state)) {
+        out += ` و${buildPartyClause(state, 'defendant')}.`;
+    }
+    return out + buildProceedingsAfterClaim(state);
+}
+
+// إضافة المدعي على صحيفة دعواه بعد مصادقته عليها — اختيارية لا تُدرج إلا باختيارها
+function buildPlaintiffAdditionClause(state) {
+    const c = state.claim;
+    if (!c.plaintiffAddition) return '';
+    const isFem = agencySpeakerGender(state.plaintiff) === 'ف';
+    const submitVerb = isFem ? 'قدمت' : 'قدم';
+    const submitVerbEnd = isFem ? 'قدَّمت' : 'قدَّم';
+    return ` ثم ${submitVerb} النص التالي: ( ${orDots(c.plaintiffAdditionText)} ) هكذا ${submitVerbEnd}.`;
 }
 
 // ما يلي عرضَ الدعوى: جواب المدعى عليه ثم ما يترتب عليه من بينات
@@ -819,20 +891,45 @@ function buildProceedingsAfterClaim(state) {
     return out;
 }
 
-// عرض الدعوى على المدعى عليه وإثبات جوابه
+// نص مذكرة الدفاع الأولى يُنسخ من الطلبات في النظام، فهذا تنبيه القاضي عند تركه فارغًا
+const FIRST_MEMO_PLACEHOLDER = '....... تنسخ من الطلبات .......';
+
+// عرض الدعوى على المدعى عليه وإثبات جوابه بإحدى صوره الأربع
 // وبيانات وكيله تُثبت هنا (لا في فقرات الحضور) — انظر defendantAgentStatedInAnswer
 function buildDefendantAnswerClause(state) {
+    const c = state.claim;
     const d = state.defendant;
     const dName = partyLabel('defendant', d.gender);
-    const isRepresented = d.attendance === 'تمثيل' && (d.repType === 'وكيل' || d.repType === 'وكيل شركة');
-    const speakerGender = isRepresented ? d.agentGender : d.gender;
+    const isRepresented = isAgentRepresented(d);
+    const speakerGender = agencySpeakerGender(d);
     const addressee = isRepresented
         ? `${orDots(d.agentName)}، ${buildAgentCapacityPhrase(d, dName, { present: true })}،`
         : dName;
+
+    // مذكرة الدفاع الأولى: تُرصد بنصها ثم تُعرض على مقدِّمها فيصادق عليها
+    if (c.defendantAnswerMode === DEFENDANT_ANSWER_MODES.FIRST_MEMO) {
+        const memoText = c.defendantFirstMemoText.trim() || FIRST_MEMO_PLACEHOLDER;
+        const ratifyVerb = speakerGender === 'ف' ? 'صادقت عليها' : 'صادق عليها';
+        return ` وبالاطلاع على مذكرة الدفاع الأولى المقدَّمة من ${dName} ونصها: (( ${memoText} )) أ. هـ. وبعرضها على ${addressee} ${ratifyVerb}.`;
+    }
+
+    // مذكرة مكتوبة يقدمها في الجلسة بعد عرض الدعوى عليه
+    if (c.defendantAnswerMode === DEFENDANT_ANSWER_MODES.WRITTEN_MEMO) {
+        const submitVerb = speakerGender === 'ف' ? 'قدمت' : 'قدم';
+        const submitVerbEnd = speakerGender === 'ف' ? 'قدَّمت' : 'قدَّم';
+        return ` وبعرضها على ${addressee} ${submitVerb} مذكرة مكتوبة نصها: ${orDots(c.defendantWrittenMemoText)}، هكذا ${submitVerbEnd}.`;
+    }
+
     const answerVerb = speakerGender === 'م' ? 'أجاب قائلاً' : 'أجابت قائلة';
     const answerVerbEnd = speakerGender === 'م' ? 'أجاب' : 'أجابت';
-    // الضمير في «وبعرضها» عائد على صحيفة الدعوى المذكورة قبله
-    return ` وبعرضها على ${addressee} ${answerVerb}: ${orDots(state.claim.defendantResponseText)} هكذا ${answerVerbEnd}.`;
+
+    // طلب المهلة جوابٌ موحَّد لا يُكتب نصه
+    if (c.defendantAnswerMode === DEFENDANT_ANSWER_MODES.DELAY) {
+        return ` وبعرضها على ${addressee} ${answerVerb}: اطلب مهلة لتقديم الجواب مفصلا في الجلسة القادمة، هكذا ${answerVerbEnd}.`;
+    }
+
+    // الإجابة الشفهية يرصدها كاتب الضبط — الضمير في «وبعرضها» عائد على صحيفة الدعوى قبله
+    return ` وبعرضها على ${addressee} ${answerVerb}: ${orDots(c.defendantResponseText)} هكذا ${answerVerbEnd}.`;
 }
 
 // الإقرار يُغني عن البينة: «البينة على المدعي» إنما تُطلب عند الإنكار
@@ -1176,7 +1273,9 @@ function composeMinutes(state) {
         } else if (defendantNotNotified) {
             text = `${appendClause(appendClause(opening, joinPresenceClauses(pClauses)), 'و' + buildNotNotifiedClause('defendant', state.defendant))}.`;
         } else {
-            const dClause = defendantAgentStatedInAnswer(state) ? '' : buildPartyClause(state, 'defendant');
+            // فقرة المدعى عليه تُطوى هنا إذا نُقلت إلى فقرة الجواب (الوكيل) أو إلى ما بعد رصد الدعوى (الغياب)
+            const dClause = (defendantAgentStatedInAnswer(state) || defendantAbsenceAfterClaim(state))
+                ? '' : buildPartyClause(state, 'defendant');
             const dClauses = [dClause, ...state.extraDefendants.map((p, i) => buildExtraClause('defendant', i, p, includePartyData))];
             const presence = joinPresenceClauses([...pClauses, ...dClauses]);
             // إذا خلت فقرات الحضور بقيت فقرة الافتتاح وحدها موصولةً بما بعدها
@@ -1313,7 +1412,8 @@ function collectWarnings(state) {
 
     if (claimApplies) {
         if (!c.text.trim()) w.push('لم يُكتب نص الدعوى.');
-        if (defendantPresent && !c.defendantResponseText.trim()) w.push('لم تُكتب إجابة المدعى عليه على الدعوى.');
+        if (c.plaintiffAddition && !c.plaintiffAdditionText.trim()) w.push('لم يُكتب نص إضافة المدعي على صحيفة الدعوى.');
+        if (defendantPresent) w.push(...defendantAnswerWarnings(c));
         if (defendantPresent && c.defendantStance === 'دفع شكلي') {
             if (!c.formalPleaText.trim()) w.push('لم يُكتب نص الدفع الشكلي للمدعى عليه.');
             if (!c.plaintiffReplyText.trim()) w.push('لم يُكتب رد المدعي على الدفع الشكلي.');
@@ -1341,6 +1441,18 @@ function collectWarnings(state) {
 
     w.push(...rulingWarnings(state));
     return w;
+}
+
+// فحص نص الجواب بحسب صورته — وطلب المهلة صيغة موحدة فلا نص يُفحص فيها
+function defendantAnswerWarnings(c) {
+    if (c.defendantAnswerMode === DEFENDANT_ANSWER_MODES.DELAY) return [];
+    if (c.defendantAnswerMode === DEFENDANT_ANSWER_MODES.FIRST_MEMO) {
+        return c.defendantFirstMemoText.trim() ? [] : ['لم يُكتب نص مذكرة الدفاع الأولى للمدعى عليه.'];
+    }
+    if (c.defendantAnswerMode === DEFENDANT_ANSWER_MODES.WRITTEN_MEMO) {
+        return c.defendantWrittenMemoText.trim() ? [] : ['لم يُكتب نص المذكرة المكتوبة المقدمة من المدعى عليه.'];
+    }
+    return c.defendantResponseText.trim() ? [] : ['لم تُكتب إجابة المدعى عليه على الدعوى.'];
 }
 
 // فحص كتلة بينة (للمدعي أو للمدعى عليه) بنفس القواعد
@@ -1395,6 +1507,10 @@ if (typeof module !== 'undefined' && module.exports) {
         MINUTES_PLACEHOLDER, VIDEO_CALL_PHRASE, VIDEO_CALL_SHORT, VIDEO_CALL_BRIEF, VIDEO_CALL_BASIS,
         IN_PERSON_SHORT, SESSION_MODES, sessionMode, isInPersonSession,
         NATIONALITY_OPTIONS, WITNESS_NATIONALITY_OPTIONS, EVIDENCE_OPTIONS, YASEERA_CLAIM_LIMIT, ENTITY_TYPES,
+        DEFENDANT_ANSWER_MODES, FIRST_MEMO_PLACEHOLDER, CLAIM_TEXT_PLACEHOLDER,
+        isAgentRepresented, partyAgencyLabel, agencySpeakerGender,
+        buildDefendantAbsenceClause, defendantAbsenceAfterClaim,
+        buildPlaintiffAdditionClause, defendantAnswerWarnings,
         isCorporateEntity, corporateDocLabel, mandatoryReviewNotice, closingTimeParts,
         minutesPhrase, buildTimeArabic, addMinutesToTime, validHoursForPeriod, convertArabicDigits,
         ordinalWord, partyLabel, multiPartyLabel, agentPossessive,
