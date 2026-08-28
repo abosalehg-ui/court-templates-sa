@@ -506,10 +506,41 @@
                                 <textarea class="form-control" id="claimText" rows="4" placeholder="....... تنسخ من نظام ناجز ......." required></textarea>
                             </div>
 
+                            <!-- إضافة المدعي على صحيفة دعواه بعد مصادقته عليها — اختيارية -->
+                            <div id="plaintiffAdditionBlock">
+                                <label class="checkbox-row">
+                                    <input type="checkbox" id="plaintiffAdditionCheckbox">
+                                    <span id="plaintiffAdditionLabel">لديه إضافة</span>
+                                </label>
+                                <div class="hint">تُفعَّل إن كان لدى المدعي إضافة على صحيفة دعواه بعد مصادقته عليها، فتُلحق بعبارة المصادقة.</div>
+                                <div class="field" id="plaintiffAdditionField" style="display:none;">
+                                    <label id="plaintiffAdditionFieldLabel">ثم قدم النص التالي:</label>
+                                    <textarea class="form-control" id="plaintiffAdditionText" rows="3" placeholder="اكتب إضافة المدعي على صحيفة الدعوى"></textarea>
+                                </div>
+                            </div>
+
                             <div class="sub-fields" id="defendantResponseSection">
                                 <label>إجابة المدعى عليه على الدعوى <span class="req">*</span></label>
-                                <textarea class="form-control" id="defendantResponseText" rows="3" placeholder="اكتب إجابة المدعى عليه" required></textarea>
-                                <div class="hint">سيُضاف تلقائيًا: "وبعرضها على المدعى عليه أجاب قائلاً: [إجابته] هكذا أجاب." — وهذا العرض يسبق سؤال المدعي عن بينته.</div>
+                                <div class="choice-group vertical" data-group="defendant-answer-mode">
+                                    <button type="button" class="choice-btn" data-value="firstMemo">مذكرة الدفاع الأولى</button>
+                                    <button type="button" class="choice-btn active" data-value="oral">إجابة شفهية رصدها كاتب الضبط</button>
+                                    <button type="button" class="choice-btn" data-value="writtenMemo">مذكرة مكتوبة مقدمة من المدعى عليه</button>
+                                    <button type="button" class="choice-btn" data-value="delay">طلب مهلة للجواب في الجلسة القادمة</button>
+                                </div>
+
+                                <div class="field" id="defendantFirstMemoField" style="display:none;">
+                                    <label>نص مذكرة الدفاع الأولى <span class="req">*</span></label>
+                                    <textarea class="form-control" id="defendantFirstMemoText" rows="4" placeholder="....... تنسخ من الطلبات ......." required></textarea>
+                                </div>
+                                <div class="field" id="defendantOralAnswerField">
+                                    <label>إجابة المدعى عليه <span class="req">*</span></label>
+                                    <textarea class="form-control" id="defendantResponseText" rows="3" placeholder="اكتب إجابة المدعى عليه" required></textarea>
+                                </div>
+                                <div class="field" id="defendantWrittenMemoField" style="display:none;">
+                                    <label>نص المذكرة المكتوبة <span class="req">*</span></label>
+                                    <textarea class="form-control" id="defendantWrittenMemoText" rows="3" placeholder="اكتب نص المذكرة المكتوبة المقدمة من المدعى عليه" required></textarea>
+                                </div>
+                                <div class="hint" id="defendantAnswerModeHint"></div>
 
                                 <label style="margin-top:0.9rem;">تكييف الإجابة</label>
                                 <div class="choice-group vertical" data-group="defendant-stance">

@@ -313,6 +313,16 @@ function updateGenderedLabels(party) {
         if (yesBtn) yesBtn.textContent = gender === 'م' ? 'تبلّغ' : 'تبلّغت';
         if (noBtn) noBtn.textContent = gender === 'م' ? 'لم يتبلّغ' : 'لم تتبلّغ';
     }
+    // خيار إضافة المدعي وحقلها يتبعان جنس المُضيف (المدعي أو وكيله)
+    if (party === 'plaintiff') updatePlaintiffAdditionLabels();
+}
+
+function updatePlaintiffAdditionLabels() {
+    const isFem = agencySpeakerGender(state.plaintiff) === 'ف';
+    const label = $('plaintiffAdditionLabel');
+    const fieldLabel = $('plaintiffAdditionFieldLabel');
+    if (label) label.textContent = isFem ? 'لديها إضافة' : 'لديه إضافة';
+    if (fieldLabel) fieldLabel.textContent = isFem ? 'ثم قدمت النص التالي:' : 'ثم قدم النص التالي:';
 }
 
 function updateAgentGenderedLabels(party) {
@@ -320,6 +330,7 @@ function updateAgentGenderedLabels(party) {
     $(`${party}-lawyer-q-label`).textContent = isFem ? 'هل الوكيلة محامية؟' : 'هل الوكيل محامٍ؟';
     $(`${party}-agent-name-label`).innerHTML = (isFem ? 'اسم الوكيلة' : 'اسم الوكيل') + ' <span class="req">*</span>';
     $(`${party}-agent-name`).placeholder = isFem ? 'اسم الوكيلة' : 'اسم الوكيل';
+    if (party === 'plaintiff') updatePlaintiffAdditionLabels();
 }
 
 function updateCompanyAttendanceOptions(party) {
@@ -451,6 +462,14 @@ function updateOathDefendantStatusHint() {
 // ==================== الخطوة 2: التسلسل الإجرائي ====================
 // عرض الدعوى على المدعى عليه يسبق سؤال المدعي عن بينته، وتفريع الإقرار/الإنكار/الدفع
 
+// صور جواب المدعى عليه الأربع: ما يظهر من الحقول مع كل صورة، وشرحها للقاضي
+const ANSWER_MODE_HINTS = {
+    firstMemo: 'سيُضاف: "وبالاطلاع على مذكرة الدفاع الأولى المقدَّمة من المدعى عليه ونصها: (( … )) أ. هـ. وبعرضها على المدعى عليه صادق عليها."',
+    oral: 'سيُضاف: "وبعرضها على المدعى عليه أجاب قائلاً: [إجابته] هكذا أجاب." — وهذا العرض يسبق سؤال المدعي عن بينته.',
+    writtenMemo: 'سيُضاف: "وبعرضها على المدعى عليه قدم مذكرة مكتوبة نصها: [نصها]، هكذا قدَّم."',
+    delay: 'صيغة موحدة بلا نص يُكتب: "وبعرضها على المدعى عليه أجاب قائلاً: اطلب مهلة لتقديم الجواب مفصلا في الجلسة القادمة، هكذا أجاب."'
+};
+
 const STANCE_HINTS = {
     'إنكار': 'الإنكار يوجب تكليف المدعي بالبينة، فتظهر بطاقة بينة المدعي.',
     'إقرار': 'الإقرار يُغني عن البينة، فلا يُسأل المدعي عن بينته ولا عن اليمين، ويُقفل باب المرافعة مباشرة.',
@@ -466,13 +485,25 @@ function meritsReached() {
     return true;
 }
 
+// حقل النص التابع لصورة الجواب المختارة — وطلب المهلة صيغة موحدة فلا حقل معه
+function updateAnswerModeVisibility() {
+    const mode = state.claim.defendantAnswerMode;
+    $('defendantFirstMemoField').style.display = mode === DEFENDANT_ANSWER_MODES.FIRST_MEMO ? 'block' : 'none';
+    $('defendantOralAnswerField').style.display = mode === DEFENDANT_ANSWER_MODES.ORAL ? 'block' : 'none';
+    $('defendantWrittenMemoField').style.display = mode === DEFENDANT_ANSWER_MODES.WRITTEN_MEMO ? 'block' : 'none';
+    $('defendantAnswerModeHint').textContent = ANSWER_MODE_HINTS[mode] || '';
+}
+
 function updateStanceVisibility() {
     if (!state.sessionType) return;
     const isNew = state.sessionType === 'new';
     const defendantPresent = state.defendant.attendance !== 'لم يحضر';
 
     $('claimTextField').style.display = isNew ? 'block' : 'none';
+    // إضافة المدعي لا محل لها إلا حيث تُرصد صحيفة الدعوى ويُصادق عليها
+    $('plaintiffAdditionBlock').style.display = isNew ? 'block' : 'none';
     $('defendantResponseSection').style.display = (isNew && defendantPresent) ? 'block' : 'none';
+    updateAnswerModeVisibility();
     $('followUpSection').style.display = isNew ? 'none' : 'block';
     $('defendantStanceHint').textContent = STANCE_HINTS[state.claim.defendantStance] || '';
     $('formalPleaBlock').style.display = (isNew && defendantPresent && state.claim.defendantStance === 'دفع شكلي') ? 'block' : 'none';
@@ -542,6 +573,7 @@ function updateVisibility(party) {
         $(`${party}-rep-num-field`).style.display = 'none';
     }
     if (party === 'plaintiff') {
+        updatePlaintiffAdditionLabels();
         updateSpecialCaseVisibility();
         $('plaintiff-absence-fields').style.display = s.attendance === 'لم يحضر' ? 'block' : 'none';
         $('defendantBlock').style.display = s.attendance === 'لم يحضر' ? 'none' : 'block';
@@ -584,7 +616,12 @@ function handleChoice(key, value) {
     if (key === 'session-sameJudge') { state.sameJudge = value; return; }
     if (key === 'session-mode') { state.opening.mode = value; updateSessionModeUI(); return; }
 
-    // ===== تكييف جواب المدعى عليه =====
+    // ===== صورة جواب المدعى عليه وتكييفه =====
+    if (key === 'defendant-answer-mode') {
+        state.claim.defendantAnswerMode = value;
+        updateAnswerModeVisibility();
+        return;
+    }
     if (key === 'defendant-stance') {
         state.claim.defendantStance = value;
         $('formalPleaBlock').style.display = value === 'دفع شكلي' ? 'block' : 'none';
@@ -665,6 +702,7 @@ function handleChoice(key, value) {
         } else if (value === 'وكيل') {
             $(`${party}-kinship-field`).style.display = state[party].repIsLawyer === 'لا' ? 'block' : 'none';
         }
+        if (party === 'plaintiff') updatePlaintiffAdditionLabels();
     } else if (field === 'repIsLawyer') {
         state[party].repIsLawyer = value;
         $(`${party}-license-field`).style.display = value === 'نعم' ? 'block' : 'none';
@@ -1116,7 +1154,10 @@ $('addDefendantWitnessBtn').addEventListener('click', () => {
 [
     ['otherDocumentText', c => v => { c.otherDocumentText = v; }],
     ['moreEvidenceText', c => v => { c.moreEvidenceText = v; }],
+    ['plaintiffAdditionText', c => v => { c.plaintiffAdditionText = v; }],
     ['defendantResponseText', c => v => { c.defendantResponseText = v; }],
+    ['defendantFirstMemoText', c => v => { c.defendantFirstMemoText = v; }],
+    ['defendantWrittenMemoText', c => v => { c.defendantWrittenMemoText = v; }],
     ['formalPleaText', c => v => { c.formalPleaText = v; }],
     ['plaintiffReplyText', c => v => { c.plaintiffReplyText = v; }],
     ['plaintiffTazkiyaNames', c => v => { c.tazkiyaNames = v; }],
@@ -1127,6 +1168,13 @@ $('addDefendantWitnessBtn').addEventListener('click', () => {
     ['defendantWitnessObjectionText', c => v => { c.defendantEvidence.objectionText = v; }]
 ].forEach(([id, setterFor]) => {
     $(id).addEventListener('input', e => { setterFor(state.claim)(e.target.value); render(); });
+});
+
+// إضافة المدعي على صحيفة دعواه
+$('plaintiffAdditionCheckbox').addEventListener('change', e => {
+    state.claim.plaintiffAddition = e.target.checked;
+    $('plaintiffAdditionField').style.display = e.target.checked ? 'block' : 'none';
+    render();
 });
 
 // إجراءات الجلسة التالية

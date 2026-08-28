@@ -200,13 +200,38 @@ test('buildPartyClause: إغلاق المفتاح يُبقي غياب الطرف
     state.defendant.tabligh = '456';
     assert.equal(
         M.buildPartyClause(state, 'defendant'),
-        'لم يحضر المدعى عليه رغم تبليغه بالجلسة عبر الوسائل الإلكترونية بمهمة التبليغ رقم (456) بموعد هذه الجلسة ولم يحضر ولا من يمثله، ولم يودع مذكرة بدفاعه بناء على ما قررته المادة الخامسة والأربعون من نظام المرافعات الشرعية'
+        'قد تبلَّغ المدعى عليه ولم يحضر هو ولا من يمثله، بمهمة التبليغ رقم (456)، ولم يودع مذكرة بدفاعه بناء على ما قررته المادة الخامسة والأربعون من نظام المرافعات الشرعية'
     );
     // المطابقة النحوية للمدعى عليها
     state.defendant.gender = 'ف';
     assert.equal(
         M.buildPartyClause(state, 'defendant'),
-        'لم تحضر المدعى عليها رغم تبليغها بالجلسة عبر الوسائل الإلكترونية بمهمة التبليغ رقم (456) بموعد هذه الجلسة ولم تحضر ولا من يمثلها، ولم تودع مذكرة بدفاعها بناء على ما قررته المادة الخامسة والأربعون من نظام المرافعات الشرعية'
+        'قد تبلَّغت المدعى عليها ولم تحضر هي ولا من يمثلها، بمهمة التبليغ رقم (456)، ولم تودع مذكرة بدفاعها بناء على ما قررته المادة الخامسة والأربعون من نظام المرافعات الشرعية'
+    );
+});
+
+test('composeMinutes: فقرة غياب المدعى عليه موضعها بعد رصد الدعوى ومصادقة المدعي', () => {
+    const state = readyState({ includePartyDataInText: false });
+    state.defendant.attendance = 'لم يحضر';
+    state.defendant.tabligh = '456';
+    const text = M.composeMinutes(state);
+    assert.match(text, /صادق عليها\. وقد تبلَّغ المدعى عليه ولم يحضر هو ولا من يمثله، بمهمة التبليغ رقم \(456\)،/);
+    // ولا تُذكر مرتين: أُخرجت من فقرات الحضور التي تلي الافتتاح
+    assert.equal(text.match(/قد تبلَّغ المدعى عليه/g).length, 1);
+    // وإضافة المدعي إن وُجدت سبقت فقرة الغياب
+    state.claim.plaintiffAddition = true;
+    state.claim.plaintiffAdditionText = 'أضيف كذا';
+    assert.match(M.composeMinutes(state), /هكذا قدَّم\. وقد تبلَّغ المدعى عليه/);
+});
+
+test('composeMinutes: الجلسة المنظورة سابقًا تُبقي غياب المدعى عليه في فقرات الحضور', () => {
+    const state = readyState({ includePartyDataInText: false });
+    state.sessionType = 'previous';
+    state.defendant.attendance = 'لم يحضر';
+    state.defendant.tabligh = '456';
+    assert.match(
+        M.composeMinutes(state),
+        /^لدي أنا فلان بن فلان في المحكمة الرياض، وقد تبلَّغ المدعى عليه ولم يحضر هو ولا من يمثله، بمهمة التبليغ رقم \(456\)،/
     );
 });
 
@@ -559,6 +584,119 @@ test('التسلسل: عرض الدعوى على المدعى عليه يسبق 
     assert.ok(answerAt < evidenceAt, 'جواب المدعى عليه يجب أن يسبق سؤال المدعي عن البينة');
 });
 
+// ==================== مصادقة المدعي على صحيفة دعواه وإضافته عليها ====================
+
+test('buildClaimEvidenceText: مصادقة المدعي تتبع صفة حضوره — أصالةً أو وكالة', () => {
+    const state = readyState();
+    assert.match(M.buildClaimEvidenceText(state), /وبعرضها على المدعي صادق عليها\./);
+
+    state.plaintiff.attendance = 'تمثيل';
+    state.plaintiff.repType = 'وكيل';
+    state.plaintiff.agentName = 'خالد';
+    assert.match(M.buildClaimEvidenceText(state), /وبعرضها على المدعي وكالة صادق عليها\./);
+
+    // الفعل يتبع جنس المصادِق: الوكيلة تُصادق
+    state.plaintiff.agentGender = 'ف';
+    assert.match(M.buildClaimEvidenceText(state), /وبعرضها على المدعي وكالة صادقت عليها\./);
+
+    // والممثل النظامي صفة لا وكالة، فيبقى اللقب مجردًا
+    state.plaintiff.repType = 'ممثل';
+    assert.match(M.buildClaimEvidenceText(state), /وبعرضها على المدعي صادق عليها\./);
+});
+
+test('buildPlaintiffAdditionClause: إضافة المدعي اختيارية وتلي المصادقة', () => {
+    const state = readyState();
+    assert.equal(M.buildPlaintiffAdditionClause(state), '');
+
+    state.claim.plaintiffAddition = true;
+    state.claim.plaintiffAdditionText = 'أضيف أن المبلغ مئة وعشرون ألفًا';
+    assert.equal(
+        M.buildPlaintiffAdditionClause(state),
+        ' ثم قدم النص التالي: ( أضيف أن المبلغ مئة وعشرون ألفًا ) هكذا قدَّم.'
+    );
+    assert.match(M.buildClaimEvidenceText(state), /صادق عليها\. ثم قدم النص التالي: \( أضيف أن المبلغ مئة وعشرون ألفًا \) هكذا قدَّم\./);
+
+    // المطابقة النحوية للمدعية
+    state.plaintiff.gender = 'ف';
+    assert.match(M.buildPlaintiffAdditionClause(state), /^ ثم قدمت النص التالي: \(.*\) هكذا قدَّمت\.$/);
+
+    // وتركُ النص فارغًا يُرصد في التحذيرات ويُطبع نقاطًا
+    state.claim.plaintiffAdditionText = '';
+    assert.match(M.buildPlaintiffAdditionClause(state), /\( \.+ \)/);
+    assert.ok(M.collectWarnings(state).some(x => x.includes('إضافة المدعي')));
+});
+
+// ==================== صور جواب المدعى عليه الأربع ====================
+
+test('buildDefendantAnswerClause: مذكرة الدفاع الأولى تُرصد بنصها ويُصادق عليها', () => {
+    const state = readyState();
+    state.claim.defendantAnswerMode = M.DEFENDANT_ANSWER_MODES.FIRST_MEMO;
+    state.claim.defendantFirstMemoText = 'أدفع بعدم صحة الدعوى';
+    assert.equal(
+        M.buildDefendantAnswerClause(state),
+        ' وبالاطلاع على مذكرة الدفاع الأولى المقدَّمة من المدعى عليه ونصها: (( أدفع بعدم صحة الدعوى )) أ. هـ. وبعرضها على المدعى عليه صادق عليها.'
+    );
+    // النص فارغًا يُنبَّه على نسخه من الطلبات
+    state.claim.defendantFirstMemoText = '';
+    assert.match(M.buildDefendantAnswerClause(state), /\(\( \.+ تنسخ من الطلبات \.+ \)\)/);
+    assert.ok(M.collectWarnings(state).some(x => x.includes('مذكرة الدفاع الأولى')));
+});
+
+test('buildDefendantAnswerClause: الإجابة الشفهية هي الصيغة الافتراضية', () => {
+    const state = readyState();
+    assert.equal(state.claim.defendantAnswerMode, M.DEFENDANT_ANSWER_MODES.ORAL);
+    assert.equal(
+        M.buildDefendantAnswerClause(state),
+        ' وبعرضها على المدعى عليه أجاب قائلاً: ما ذكره المدعي غير صحيح هكذا أجاب.'
+    );
+});
+
+test('buildDefendantAnswerClause: المذكرة المكتوبة تُقدَّم في الجلسة', () => {
+    const state = readyState();
+    state.claim.defendantAnswerMode = M.DEFENDANT_ANSWER_MODES.WRITTEN_MEMO;
+    state.claim.defendantWrittenMemoText = 'ما ورد في الدعوى غير صحيح';
+    assert.equal(
+        M.buildDefendantAnswerClause(state),
+        ' وبعرضها على المدعى عليه قدم مذكرة مكتوبة نصها: ما ورد في الدعوى غير صحيح، هكذا قدَّم.'
+    );
+    state.defendant.gender = 'ف';
+    assert.match(M.buildDefendantAnswerClause(state), /على المدعى عليها قدمت مذكرة مكتوبة نصها: .*، هكذا قدَّمت\.$/);
+    state.claim.defendantWrittenMemoText = '';
+    assert.ok(M.collectWarnings(state).some(x => x.includes('المذكرة المكتوبة')));
+});
+
+test('buildDefendantAnswerClause: طلب المهلة صيغة موحدة بلا نص يُكتب', () => {
+    const state = readyState();
+    state.claim.defendantAnswerMode = M.DEFENDANT_ANSWER_MODES.DELAY;
+    state.claim.defendantResponseText = '';
+    assert.equal(
+        M.buildDefendantAnswerClause(state),
+        ' وبعرضها على المدعى عليه أجاب قائلاً: اطلب مهلة لتقديم الجواب مفصلا في الجلسة القادمة، هكذا أجاب.'
+    );
+    // ولا يُطالَب بنص جواب مع هذه الصيغة
+    assert.ok(!M.collectWarnings(state).some(x => x.includes('إجابة المدعى عليه على الدعوى')));
+});
+
+test('buildDefendantAnswerClause: بيانات الوكيل تُثبت في الجواب بصوره كلها', () => {
+    const state = readyState();
+    state.defendant.attendance = 'تمثيل';
+    state.defendant.agentName = 'خالد';
+    state.defendant.wakalaIssuer = 'كتابة العدل بالرياض';
+    state.defendant.wakalaNum = '777';
+    state.defendant.licenseNum = '99';
+    [
+        M.DEFENDANT_ANSWER_MODES.FIRST_MEMO, M.DEFENDANT_ANSWER_MODES.ORAL,
+        M.DEFENDANT_ANSWER_MODES.WRITTEN_MEMO, M.DEFENDANT_ANSWER_MODES.DELAY
+    ].forEach(mode => {
+        state.claim.defendantAnswerMode = mode;
+        assert.match(
+            M.buildDefendantAnswerClause(state),
+            /وبعرضها على خالد، الحاضر بصفته وكيلاً بموجب الوكالة الصادرة من \(كتابة العدل بالرياض\)، برقم \(777\)، ورخصة مزاولة المحاماة رقم \(99\)،/,
+            `صورة الجواب: ${mode}`
+        );
+    });
+});
+
 test('التسلسل: الإنكار يُتبع بتكليف المدعي بالبينة', () => {
     const text = M.composeMinutes(readyState());
     assert.match(text, /ولمَّا كانت إجابة المدعى عليه إنكاراً لما جاء في الدعوى، وأن البينة على المدعي، فقد جرى تكليف المدعي بإحضار بينته/);
@@ -610,7 +748,8 @@ test('التسلسل: غياب المدعى عليه يُبقي سؤال الب�
     state.defendant.tabligh = '789';
     const text = M.composeMinutes(state);
     assert.match(text, /عن بينته/);
-    assert.ok(!text.includes('وبعرضها على'));
+    // لا يُعرض على الغائب جوابٌ، وتبقى مصادقة المدعي على صحيفة دعواه وحدها
+    assert.ok(!text.includes('وبعرضها على المدعى عليه'));
     assert.ok(!text.includes('جرى تكليف المدعي بإحضار بينته'));
 });
 
@@ -679,7 +818,7 @@ test('composeMinutes: بيانات وكيل المدعى عليه تُثبت ف�
     state.defendant.wakalaNum = '777';
     state.defendant.licenseNum = '99';
     const text = M.composeMinutes(state);
-    assert.match(text, /أ\. هـ وبعرضها على خالد، الحاضر بصفته وكيلاً بموجب الوكالة الصادرة من \(كتابة العدل بالرياض\)، برقم \(777\)، ورخصة مزاولة المحاماة رقم \(99\)، أجاب قائلاً:/);
+    assert.match(text, /صادق عليها\. وبعرضها على خالد، الحاضر بصفته وكيلاً بموجب الوكالة الصادرة من \(كتابة العدل بالرياض\)، برقم \(777\)، ورخصة مزاولة المحاماة رقم \(99\)، أجاب قائلاً:/);
     // لا تتكرر بيانات الوكيل في فقرات الحضور بعد الافتتاح
     assert.ok(!text.includes('حضر عن المدعى عليه'));
     assert.equal(text.match(/الوكالة الصادرة من/g).length, 1);
@@ -715,7 +854,7 @@ test('composeMinutes: النص المعتمد للجلسة التحضيرية ب
     state.claim.evidenceChoice = 'none';
     assert.equal(
         M.composeMinutes(state),
-        'لدي أنا ........... في المحكمة ...........، جرى الاطلاع على صحيفة الدعوى ونصها : (( ....... تنسخ من نظام ناجز ....... )) أ. هـ وبعرضها على المدعى عليه أجاب قائلاً: ........... هكذا أجاب. ولمَّا كانت إجابة المدعى عليه إنكاراً لما جاء في الدعوى، وأن البينة على المدعي، فقد جرى تكليف المدعي بإحضار بينته. وبسؤاله عن بينته قرر قائلاً: لا بينة لدي، ثم جرى من الدائرة سؤال أطراف الدعوى هل لديكما ما تضيفانه؟ فقررا: ليس لدينا سوى ما قدمنا. هكذا قررا، واستناداً للمادة (69) والمادة (159) من نظام المرافعات الشرعية فقد قررت الدائرة قفل باب المرافعة للنطق بالحكم في هذه الجلسة، وأغلقت الجلسة الساعة الثامنة والنصف صباحًا.'
+        'لدي أنا ........... في المحكمة ...........، جرى الاطلاع على صحيفة الدعوى ونصها : (( ....... تنسخ من نظام ناجز ....... )) أ. هـ، وبعرضها على المدعي صادق عليها. وبعرضها على المدعى عليه أجاب قائلاً: ........... هكذا أجاب. ولمَّا كانت إجابة المدعى عليه إنكاراً لما جاء في الدعوى، وأن البينة على المدعي، فقد جرى تكليف المدعي بإحضار بينته. وبسؤاله عن بينته قرر قائلاً: لا بينة لدي، ثم جرى من الدائرة سؤال أطراف الدعوى هل لديكما ما تضيفانه؟ فقررا: ليس لدينا سوى ما قدمنا. هكذا قررا، واستناداً للمادة (69) والمادة (159) من نظام المرافعات الشرعية فقد قررت الدائرة قفل باب المرافعة للنطق بالحكم في هذه الجلسة، وأغلقت الجلسة الساعة الثامنة والنصف صباحًا.'
     );
 });
 
