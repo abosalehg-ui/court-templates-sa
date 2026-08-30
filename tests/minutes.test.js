@@ -238,6 +238,107 @@ test('composeMinutes: فقرة غياب المدعى عليه موضعها بع�
     assert.match(M.composeMinutes(state), /هكذا قدَّم\. وقد تبلَّغ المدعى عليه/);
 });
 
+// ==================== مذكرة المدعى عليه الغائب (المادة 45) ====================
+
+function absentWithMemoState(overrides = {}) {
+    const state = readyState({ includePartyDataInText: false });
+    state.defendant.attendance = 'لم يحضر';
+    state.defendant.tabligh = '456';
+    state.claim.defendantAnswerMode = M.DEFENDANT_ANSWER_MODES.FIRST_MEMO;
+    state.claim.defendantFirstMemoText = 'أنكر ما جاء في الدعوى';
+    state.claim.evidenceChoice = 'none';
+    return Object.assign(state, overrides);
+}
+
+test('defendantAbsentWithMemo: لا يثبت إلا للغائب المتبلّغ المودِع إحدى صورتي المذكرة', () => {
+    const state = absentWithMemoState();
+    assert.equal(M.defendantAbsentWithMemo(state), true);
+    assert.equal(M.defendantAnswerRecorded(state), true);
+
+    state.claim.defendantAnswerMode = M.DEFENDANT_ANSWER_MODES.WRITTEN_MEMO;
+    assert.equal(M.defendantAbsentWithMemo(state), true);
+
+    // من لم يتبلّغ تُؤجَّل جلسته فلا جواب يُرصد فيها
+    state.defendant.notifyStatus = 'لم يتبلغ';
+    assert.equal(M.defendantAbsentWithMemo(state), false);
+
+    // والغائب بلا مذكرة لا جواب له
+    const noMemo = absentWithMemoState();
+    noMemo.claim.defendantAnswerMode = M.DEFENDANT_ANSWER_MODES.NONE;
+    assert.equal(M.defendantAbsentWithMemo(noMemo), false);
+    assert.equal(M.defendantAnswerRecorded(noMemo), false);
+});
+
+test('buildDefendantAbsenceClause: إيداع المذكرة يُثبت بدل نفيه', () => {
+    const d = M.freshMinutesState().defendant;
+    d.tabligh = '456';
+    assert.match(M.buildDefendantAbsenceClause(d, 'المدعى عليه', true), /وقد أودع مذكرة بدفاعه بناء على ما قررته المادة الخامسة والأربعون/);
+    assert.match(M.buildDefendantAbsenceClause(d, 'المدعى عليه', false), /ولم يودع مذكرة بدفاعه/);
+    d.gender = 'ف';
+    assert.match(M.buildDefendantAbsenceClause(d, 'المدعى عليها', true), /وقد أودعت مذكرة بدفاعها/);
+});
+
+test('composeMinutes: مذكرة الدفاع الأولى مع الغياب تُرصد بلا عرض ولا مصادقة، ويُكلَّف المدعي بالبينة', () => {
+    const text = M.composeMinutes(absentWithMemoState());
+    assert.match(text, /وقد أودع مذكرة بدفاعه بناء على ما قررته المادة الخامسة والأربعون/);
+    assert.match(text, /وبالاطلاع على مذكرة الدفاع الأولى المقدَّمة من المدعى عليه ونصها: \(\( أنكر ما جاء في الدعوى \)\) أ\. هـ\./);
+    // لم يحضر فلا تُعرض عليه مذكرته ولا يصادق عليها
+    assert.ok(!text.includes('وبعرضها على المدعى عليه'));
+    assert.match(text, /ولمَّا كانت إجابة المدعى عليه إنكاراً لما جاء في الدعوى، وأن البينة على المدعي، فقد جرى تكليف المدعي بإحضار بينته/);
+});
+
+test('composeMinutes: المذكرة المكتوبة مع الغياب تُرصد بصيغة الاطلاع لا بصيغة التقديم في الجلسة', () => {
+    const state = absentWithMemoState();
+    state.claim.defendantAnswerMode = M.DEFENDANT_ANSWER_MODES.WRITTEN_MEMO;
+    state.claim.defendantWrittenMemoText = 'أقر بما جاء في الدعوى';
+    state.claim.defendantStance = 'إقرار';
+    const text = M.composeMinutes(state);
+    assert.match(text, /وبالاطلاع على المذكرة المكتوبة المقدَّمة من المدعى عليه ونصها: \(\( أقر بما جاء في الدعوى \)\) أ\. هـ\./);
+    assert.ok(!text.includes('قدم مذكرة مكتوبة'));
+    // الإقرار يُغني عن البينة ولو كان المُقِرّ غائبًا
+    assert.match(text, /فلا موجب لتكليف المدعي بالبينة/);
+    assert.ok(!text.includes('وبسؤاله عن بينته'));
+});
+
+test('composeMinutes: الدفع الشكلي في مذكرة الغائب يُثبت من مذكرته لا بسؤاله', () => {
+    const state = absentWithMemoState();
+    state.claim.defendantStance = 'دفع شكلي';
+    state.claim.formalPleaText = 'أدفع بعدم اختصاص المحكمة مكانيًا';
+    state.claim.plaintiffReplyText = 'المحكمة مختصة';
+    state.claim.answeredOnMerits = 'لا';
+    const text = M.composeMinutes(state);
+    assert.match(text, /وقد تضمنت مذكرة المدعى عليه دفعاً شكلياً نصه: أدفع بعدم اختصاص المحكمة مكانيًا\./);
+    assert.ok(!text.includes('وبسؤال المدعى عليه عن دفعه الشكلي'));
+    assert.match(text, /وبعرض هذا الدفع على المدعي أجاب قائلاً: المحكمة مختصة/);
+    assert.match(text, /قررت الدائرة النظر في الدفع الشكلي قبل الخوض في موضوع الدعوى/);
+});
+
+test('composeMinutes: الغائب بلا مذكرة يبقى على مساره — نفي الإيداع ثم سؤال المدعي مباشرة', () => {
+    const state = absentWithMemoState();
+    state.claim.defendantAnswerMode = M.DEFENDANT_ANSWER_MODES.NONE;
+    const text = M.composeMinutes(state);
+    assert.match(text, /ولم يودع مذكرة بدفاعه/);
+    assert.ok(!text.includes('وبالاطلاع على مذكرة الدفاع الأولى'));
+    assert.ok(!text.includes('إنكاراً لما جاء في الدعوى'));
+    assert.match(text, /وبسؤال المدعي عن بينته/);
+});
+
+test('collectWarnings: مذكرة الغائب تُفحص كجواب الحاضر، وتنبيه على تعارضها مع تسبيب الغياب', () => {
+    const state = absentWithMemoState();
+    state.claim.defendantFirstMemoText = '';
+    assert.ok(M.collectWarnings(state).some(x => x.includes('نص مذكرة الدفاع الأولى')));
+
+    // الغائب بلا مذكرة لا نص يُفحص له
+    const noMemo = absentWithMemoState();
+    noMemo.claim.defendantAnswerMode = M.DEFENDANT_ANSWER_MODES.NONE;
+    assert.ok(!M.collectWarnings(noMemo).some(x => x.includes('نص مذكرة الدفاع الأولى')));
+
+    // تسبيب الغياب (م21/3) مبني على ألا يكون قد أودع مذكرة
+    const withNoQuestion = absentWithMemoState();
+    withNoQuestion.claim.evidenceChoice = 'noQuestion';
+    assert.ok(M.collectWarnings(withNoQuestion).some(x => x.includes('بدون سؤال عن البينة')));
+});
+
 test('composeMinutes: الجلسة المنظورة سابقًا تُبقي غياب المدعى عليه في فقرات الحضور', () => {
     const state = readyState({ includePartyDataInText: false });
     state.sessionType = 'previous';

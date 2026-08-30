@@ -469,6 +469,13 @@ const ANSWER_MODE_HINTS = {
     delay: 'صيغة موحدة بلا نص يُكتب: "وبعرضها على المدعى عليه أجاب قائلاً: اطلب مهلة لتقديم الجواب مفصلا في الجلسة القادمة، هكذا أجاب."'
 };
 
+// ومع الغياب تُرصد المذكرة بنصها بلا عرضٍ ولا مصادقة، فيتبدل شرح الصورتين المتاحتين
+const ABSENT_ANSWER_MODE_HINTS = {
+    none: 'لا جواب للمدعى عليه، فتُثبت واقعة عدم إيداعه مذكرة بدفاعه ويُكلَّف المدعي ببينته مباشرة.',
+    firstMemo: 'سيُضاف: "وبالاطلاع على مذكرة الدفاع الأولى المقدَّمة من المدعى عليه ونصها: (( … )) أ. هـ." وتُثبت في فقرة الغياب واقعة إيداعه المذكرة.',
+    writtenMemo: 'سيُضاف: "وبالاطلاع على المذكرة المكتوبة المقدَّمة من المدعى عليه ونصها: (( … )) أ. هـ." وتُثبت في فقرة الغياب واقعة إيداعه المذكرة.'
+};
+
 const STANCE_HINTS = {
     'إنكار': 'الإنكار يوجب تكليف المدعي بالبينة، فتظهر بطاقة بينة المدعي.',
     'إقرار': 'الإقرار يُغني عن البينة، فلا يُسأل المدعي عن بينته ولا عن اليمين، ويُقفل باب المرافعة مباشرة.',
@@ -478,38 +485,71 @@ const STANCE_HINTS = {
 // هل بُلغ الضبط مرحلة الموضوع (فتُسأل البينات)؟
 function meritsReached() {
     const c = state.claim;
-    if (state.defendant.attendance === 'لم يحضر') return true;
+    // الغائب المودِع مذكرةً له جواب يُكيَّف، فيجري عليه ما يجري على الحاضر
+    if (state.defendant.attendance === 'لم يحضر' && !defendantAbsentWithMemo(state)) return true;
     if (c.defendantStance === 'إقرار') return false;
     if (c.defendantStance === 'دفع شكلي' && c.answeredOnMerits !== 'نعم') return false;
     return true;
 }
 
+// صور الجواب المتاحة بحسب حضور المدعى عليه: الغائب لا يُجيب شفهياً ولا يطلب مهلة،
+// وإنما يثبت جوابه بما أودعه من مذكرة، أو لا جواب له البتة
+function answerModeAvailable(mode, absent) {
+    if (mode === DEFENDANT_ANSWER_MODES.NONE) return absent;
+    if (mode === DEFENDANT_ANSWER_MODES.ORAL || mode === DEFENDANT_ANSWER_MODES.DELAY) return !absent;
+    return true;
+}
+
+// تصحيح الصورة المختارة عند تبدّل حضور المدعى عليه، فلا تبقى صورة لا محل لها
+function syncAnswerModeWithAttendance() {
+    const absent = state.defendant.attendance === 'لم يحضر';
+    const mode = state.claim.defendantAnswerMode;
+    if (answerModeAvailable(mode, absent)) return;
+    const next = absent ? DEFENDANT_ANSWER_MODES.NONE : DEFENDANT_ANSWER_MODES.ORAL;
+    state.claim.defendantAnswerMode = next;
+    const group = document.querySelector('.choice-group[data-group="defendant-answer-mode"]');
+    group.querySelectorAll('.choice-btn').forEach(b => b.classList.toggle('active', b.dataset.value === next));
+}
+
 // حقل النص التابع لصورة الجواب المختارة — وطلب المهلة صيغة موحدة فلا حقل معه
 function updateAnswerModeVisibility() {
+    const absent = state.defendant.attendance === 'لم يحضر';
+    syncAnswerModeWithAttendance();
     const mode = state.claim.defendantAnswerMode;
+    document.querySelectorAll('.choice-group[data-group="defendant-answer-mode"] .choice-btn').forEach(btn => {
+        btn.style.display = answerModeAvailable(btn.dataset.value, absent) ? '' : 'none';
+    });
+    $('defendantAbsentAnswerNotice').style.display = absent ? 'block' : 'none';
     $('defendantFirstMemoField').style.display = mode === DEFENDANT_ANSWER_MODES.FIRST_MEMO ? 'block' : 'none';
     $('defendantOralAnswerField').style.display = mode === DEFENDANT_ANSWER_MODES.ORAL ? 'block' : 'none';
     $('defendantWrittenMemoField').style.display = mode === DEFENDANT_ANSWER_MODES.WRITTEN_MEMO ? 'block' : 'none';
-    $('defendantAnswerModeHint').textContent = ANSWER_MODE_HINTS[mode] || '';
+    // لا تكييف لجوابٍ لم يقع، فتُطوى بطاقة التكييف مع صورة «لم يودع مذكرة»
+    $('defendantStanceBlock').style.display = mode === DEFENDANT_ANSWER_MODES.NONE ? 'none' : 'block';
+    const hints = absent ? ABSENT_ANSWER_MODE_HINTS : ANSWER_MODE_HINTS;
+    $('defendantAnswerModeHint').textContent = hints[mode] || '';
 }
 
 function updateStanceVisibility() {
     if (!state.sessionType) return;
     const isNew = state.sessionType === 'new';
     const defendantPresent = state.defendant.attendance !== 'لم يحضر';
+    // الغائب المتبلّغ قد يودع مذكرة بدفاعه، فيُسأل عن جوابه وإن لم يحضر.
+    // ومن لم يتبلّغ تُؤجَّل جلسته لإعادة تبليغه فلا جواب يُرصد فيها
+    const answerApplies = defendantPresent || state.defendant.notifyStatus !== 'لم يتبلغ';
+    const answerRecorded = defendantAnswerRecorded(state);
 
     $('claimTextField').style.display = isNew ? 'block' : 'none';
     // إضافة المدعي لا محل لها إلا حيث تُرصد صحيفة الدعوى ويُصادق عليها
     $('plaintiffAdditionBlock').style.display = isNew ? 'block' : 'none';
-    $('defendantResponseSection').style.display = (isNew && defendantPresent) ? 'block' : 'none';
+    $('defendantResponseSection').style.display = (isNew && answerApplies) ? 'block' : 'none';
     updateAnswerModeVisibility();
     $('followUpSection').style.display = isNew ? 'none' : 'block';
     $('defendantStanceHint').textContent = STANCE_HINTS[state.claim.defendantStance] || '';
-    $('formalPleaBlock').style.display = (isNew && defendantPresent && state.claim.defendantStance === 'دفع شكلي') ? 'block' : 'none';
+    $('formalPleaBlock').style.display = (isNew && answerRecorded && state.claim.defendantStance === 'دفع شكلي') ? 'block' : 'none';
 
     const showPlaintiffEvidence = isNew ? meritsReached() : !!state.followUp.plaintiffEvidence;
     $('plaintiffEvidenceCard').style.display = showPlaintiffEvidence ? 'block' : 'none';
-    $('evidenceOrderNotice').style.display = defendantPresent ? 'block' : 'none';
+    $('evidenceOrderNotice').style.display = answerRecorded ? 'block' : 'none';
 
     const showDefendantEvidence = isNew
         ? (defendantPresent && meritsReached())
@@ -618,7 +658,8 @@ function handleChoice(key, value) {
     // ===== صورة جواب المدعى عليه وتكييفه =====
     if (key === 'defendant-answer-mode') {
         state.claim.defendantAnswerMode = value;
-        updateAnswerModeVisibility();
+        // إيداع المذكرة مع الغياب أو الرجوع عنه يقلب مسار الضبط كله، فتُعاد قراءة الرؤية
+        updateStanceVisibility();
         return;
     }
     if (key === 'defendant-stance') {

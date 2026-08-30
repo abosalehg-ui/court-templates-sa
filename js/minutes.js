@@ -279,8 +279,32 @@ const DEFENDANT_ANSWER_MODES = {
     FIRST_MEMO: 'firstMemo',        // مذكرة الدفاع الأولى المودعة في النظام
     ORAL: 'oral',                   // إجابة شفهية يرصدها كاتب الضبط
     WRITTEN_MEMO: 'writtenMemo',    // مذكرة مكتوبة يقدمها في الجلسة
-    DELAY: 'delay'                  // طلب مهلة للجواب في الجلسة القادمة
+    DELAY: 'delay',                 // طلب مهلة للجواب في الجلسة القادمة
+    NONE: 'none'                    // الغائب الذي لم يودع مذكرة بدفاعه — لا جواب له
 };
+
+// المدعى عليه الغائب قد يودع مذكرة بدفاعه وفق المادة (45) من نظام المرافعات الشرعية،
+// فيثبت له جوابٌ وإن لم يحضر؛ فتُرصد مذكرته ويُكيَّف ما فيها كما لو حضر: إنكاراً يُكلَّف
+// معه المدعي بالبينة، أو إقراراً يُغني عنها، أو دفعاً شكلياً يُنظر قبل الموضوع.
+// ولا تُتصور منه — وهو غائب — إجابة شفهية ولا طلب مهلة، فصورتا الجواب هاتان وحدهما.
+function defendantAnswerIsMemo(state) {
+    const mode = ((state && state.claim) || {}).defendantAnswerMode;
+    return mode === DEFENDANT_ANSWER_MODES.FIRST_MEMO || mode === DEFENDANT_ANSWER_MODES.WRITTEN_MEMO;
+}
+
+// ومن لم يتبلّغ لا يدخل في هذا؛ فجلسته تُؤجَّل لإعادة تبليغه ولا يُنظر فيها جواب
+function defendantAbsentWithMemo(state) {
+    const d = (state && state.defendant) || {};
+    return d.attendance === 'لم يحضر'
+        && d.notifyStatus !== 'لم يتبلغ'
+        && defendantAnswerIsMemo(state);
+}
+
+// هل ثبت للمدعى عليه جوابٌ على الدعوى؟ حضوراً، أو بمذكرة أودعها مع غيابه
+function defendantAnswerRecorded(state) {
+    const d = (state && state.defendant) || {};
+    return d.attendance !== 'لم يحضر' || defendantAbsentWithMemo(state);
+}
 
 // ==================== حالات ابتدائية ====================
 
@@ -559,7 +583,7 @@ function buildPartyClause(state, role) {
 
     // غياب الطرف المتبلّغ — المادة (45) من نظام المرافعات الشرعية: السير في الدعوى
     // مع إثبات أنه لم يحضر ولا من يمثله ولم يودع مذكرة بدفاعه
-    if (role === 'defendant') return buildDefendantAbsenceClause(s, name);
+    if (role === 'defendant') return buildDefendantAbsenceClause(s, name, defendantAbsentWithMemo(state));
     const verb = s.gender === 'م' ? 'لم يحضر' : 'لم تحضر';
     const verbRepeat = s.gender === 'م' ? 'ولم يحضر' : 'ولم تحضر';
     const verbDeposit = s.gender === 'م' ? 'ولم يودع' : 'ولم تودع';
@@ -569,11 +593,14 @@ function buildPartyClause(state, role) {
 // غياب المدعى عليه المتبلّغ — تُقدَّم فيه واقعة التبلّغ على واقعة الغياب،
 // ويُذيَّل بموجب المادة (45) من نظام المرافعات الشرعية في إيداع مذكرة الدفاع.
 // وتصدَّر الفقرة بـ«قد» لا بالواو، فالواو يزيدها واصلُها (فقرات الحضور أو نص الدعوى)
-function buildDefendantAbsenceClause(s, name) {
+// فإن أودع الغائب مذكرة بدفاعه أُثبت إيداعه لها بدل نفيه؛ إذ الإيداع واقعٌ خلاف الغياب
+function buildDefendantAbsenceClause(s, name, filedMemo) {
     const suffix = s.gender === 'م' ? 'ه' : 'ها';
     const verbNotified = s.gender === 'م' ? 'قد تبلَّغ' : 'قد تبلَّغت';
     const verbAttend = s.gender === 'م' ? 'ولم يحضر هو' : 'ولم تحضر هي';
-    const verbDeposit = s.gender === 'م' ? 'ولم يودع' : 'ولم تودع';
+    const verbDeposit = filedMemo
+        ? (s.gender === 'م' ? 'وقد أودع' : 'وقد أودعت')
+        : (s.gender === 'م' ? 'ولم يودع' : 'ولم تودع');
     return `${verbNotified} ${name} ${verbAttend} ولا من يمثل${suffix}، بمهمة التبليغ رقم (${orDots(s.tabligh)})، ${verbDeposit} مذكرة بدفاع${suffix} بناء على ما قررته المادة الخامسة والأربعون من نظام المرافعات الشرعية`;
 }
 
@@ -883,8 +910,9 @@ function buildPlaintiffAdditionClause(state) {
 function buildProceedingsAfterClaim(state) {
     const c = state.claim;
 
-    // غياب المدعى عليه: لا جواب يُعرض، فيُكلَّف المدعي ببينته مباشرة
-    if (state.defendant.attendance === 'لم يحضر') {
+    // غياب المدعى عليه بلا مذكرة: لا جواب يُعرض، فيُكلَّف المدعي ببينته مباشرة.
+    // فإن أودع مذكرة بدفاعه مضى الضبط في مسار الجواب وتكييفه كما لو حضر
+    if (state.defendant.attendance === 'لم يحضر' && !defendantAbsentWithMemo(state)) {
         return buildPlaintiffEvidenceText(state);
     }
 
@@ -917,6 +945,16 @@ function buildDefendantAnswerClause(state) {
     const addressee = isRepresented
         ? `${orDots(d.agentName)}، ${buildAgentCapacityPhrase(d, dName, { present: true })}،`
         : dName;
+
+    // المذكرة المودعة مع الغياب: تُرصد بنصها ولا تُعرض على مودعها ولا يُصادق عليها؛ إذ لم يحضر
+    if (defendantAbsentWithMemo(state)) {
+        const isFirstMemo = c.defendantAnswerMode === DEFENDANT_ANSWER_MODES.FIRST_MEMO;
+        const memoLabel = isFirstMemo ? 'مذكرة الدفاع الأولى المقدَّمة' : 'المذكرة المكتوبة المقدَّمة';
+        const memoText = isFirstMemo
+            ? (c.defendantFirstMemoText.trim() || FIRST_MEMO_PLACEHOLDER)
+            : orDots(c.defendantWrittenMemoText);
+        return ` وبالاطلاع على ${memoLabel} من ${dName} ونصها: (( ${memoText} )) أ. هـ.`;
+    }
 
     // مذكرة الدفاع الأولى: تُرصد بنصها ثم تُعرض على مقدِّمها فيصادق عليها
     if (c.defendantAnswerMode === DEFENDANT_ANSWER_MODES.FIRST_MEMO) {
@@ -958,7 +996,10 @@ function buildFormalPleaClause(state) {
     const dName = partyLabel('defendant', d.gender);
     const pName = partyLabel('plaintiff', state.plaintiff.gender);
     const dSuffix = d.gender === 'م' ? 'ه' : 'ها';
-    let out = ` وبسؤال ${dName} عن دفع${dSuffix} الشكلي قرر قائلاً: ${orDots(c.formalPleaText)}. هكذا قرر.`;
+    // الغائب لا يُسأل عن دفعه، وإنما يُثبت الدفع من مذكرته المودعة ثم يُعرض على المدعي
+    let out = defendantAbsentWithMemo(state)
+        ? ` وقد تضمنت مذكرة ${dName} دفعاً شكلياً نصه: ${orDots(c.formalPleaText)}.`
+        : ` وبسؤال ${dName} عن دفع${dSuffix} الشكلي قرر قائلاً: ${orDots(c.formalPleaText)}. هكذا قرر.`;
     out += ` وبعرض هذا الدفع على ${pName} أجاب قائلاً: ${orDots(c.plaintiffReplyText)}. هكذا أجاب.`;
     if (c.answeredOnMerits !== 'نعم') {
         out += ` ولم يُجب ${dName} في الموضوع، وعليه قررت الدائرة النظر في الدفع الشكلي قبل الخوض في موضوع الدعوى.`;
@@ -1027,11 +1068,11 @@ function buildPlaintiffEvidenceText(state, opts) {
     let out = '';
     if (options.lead) {
         out += options.lead;
-    } else if (state.defendant.attendance !== 'لم يحضر' && c.defendantStance !== 'إقرار') {
+    } else if (defendantAnswerRecorded(state) && c.defendantStance !== 'إقرار') {
         out += ` ولمَّا كانت إجابة ${dName} إنكاراً لما جاء في الدعوى، وأن البينة على المدعي، فقد جرى تكليف ${pName} بإحضار بينت${pSuffix}.`;
     }
 
-    // إن لم يسبق في الفقرة ذكرٌ للمدعي (كغياب المدعى عليه، فلا إنكار يُعرض) صُرِّح بلقبه
+    // إن لم يسبق في الفقرة ذكرٌ للمدعي (كغياب المدعى عليه بلا مذكرة، فلا إنكار يُعرض) صُرِّح بلقبه
     // بدل الضمير، لئلا يعود على المدعى عليه المذكور قبله
     const namePlaintiff = !out;
     if (isRepresented) {
@@ -1418,20 +1459,26 @@ function collectWarnings(state) {
         && state.plaintiff.specialCase === 'none'
         && !(state.defendant.attendance === 'لم يحضر' && state.defendant.notifyStatus === 'لم يتبلغ');
     const defendantPresent = state.defendant.attendance !== 'لم يحضر';
+    // الجواب يُفحص متى ثبت: حضوراً أو بمذكرة أودعها الغائب المتبلّغ
+    const answerRecorded = defendantAnswerRecorded(state);
     const c = state.claim;
     // في الجلسة التحضيرية تُفحص بينة المدعي دائمًا؛ وفي التالية عند سماعها فيها
     const plaintiffEvidenceApplies = claimApplies
-        && !(defendantPresent && c.defendantStance === 'إقرار')
-        && !(defendantPresent && c.defendantStance === 'دفع شكلي' && c.answeredOnMerits !== 'نعم');
+        && !(answerRecorded && c.defendantStance === 'إقرار')
+        && !(answerRecorded && c.defendantStance === 'دفع شكلي' && c.answeredOnMerits !== 'نعم');
     const followUp = state.followUp || {};
 
     if (claimApplies) {
         if (!c.text.trim()) w.push('لم يُكتب نص الدعوى.');
         if (c.plaintiffAddition && !c.plaintiffAdditionText.trim()) w.push('لم يُكتب نص إضافة المدعي على صحيفة الدعوى.');
-        if (defendantPresent) w.push(...defendantAnswerWarnings(c));
-        if (defendantPresent && c.defendantStance === 'دفع شكلي') {
+        if (answerRecorded) w.push(...defendantAnswerWarnings(c));
+        if (answerRecorded && c.defendantStance === 'دفع شكلي') {
             if (!c.formalPleaText.trim()) w.push('لم يُكتب نص الدفع الشكلي للمدعى عليه.');
             if (!c.plaintiffReplyText.trim()) w.push('لم يُكتب رد المدعي على الدفع الشكلي.');
+        }
+        // تسبيب الغياب (م21/3) مبني على ألا يكون الغائب قد أودع مذكرة ولا قدّم جواباً
+        if (defendantAbsentWithMemo(state) && c.evidenceChoice === 'noQuestion') {
+            w.push('اختير «بدون سؤال عن البينة (م21)» مع إيداع المدعى عليه مذكرة بدفاعه، وتسبيب الغياب مبني على ألا يكون قد أودع مذكرة ولا قدّم جواباً — فيلزم تعديل الأسباب أو العدول عن الخيار.');
         }
     }
 
@@ -1460,7 +1507,9 @@ function collectWarnings(state) {
 
 // فحص نص الجواب بحسب صورته — وطلب المهلة صيغة موحدة فلا نص يُفحص فيها
 function defendantAnswerWarnings(c) {
+    // طلب المهلة صيغة موحدة، والغائب بلا مذكرة لا جواب له — فلا نص يُفحص في الصورتين
     if (c.defendantAnswerMode === DEFENDANT_ANSWER_MODES.DELAY) return [];
+    if (c.defendantAnswerMode === DEFENDANT_ANSWER_MODES.NONE) return [];
     if (c.defendantAnswerMode === DEFENDANT_ANSWER_MODES.FIRST_MEMO) {
         return c.defendantFirstMemoText.trim() ? [] : ['لم يُكتب نص مذكرة الدفاع الأولى للمدعى عليه.'];
     }
@@ -1525,6 +1574,7 @@ if (typeof module !== 'undefined' && module.exports) {
         DEFENDANT_ANSWER_MODES, FIRST_MEMO_PLACEHOLDER, CLAIM_TEXT_PLACEHOLDER,
         isAgentRepresented, partyAgencyLabel, agencySpeakerGender,
         buildDefendantAbsenceClause, defendantAbsenceAfterClaim,
+        defendantAnswerIsMemo, defendantAbsentWithMemo, defendantAnswerRecorded,
         buildPlaintiffAdditionClause, defendantAnswerWarnings,
         isCorporateEntity, corporateDocLabel, mandatoryReviewNotice, closingTimeParts,
         minutesPhrase, buildTimeArabic, addMinutesToTime, validHoursForPeriod, convertArabicDigits,
