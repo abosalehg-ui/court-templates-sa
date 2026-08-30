@@ -390,7 +390,7 @@ function freshMinutesState() {
         // ولا يشمل هذا المفتاح بيانات الوكيل (رقم الوكالة والتحقق منها بالمادة (51/3) ورخصة
         // المحاماة ودرجة القرابة) فتلك لا يكتبها الجدول وإثباتها في الضبط مطلوب نظامًا.
         includePartyDataInText: false,
-        opening: { judge: '', court: '', mode: SESSION_MODES.VIDEO },
+        opening: { judgeLine: '', mode: SESSION_MODES.VIDEO },
         // وقت الإغلاق يُدخله القاضي في آخر الضبط (لا يُشتق من وقت الافتتاح)
         closing: { hour: 8, minute: 30, period: 'ص' },
         plaintiff: freshPartyState(),
@@ -410,14 +410,26 @@ function orDots(value) {
     return v || MINUTES_PLACEHOLDER;
 }
 
+// سطر القاضي والمحكمة كما يُكتب بعد «لدي أنا»
+// حقل واحد يستوعب اسم القاضي وصفته ورقم قرار التكليف واسم الدائرة واسم المحكمة،
+// بدل حقلين جامدين لا يقبلان الزيادة. والحالات القديمة (حقلا judge وcourt) تُدمج هنا
+// حفاظاً على المسودّات والإعدادات المحفوظة قبل الدمج.
+function buildJudgeLine(opening) {
+    const o = opening || {};
+    const line = String(o.judgeLine == null ? '' : o.judgeLine).trim();
+    if (line) return line;
+    const judge = String(o.judge == null ? '' : o.judge).trim();
+    const court = String(o.court == null ? '' : o.court).trim();
+    if (judge && court) return `${judge} في المحكمة ${court}`;
+    return judge || (court ? `في المحكمة ${court}` : '');
+}
+
 // فقرة افتتاح الجلسة
 // وقت الافتتاح مثبت أصلاً في صفحة القضية بناجز، فإعادته في متن الضبط ازدواج،
 // ولذا اقتُصر على وقت الإغلاق في آخر الضبط.
-// وصفة القاضي تُكتب في حقل الاسم نفسه (اسم القاضي وصفته)، فلا تُقحم هنا كلمة «القاضي».
+// وصفة القاضي تُكتب في الحقل نفسه (اسم القاضي وصفته والمحكمة)، فلا تُقحم هنا كلمة «القاضي».
 function buildOpening(opening) {
-    const judge = orDots(opening.judge);
-    const court = orDots(opening.court);
-    return `لدي أنا ${judge} في المحكمة ${court}${buildSessionModeOpeningPart(opening)}،`;
+    return `لدي أنا ${orDots(buildJudgeLine(opening))}${buildSessionModeOpeningPart(opening)}،`;
 }
 
 // عبارة انعقاد الجلسة في الافتتاح («افتتحتُ الجلسة عبر الاتصال المرئي»)
@@ -1322,8 +1334,7 @@ function collectWarnings(state) {
     // بيانات الطرفين (الاسم والهوية) لا تُفحص إلا إذا كانت ستُدرج في نص الضبط
     const includePartyData = state.includePartyDataInText === true;
 
-    if (!String(state.opening.judge || '').trim()) w.push('لم يُدخل اسم القاضي وصفته.');
-    if (!String(state.opening.court || '').trim()) w.push('لم يُدخل اسم المحكمة.');
+    if (!buildJudgeLine(state.opening).trim()) w.push('لم يُدخل اسم القاضي وصفته والمحكمة.');
 
     ['plaintiff', 'defendant'].forEach(p => {
         const s = state[p];
@@ -1519,7 +1530,7 @@ if (typeof module !== 'undefined' && module.exports) {
         normalizeArabicSearch, searchTemplates, curatedReasonsCount, CURATED_REASON_OPENER, CURATED_REASON_OPENERS,
         freshPartyState, freshExtraParty, freshWitness, freshEvidenceBlock,
         freshClaimState, freshRulingState, freshFollowUpState, freshMinutesState,
-        buildOpening, buildAgencyVerificationClause, buildKinshipPhrase, buildAccompanyingAgentClause,
+        buildOpening, buildJudgeLine, buildAgencyVerificationClause, buildKinshipPhrase, buildAccompanyingAgentClause,
         buildAgentCapacityPhrase, buildAgentCredentialsPhrase, defendantAgentStatedInAnswer,
         buildIdentityClause, buildPartyClause, buildExtraClause, buildNotNotifiedClause,
         buildSpecialCaseText, buildShatbText, buildOathAbsenceDefendantText, buildOathPerformanceText,

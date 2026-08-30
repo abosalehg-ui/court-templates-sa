@@ -71,22 +71,21 @@ function closeMinutesModal(id) {
     $(modalId).addEventListener('click', e => { if (e.target === $(modalId)) closeMinutesModal(modalId); });
 });
 
-// ==================== بيانات القاضي والمحكمة (محفوظة محليًا) ====================
+// ==================== سطر القاضي والمحكمة (محفوظ محليًا) ====================
+// حقل واحد يُكتب فيه ما يلي «لدي أنا»: اسم القاضي وصفته وقرار تكليفه واسم دائرته ومحكمته.
 (function initSettings() {
     let saved = {};
     try { saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'); } catch (e) { }
-    $('judgeName').value = saved.judge || '';
-    $('courtName').value = saved.court || '';
-    state.opening.judge = $('judgeName').value;
-    state.opening.court = $('courtName').value;
+    // الإعدادات المحفوظة قبل الدمج تحمل حقلين منفصلين، فتُدمج في السطر الواحد
+    $('judgeLine').value = saved.judgeLine || buildJudgeLine(saved);
+    state.opening.judgeLine = $('judgeLine').value;
 })();
 function saveSettings() {
     try {
-        localStorage.setItem(SETTINGS_KEY, JSON.stringify({ judge: state.opening.judge, court: state.opening.court }));
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify({ judgeLine: state.opening.judgeLine }));
     } catch (e) { }
 }
-$('judgeName').addEventListener('input', e => { state.opening.judge = e.target.value; saveSettings(); render(); });
-$('courtName').addEventListener('input', e => { state.opening.court = e.target.value; saveSettings(); render(); });
+$('judgeLine').addEventListener('input', e => { state.opening.judgeLine = e.target.value; saveSettings(); render(); });
 
 // ==================== إدراج بيانات الطرفين في نص الضبط ====================
 // مُغلق افتراضًا لأن جدول نظام تقاضي أعلى صفحة الضبط والصك يحمل اسم الطرف ورقم هويته،
@@ -1625,7 +1624,14 @@ function applySnapshot(snap) {
         const el = document.getElementById(id);
         if (el && el.checked !== val) { el.checked = val; el.dispatchEvent(new Event('change', { bubbles: true })); }
     });
-    Object.entries(snap.texts || {}).forEach(([id, val]) => {
+    // مسودّة محفوظة قبل دمج حقلي القاضي والمحكمة: يُبنى منها السطر الواحد
+    const texts = Object.assign({}, snap.texts || {});
+    if (!texts.judgeLine && (texts.judgeName || texts.courtName)) {
+        texts.judgeLine = buildJudgeLine({ judge: texts.judgeName, court: texts.courtName });
+    }
+    delete texts.judgeName;
+    delete texts.courtName;
+    Object.entries(texts).forEach(([id, val]) => {
         const el = document.getElementById(id);
         if (el) { el.value = val; el.dispatchEvent(new Event('input', { bubbles: true })); }
     });
