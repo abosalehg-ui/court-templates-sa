@@ -11,7 +11,7 @@ function readyState(overrides = {}) {
     const s = M.freshMinutesState();
     s.sessionType = 'new';
     s.includePartyDataInText = true;
-    s.opening = { judge: 'فلان بن فلان', court: 'الرياض' };
+    s.opening = { judgeLine: 'فلان بن فلان في المحكمة الرياض' };
     s.closing = { hour: 9, minute: 30, period: 'ص' };
     s.plaintiff.name = 'سعد';
     s.plaintiff.saudiId = '1000000001';
@@ -108,22 +108,36 @@ test('buildKinshipPhrase: قرابة مقبولة وخارج الدرجات', ()
 
 // ==================== بناة الجمل ====================
 
-test('buildOpening: الافتتاح بلا ذكر الانعقاد، وصفة القاضي من حقل الاسم', () => {
-    const text = M.buildOpening({ judge: 'فلان القاضي في الدائرة الأولى', court: 'الرياض' });
-    assert.equal(text, 'لدي أنا فلان القاضي في الدائرة الأولى في المحكمة الرياض،');
+test('buildOpening: الافتتاح بلا ذكر الانعقاد، والسطر كما كتبه القاضي', () => {
+    const text = M.buildOpening({ judgeLine: 'فلان القاضي في المحكمة العامة بالرياض' });
+    assert.equal(text, 'لدي أنا فلان القاضي في المحكمة العامة بالرياض،');
     assert.ok(!text.includes('افتتحتُ الجلسة'));
     assert.ok(!text.includes('17388'));
 });
 
+test('buildOpening: يتسع السطر لقرار التكليف واسم الدائرة بلا تدخل من المولّد', () => {
+    const line = 'فلان بن فلان القاضي بالدائرة الأولى بموجب قرار التكليف رقم (١٢٣) وتاريخ ١٤٤٦/٠١/٠١هـ في المحكمة العامة بالمدينة المنورة';
+    assert.equal(M.buildOpening({ judgeLine: line }), `لدي أنا ${line}،`);
+});
+
+test('buildJudgeLine: الإعدادات والمسودّات القديمة تُدمج في سطر واحد', () => {
+    assert.equal(M.buildJudgeLine({ judge: 'فلان', court: 'الرياض' }), 'فلان في المحكمة الرياض');
+    assert.equal(M.buildJudgeLine({ judge: 'فلان' }), 'فلان');
+    assert.equal(M.buildJudgeLine({ court: 'الرياض' }), 'في المحكمة الرياض');
+    assert.equal(M.buildJudgeLine({ judgeLine: 'سطر جديد', judge: 'فلان', court: 'الرياض' }), 'سطر جديد');
+    assert.equal(M.buildJudgeLine({}), '');
+    assert.equal(M.buildOpening({ judge: 'فلان', court: 'الرياض' }), 'لدي أنا فلان في المحكمة الرياض،');
+});
+
 test('buildOpening: لا يُذكر وقت الافتتاح في المتن (مثبت في ناجز)', () => {
-    const text = M.buildOpening({ judge: 'فلان', court: 'الرياض' });
+    const text = M.buildOpening({ judgeLine: 'فلان في المحكمة الرياض' });
     assert.ok(!text.includes('الساعة'));
     assert.equal(M.freshMinutesState().opening.hour, undefined);
 });
 
 test('buildOpening: طريقة الانعقاد لا تُذكر في الافتتاح مهما كان الخيار', () => {
     [M.SESSION_MODES.VIDEO, M.SESSION_MODES.VIDEO_FULL, M.SESSION_MODES.IN_PERSON].forEach(mode => {
-        const text = M.buildOpening({ judge: 'فلان', court: 'الرياض', mode });
+        const text = M.buildOpening({ judgeLine: 'فلان في المحكمة الرياض', mode });
         assert.equal(text, 'لدي أنا فلان في المحكمة الرياض،');
         assert.ok(!text.includes('المرئي'));
         assert.ok(!text.includes('17388'));
@@ -854,7 +868,7 @@ test('composeMinutes: النص المعتمد للجلسة التحضيرية ب
     state.claim.evidenceChoice = 'none';
     assert.equal(
         M.composeMinutes(state),
-        'لدي أنا ........... في المحكمة ...........، جرى الاطلاع على صحيفة الدعوى ونصها : (( ....... تنسخ من نظام ناجز ....... )) أ. هـ، وبعرضها على المدعي صادق عليها. وبعرضها على المدعى عليه أجاب قائلاً: ........... هكذا أجاب. ولمَّا كانت إجابة المدعى عليه إنكاراً لما جاء في الدعوى، وأن البينة على المدعي، فقد جرى تكليف المدعي بإحضار بينته. وبسؤاله عن بينته قرر قائلاً: لا بينة لدي، ثم جرى من الدائرة سؤال أطراف الدعوى هل لديكما ما تضيفانه؟ فقررا: ليس لدينا سوى ما قدمنا. هكذا قررا، واستناداً للمادة (69) والمادة (159) من نظام المرافعات الشرعية فقد قررت الدائرة قفل باب المرافعة للنطق بالحكم في هذه الجلسة، وأغلقت الجلسة الساعة الثامنة والنصف صباحًا.'
+        'لدي أنا ...........، جرى الاطلاع على صحيفة الدعوى ونصها : (( ....... تنسخ من نظام ناجز ....... )) أ. هـ، وبعرضها على المدعي صادق عليها. وبعرضها على المدعى عليه أجاب قائلاً: ........... هكذا أجاب. ولمَّا كانت إجابة المدعى عليه إنكاراً لما جاء في الدعوى، وأن البينة على المدعي، فقد جرى تكليف المدعي بإحضار بينته. وبسؤاله عن بينته قرر قائلاً: لا بينة لدي، ثم جرى من الدائرة سؤال أطراف الدعوى هل لديكما ما تضيفانه؟ فقررا: ليس لدينا سوى ما قدمنا. هكذا قررا، واستناداً للمادة (69) والمادة (159) من نظام المرافعات الشرعية فقد قررت الدائرة قفل باب المرافعة للنطق بالحكم في هذه الجلسة، وأغلقت الجلسة الساعة الثامنة والنصف صباحًا.'
     );
 });
 
