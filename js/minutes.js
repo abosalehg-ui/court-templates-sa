@@ -1182,11 +1182,14 @@ function buildNoticeText(state) {
     return findTemplate('إفهامات بعد النطق', bothByAgent ? 'ف3' : 'ف2') || '';
 }
 
+// صفة الحكم لا تُثبَت إلا إذا كان غيابياً؛ إذ يترتب على الغياب طريق اعتراض خاص
+// بالمادة (58) وما بعدها من نظام المرافعات الشرعية، فإثباتها بيان لازم.
+// أما الحضورية فمستفادة من صيغة المنطوق نفسه («قررت الدائرة الحكم حضورياً…»)
+// ومن إثبات حضور الطرفين في صدر الضبط، فإعادتها جملةً مستقلة تكرار.
 function buildPresenceClause(state) {
+    if (state.ruling.presence !== 'غيابي') return '';
     const dName = partyLabel('defendant', state.defendant.gender);
-    return state.ruling.presence === 'غيابي'
-        ? `وهذا الحكم غيابي في حق ${dName}.`
-        : 'وهذا الحكم حضوري في حق طرفي الدعوى.';
+    return `وهذا الحكم غيابي في حق ${dName}.`;
 }
 
 // مرحلة الأسباب والحكم — مستقلة عن ضبط الجلسة، تُلحق به عند النطق بالحكم
@@ -1195,7 +1198,8 @@ function buildRulingSection(state) {
     if (r.pronounce !== 'نعم') return '';
     let out = `\n\nالأسباب:\n${orDots(r.reasonsText)}`;
     out += `\n\nالحكم:\n${orDots(r.rulingText)}`;
-    out += `\n${buildPresenceClause(state)}`;
+    const presence = buildPresenceClause(state);
+    if (presence) out += `\n${presence}`;
     const notice = buildNoticeText(state);
     if (notice) out += `\n\n${notice}`;
     return out;
