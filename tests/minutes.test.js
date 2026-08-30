@@ -1142,7 +1142,7 @@ test('composeMinutes: مرحلة الحكم تُلحق بالضبط بعد قف�
     const rulingAt = text.indexOf('\n\nالحكم:\n');
     const endAt = text.indexOf('وأغلقت الجلسة');
     assert.ok(closeAt < reasonsAt && reasonsAt < rulingAt && rulingAt < endAt);
-    assert.match(text, /وهذا الحكم حضوري في حق طرفي الدعوى/);
+    assert.ok(!text.includes('حضوري في حق طرفي الدعوى'));
     assert.match(text, /قابل للاستئناف/);
     assert.match(text, /وأغلقت الجلسة الساعة التاسعة والنصف صباحًا\.$/);
 });
@@ -1157,6 +1157,14 @@ test('composeMinutes: صفة الحكم غيابية في حق المدعى عل
     const state = rulingState();
     state.ruling.presence = 'غيابي';
     assert.match(M.composeMinutes(state), /وهذا الحكم غيابي في حق المدعى عليه/);
+});
+
+test('buildRulingSection: الحكم الحضوري لا تُكتب له جملة صفة، ولا يبقى سطر فارغ بعد المنطوق', () => {
+    const state = rulingState();
+    const text = M.buildRulingSection(state);
+    assert.ok(!text.includes('حضوري'));
+    assert.ok(!/\n\s*\n\s*\n/.test(text));
+    assert.match(text, /\n\nالحكم:\n/);
 });
 
 test('collectWarnings: نواقص مرحلة الحكم', () => {
