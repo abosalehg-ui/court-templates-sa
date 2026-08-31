@@ -590,18 +590,45 @@ function buildPartyClause(state, role) {
     return `${verb} ${name} رغم تبليغ${suffix} بالجلسة عبر الوسائل الإلكترونية بمهمة التبليغ رقم (${orDots(s.tabligh)}) بموعد هذه الجلسة ${verbRepeat} ولا من يمثل${suffix}، ${verbDeposit} مذكرة بدفاع${suffix} بناء على ما قررته المادة الخامسة والأربعون من نظام المرافعات الشرعية`;
 }
 
-// غياب المدعى عليه المتبلّغ — تُقدَّم فيه واقعة التبلّغ على واقعة الغياب،
-// ويُذيَّل بموجب المادة (45) من نظام المرافعات الشرعية في إيداع مذكرة الدفاع.
-// وتصدَّر الفقرة بـ«قد» لا بالواو، فالواو يزيدها واصلُها (فقرات الحضور أو نص الدعوى)
-// فإن أودع الغائب مذكرة بدفاعه أُثبت إيداعه لها بدل نفيه؛ إذ الإيداع واقعٌ خلاف الغياب
+// سند إيداع مذكرة الدفاع، يتكرر في صيغ الغياب الثلاث
+const ARTICLE_45 = 'المادة الخامسة والأربعون من نظام المرافعات الشرعية';
+
+// مدُّ الحروف في صيغ الغياب مقصودٌ في نموذج القاضي لتيسير القراءة وترتيب النص عند نسخه،
+// فيُنسخ كما هو ولا يُختصر. ويقع المدُّ في لقب الطرف كذلك، فيُمدُّ صدرُه ويبقى ما بعده
+// (اسمُه، أو ترتيبُه عند تعدد المدعى عليهم) على حاله
+function stretchDefendantLabel(name) {
+    return String(name == null ? '' : name).replace('المدعى', 'الـمـدعى');
+}
+
+// غياب المدعى عليه المتبلّغ — ثلاثة أسطر يفصل بين كلٍّ منها سطرٌ خالٍ:
+// واقعة التبلّغ، ثم واقعة الغياب، ثم نفي إيداع مذكرة الدفاع بموجب المادة (45)
+// من نظام المرافعات الشرعية. وتصدَّر الفقرة بـ«قد» لا بالواو، فالواو يزيدها واصلُها
+// (فقرات الحضور أو نص الدعوى).
+// والشخصية الاعتبارية (شركة/وقف) لا تحضر بنفسها وإنما بمن يمثلها، فيقتصر فيها على نفي
+// حضور ممثلها، ويُصدَّر نفي الإيداع فيها بفحص الدائرة لملف القضية.
+// فإن أودع الغائب مذكرة بدفاعه طُوي السطر الثالث؛ إذ يرصد إيداعَها نصُّ المذكرة في فقرة الجواب
 function buildDefendantAbsenceClause(s, name, filedMemo) {
-    const suffix = s.gender === 'م' ? 'ه' : 'ها';
-    const verbNotified = s.gender === 'م' ? 'قد تبلَّغ' : 'قد تبلَّغت';
-    const verbAttend = s.gender === 'م' ? 'ولم يحضر هو' : 'ولم تحضر هي';
-    const verbDeposit = filedMemo
-        ? (s.gender === 'م' ? 'وقد أودع' : 'وقد أودعت')
-        : (s.gender === 'م' ? 'ولم يودع' : 'ولم تودع');
-    return `${verbNotified} ${name} ${verbAttend} ولا من يمثل${suffix}، بمهمة التبليغ رقم (${orDots(s.tabligh)})، ${verbDeposit} مذكرة بدفاع${suffix} بناء على ما قررته المادة الخامسة والأربعون من نظام المرافعات الشرعية`;
+    const isFem = s.gender === 'ف';
+    const suffix = isFem ? 'ها' : 'ه';
+    const corporate = isCorporateEntity(s);
+    const verbNotified = isFem ? 'قد تبلـــــــــغت' : 'قد تبلـــــــــغ';
+    const verbAttend = isFem ? 'ولــم تـــحــــضـــر' : 'ولــم يـــحــــضـــر';
+
+    const lines = [
+        `${verbNotified} ${stretchDefendantLabel(name)} عــــــــــــــبر الوسائل الإلكترونية بمهمة التبليغ رقم (${orDots(s.tabligh)})، `,
+        corporate
+            ? `بـمــوعـــد هذه الجلسة ولــم يـــحــــضـــر من يـمـثـــلــ${suffix}`
+            : `بـمــوعـــد هذه الجلسة ${verbAttend} ولا من يـمـثـــلــ${suffix}`
+    ];
+
+    if (!filedMemo) {
+        const verbDeposit = isFem ? 'ولم تودع' : 'ولم يودع';
+        lines.push(corporate
+            ? `وقد فحصت الدائرة ملف القضية فلم يتبين لها أن ${name} أودع مذكرة بدفاع${suffix} بناء على ما قررته ${ARTICLE_45}`
+            : `${verbDeposit} مذكرة بدفاع${suffix} بناء على ما قررته ${ARTICLE_45}`);
+    }
+
+    return lines.join('\n\n');
 }
 
 // موضع فقرة غياب المدعى عليه: في الجلسة التحضيرية تُنقل إلى ما بعد رصد الدعوى
@@ -889,9 +916,10 @@ function buildClaimEvidenceText(state) {
     const ratifyVerb = agencySpeakerGender(p) === 'ف' ? 'صادقت عليها' : 'صادق عليها';
     let out = ` جرى الاطلاع على صحيفة الدعوى ونصها : (( ${claimText} )) أ. هـ، وبعرضها على ${addressee} ${ratifyVerb}.`;
     out += buildPlaintiffAdditionClause(state);
-    // فقرة غياب المدعى عليه موضعها بعد رصد الدعوى ومصادقة المدعي عليها
+    // فقرة غياب المدعى عليه موضعها بعد رصد الدعوى ومصادقة المدعي عليها،
+    // وتُفرد بسطر خالٍ قبلها وبعدها فلا تلتبس أسطرها بما جاورها
     if (defendantAbsenceAfterClaim(state)) {
-        out += ` و${buildPartyClause(state, 'defendant')}.`;
+        out = appendIsolatedClause(out, `و${buildPartyClause(state, 'defendant')}.`);
     }
     return out + buildProceedingsAfterClaim(state);
 }
@@ -946,14 +974,18 @@ function buildDefendantAnswerClause(state) {
         ? `${orDots(d.agentName)}، ${buildAgentCapacityPhrase(d, dName, { present: true })}،`
         : dName;
 
-    // المذكرة المودعة مع الغياب: تُرصد بنصها ولا تُعرض على مودعها ولا يُصادق عليها؛ إذ لم يحضر
+    // المذكرة المودعة مع الغياب: تُرصد بنصها ولا تُعرض على مودعها ولا يُصادق عليها؛ إذ لم يحضر.
+    // ومذكرة الدفاع الأولى يسبقها إثبات فحص الدائرة لملف القضية، إذ به وقفت على إيداعها،
+    // ويقوم هذا الإثبات مقام السطر الثالث من فقرة الغياب (نفي الإيداع) فلا يجتمعان
     if (defendantAbsentWithMemo(state)) {
-        const isFirstMemo = c.defendantAnswerMode === DEFENDANT_ANSWER_MODES.FIRST_MEMO;
-        const memoLabel = isFirstMemo ? 'مذكرة الدفاع الأولى المقدَّمة' : 'المذكرة المكتوبة المقدَّمة';
-        const memoText = isFirstMemo
-            ? (c.defendantFirstMemoText.trim() || FIRST_MEMO_PLACEHOLDER)
-            : orDots(c.defendantWrittenMemoText);
-        return ` وبالاطلاع على ${memoLabel} من ${dName} ونصها: (( ${memoText} )) أ. هـ.`;
+        const isFem = d.gender === 'ف';
+        const dSuffix = isFem ? 'ها' : 'ه';
+        if (c.defendantAnswerMode === DEFENDANT_ANSWER_MODES.FIRST_MEMO) {
+            const memoText = c.defendantFirstMemoText.trim() || FIRST_MEMO_PLACEHOLDER;
+            const depositVerb = isFem ? 'أودعت' : 'أودع';
+            return `\n\nثم فحصت الدائرة ملف القضية ووجد بأن ${dName}\n\nقد ${depositVerb} مذكرة بدفاع${dSuffix} تتضمن النص التالي : [   [ ${memoText} ]  ] أ. هـ.\n\n`;
+        }
+        return ` وبالاطلاع على المذكرة المكتوبة المقدَّمة من ${dName} ونصها: (( ${orDots(c.defendantWrittenMemoText)} )) أ. هـ.`;
     }
 
     // مذكرة الدفاع الأولى: تُرصد بنصها ثم تُعرض على مقدِّمها فيصادق عليها
@@ -1296,11 +1328,24 @@ function trimTrailingPunctuation(text) {
     return String(text == null ? '' : text).replace(/[.،]\s*$/, '');
 }
 
-// إلحاق فقرة بالنص بفاصلة، فلا تتكرر الفاصلة إذا انتهى النص بها (كفقرة الافتتاح)
+// إلحاق فقرة بالنص بفاصلة، فلا تتكرر الفاصلة إذا انتهى النص بها (كفقرة الافتتاح).
+// وما جاء بعد فقرة مُفردة بسطر خالٍ (كفقرة الغياب) يُستأنف في سطر جديد بلا فاصلة
 function appendClause(text, clause, separator = '، ') {
     const part = String(clause == null ? '' : clause).trim();
     if (!part) return text;
+    if (/\n\s*$/.test(text)) return `${text}${part}`;
     return `${trimTrailingPunctuation(text)}${separator}${part}`;
+}
+
+// وصل فقرة مُفردة بسطر خالٍ عما قبلها، وتُسقط الفاصلة المعلَّقة في آخره؛
+// إذ الفصل بالسطر يُغني عنها، والواو في صدر الفقرة تتولى الوصل
+function appendIsolatedClause(text, clause) {
+    return `${String(text == null ? '' : text).replace(/،[ \t]*$/, '')}\n\n${clause}\n\n`;
+}
+
+// تسوية الفصل بين الفقرات عند الإخراج: سطر خالٍ واحد لا أكثر، ولا مسافة بادئة في أول السطر
+function normalizeBlocks(text) {
+    return String(text == null ? '' : text).replace(/\n[ \t]+/g, '\n').replace(/\n{3,}/g, '\n\n');
 }
 
 function composeMinutes(state) {
@@ -1330,13 +1375,16 @@ function composeMinutes(state) {
         } else if (defendantNotNotified) {
             text = `${appendClause(appendClause(opening, joinPresenceClauses(pClauses)), 'و' + buildNotNotifiedClause('defendant', state.defendant))}.`;
         } else {
-            // فقرة المدعى عليه تُطوى هنا إذا نُقلت إلى فقرة الجواب (الوكيل) أو إلى ما بعد رصد الدعوى (الغياب)
-            const dClause = (defendantAgentStatedInAnswer(state) || defendantAbsenceAfterClaim(state))
+            // فقرة المدعى عليه تُطوى من فقرات الحضور إذا نُقلت إلى فقرة الجواب (الوكيل)،
+            // أو إلى ما بعد رصد الدعوى (الغياب في الجلسة التحضيرية)، أو أُفردت بسطر خالٍ (الغياب هنا)
+            const absenceIsolated = state.defendant.attendance === 'لم يحضر' && !defendantAbsenceAfterClaim(state);
+            const dClause = (defendantAgentStatedInAnswer(state) || defendantAbsenceAfterClaim(state) || absenceIsolated)
                 ? '' : buildPartyClause(state, 'defendant');
             const dClauses = [dClause, ...state.extraDefendants.map((p, i) => buildExtraClause('defendant', i, p, includePartyData))];
             const presence = joinPresenceClauses([...pClauses, ...dClauses]);
             // إذا خلت فقرات الحضور بقيت فقرة الافتتاح وحدها موصولةً بما بعدها
             text = presence ? `${appendClause(opening, presence)}.` : opening;
+            if (absenceIsolated) text = appendIsolatedClause(text, `و${buildPartyClause(state, 'defendant')}.`);
             if (state.sessionType === 'previous' && state.defendant.attendance !== 'لم يحضر' && state.defendant.oathPerformanceSession === 'نعم') {
                 text = appendClause(text, buildOathPerformanceText(state)) + '.';
             }
@@ -1366,9 +1414,9 @@ function composeMinutes(state) {
     // ختم الجلسة بالوقت المُدخل في آخر الضبط
     const closingWords = buildTimeArabic(...closingTimeParts(state));
     if (rulingSection) {
-        return `${text}${rulingSection}\n\nوأغلقت الجلسة الساعة ${closingWords}.`;
+        return normalizeBlocks(`${text}${rulingSection}\n\nوأغلقت الجلسة الساعة ${closingWords}.`);
     }
-    return trimTrailingPunctuation(text) + `، وأغلقت الجلسة الساعة ${closingWords}.`;
+    return normalizeBlocks(appendClause(text, `وأغلقت الجلسة الساعة ${closingWords}.`));
 }
 
 // ==================== فحص اكتمال الحقول ====================
