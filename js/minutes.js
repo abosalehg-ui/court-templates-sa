@@ -590,18 +590,45 @@ function buildPartyClause(state, role) {
     return `${verb} ${name} رغم تبليغ${suffix} بالجلسة عبر الوسائل الإلكترونية بمهمة التبليغ رقم (${orDots(s.tabligh)}) بموعد هذه الجلسة ${verbRepeat} ولا من يمثل${suffix}، ${verbDeposit} مذكرة بدفاع${suffix} بناء على ما قررته المادة الخامسة والأربعون من نظام المرافعات الشرعية`;
 }
 
-// غياب المدعى عليه المتبلّغ — تُقدَّم فيه واقعة التبلّغ على واقعة الغياب،
-// ويُذيَّل بموجب المادة (45) من نظام المرافعات الشرعية في إيداع مذكرة الدفاع.
-// وتصدَّر الفقرة بـ«قد» لا بالواو، فالواو يزيدها واصلُها (فقرات الحضور أو نص الدعوى)
-// فإن أودع الغائب مذكرة بدفاعه أُثبت إيداعه لها بدل نفيه؛ إذ الإيداع واقعٌ خلاف الغياب
+// سند إيداع مذكرة الدفاع، يتكرر في صيغ الغياب الثلاث
+const ARTICLE_45 = 'المادة الخامسة والأربعون من نظام المرافعات الشرعية';
+
+// مدُّ الحروف في صيغ الغياب مقصودٌ في نموذج القاضي لتيسير القراءة وترتيب النص عند نسخه،
+// فيُنسخ كما هو ولا يُختصر. ويقع المدُّ في لقب الطرف كذلك، فيُمدُّ صدرُه ويبقى ما بعده
+// (اسمُه، أو ترتيبُه عند تعدد المدعى عليهم) على حاله
+function stretchDefendantLabel(name) {
+    return String(name == null ? '' : name).replace('المدعى', 'الـمـدعى');
+}
+
+// غياب المدعى عليه المتبلّغ — ثلاثة أسطر يفصل بين كلٍّ منها سطرٌ خالٍ:
+// واقعة التبلّغ، ثم واقعة الغياب، ثم نفي إيداع مذكرة الدفاع بموجب المادة (45)
+// من نظام المرافعات الشرعية. وتصدَّر الفقرة بـ«قد» لا بالواو، فالواو يزيدها واصلُها
+// (فقرات الحضور أو نص الدعوى).
+// والشخصية الاعتبارية (شركة/وقف) لا تحضر بنفسها وإنما بمن يمثلها، فيقتصر فيها على نفي
+// حضور ممثلها، ويُصدَّر نفي الإيداع فيها بفحص الدائرة لملف القضية.
+// فإن أودع الغائب مذكرة بدفاعه طُوي السطر الثالث؛ إذ يرصد إيداعَها نصُّ المذكرة في فقرة الجواب
 function buildDefendantAbsenceClause(s, name, filedMemo) {
-    const suffix = s.gender === 'م' ? 'ه' : 'ها';
-    const verbNotified = s.gender === 'م' ? 'قد تبلَّغ' : 'قد تبلَّغت';
-    const verbAttend = s.gender === 'م' ? 'ولم يحضر هو' : 'ولم تحضر هي';
-    const verbDeposit = filedMemo
-        ? (s.gender === 'م' ? 'وقد أودع' : 'وقد أودعت')
-        : (s.gender === 'م' ? 'ولم يودع' : 'ولم تودع');
-    return `${verbNotified} ${name} ${verbAttend} ولا من يمثل${suffix}، بمهمة التبليغ رقم (${orDots(s.tabligh)})، ${verbDeposit} مذكرة بدفاع${suffix} بناء على ما قررته المادة الخامسة والأربعون من نظام المرافعات الشرعية`;
+    const isFem = s.gender === 'ف';
+    const suffix = isFem ? 'ها' : 'ه';
+    const corporate = isCorporateEntity(s);
+    const verbNotified = isFem ? 'قد تبلـــــــــغت' : 'قد تبلـــــــــغ';
+    const verbAttend = isFem ? 'ولــم تـــحــــضـــر' : 'ولــم يـــحــــضـــر';
+
+    const lines = [
+        `${verbNotified} ${stretchDefendantLabel(name)} عــــــــــــــبر الوسائل الإلكترونية بمهمة التبليغ رقم (${orDots(s.tabligh)})، `,
+        corporate
+            ? `بـمــوعـــد هذه الجلسة ولــم يـــحــــضـــر من يـمـثـــلــ${suffix}`
+            : `بـمــوعـــد هذه الجلسة ${verbAttend} ولا من يـمـثـــلــ${suffix}`
+    ];
+
+    if (!filedMemo) {
+        const verbDeposit = isFem ? 'ولم تودع' : 'ولم يودع';
+        lines.push(corporate
+            ? `وقد فحصت الدائرة ملف القضية فلم يتبين لها أن ${name} أودع مذكرة بدفاع${suffix} بناء على ما قررته ${ARTICLE_45}`
+            : `${verbDeposit} مذكرة بدفاع${suffix} بناء على ما قررته ${ARTICLE_45}`);
+    }
+
+    return lines.join('\n\n');
 }
 
 // موضع فقرة غياب المدعى عليه: في الجلسة التحضيرية تُنقل إلى ما بعد رصد الدعوى
@@ -946,14 +973,18 @@ function buildDefendantAnswerClause(state) {
         ? `${orDots(d.agentName)}، ${buildAgentCapacityPhrase(d, dName, { present: true })}،`
         : dName;
 
-    // المذكرة المودعة مع الغياب: تُرصد بنصها ولا تُعرض على مودعها ولا يُصادق عليها؛ إذ لم يحضر
+    // المذكرة المودعة مع الغياب: تُرصد بنصها ولا تُعرض على مودعها ولا يُصادق عليها؛ إذ لم يحضر.
+    // ومذكرة الدفاع الأولى يسبقها إثبات فحص الدائرة لملف القضية، إذ به وقفت على إيداعها،
+    // ويقوم هذا الإثبات مقام السطر الثالث من فقرة الغياب (نفي الإيداع) فلا يجتمعان
     if (defendantAbsentWithMemo(state)) {
-        const isFirstMemo = c.defendantAnswerMode === DEFENDANT_ANSWER_MODES.FIRST_MEMO;
-        const memoLabel = isFirstMemo ? 'مذكرة الدفاع الأولى المقدَّمة' : 'المذكرة المكتوبة المقدَّمة';
-        const memoText = isFirstMemo
-            ? (c.defendantFirstMemoText.trim() || FIRST_MEMO_PLACEHOLDER)
-            : orDots(c.defendantWrittenMemoText);
-        return ` وبالاطلاع على ${memoLabel} من ${dName} ونصها: (( ${memoText} )) أ. هـ.`;
+        const isFem = d.gender === 'ف';
+        const dSuffix = isFem ? 'ها' : 'ه';
+        if (c.defendantAnswerMode === DEFENDANT_ANSWER_MODES.FIRST_MEMO) {
+            const memoText = c.defendantFirstMemoText.trim() || FIRST_MEMO_PLACEHOLDER;
+            const depositVerb = isFem ? 'أودعت' : 'أودع';
+            return ` ثم فحصت الدائرة ملف القضية ووجد بأن ${dName}\n\nقد ${depositVerb} مذكرة بدفاع${dSuffix} تتضمن النص التالي : [   [ ${memoText} ]  ] أ. هـ.`;
+        }
+        return ` وبالاطلاع على المذكرة المكتوبة المقدَّمة من ${dName} ونصها: (( ${orDots(c.defendantWrittenMemoText)} )) أ. هـ.`;
     }
 
     // مذكرة الدفاع الأولى: تُرصد بنصها ثم تُعرض على مقدِّمها فيصادق عليها

@@ -214,14 +214,38 @@ test('buildPartyClause: إغلاق المفتاح يُبقي غياب الطرف
     state.defendant.tabligh = '456';
     assert.equal(
         M.buildPartyClause(state, 'defendant'),
-        'قد تبلَّغ المدعى عليه ولم يحضر هو ولا من يمثله، بمهمة التبليغ رقم (456)، ولم يودع مذكرة بدفاعه بناء على ما قررته المادة الخامسة والأربعون من نظام المرافعات الشرعية'
+        'قد تبلـــــــــغ الـمـدعى عليه عــــــــــــــبر الوسائل الإلكترونية بمهمة التبليغ رقم (456)، \n\n'
+        + 'بـمــوعـــد هذه الجلسة ولــم يـــحــــضـــر ولا من يـمـثـــلــه\n\n'
+        + 'ولم يودع مذكرة بدفاعه بناء على ما قررته المادة الخامسة والأربعون من نظام المرافعات الشرعية'
     );
     // المطابقة النحوية للمدعى عليها
     state.defendant.gender = 'ف';
     assert.equal(
         M.buildPartyClause(state, 'defendant'),
-        'قد تبلَّغت المدعى عليها ولم تحضر هي ولا من يمثلها، بمهمة التبليغ رقم (456)، ولم تودع مذكرة بدفاعها بناء على ما قررته المادة الخامسة والأربعون من نظام المرافعات الشرعية'
+        'قد تبلـــــــــغت الـمـدعى عليها عــــــــــــــبر الوسائل الإلكترونية بمهمة التبليغ رقم (456)، \n\n'
+        + 'بـمــوعـــد هذه الجلسة ولــم تـــحــــضـــر ولا من يـمـثـــلــها\n\n'
+        + 'ولم تودع مذكرة بدفاعها بناء على ما قررته المادة الخامسة والأربعون من نظام المرافعات الشرعية'
     );
+});
+
+test('buildPartyClause: الشخصية الاعتبارية يُنفى فيها حضور ممثلها، ويُصدَّر نفي الإيداع بفحص الملف', () => {
+    const state = readyState({ includePartyDataInText: false });
+    state.defendant.attendance = 'لم يحضر';
+    state.defendant.tabligh = '456';
+    state.defendant.entityType = M.ENTITY_TYPES.COMPANY;
+    state.defendant.gender = 'ف';
+    assert.equal(
+        M.buildPartyClause(state, 'defendant'),
+        'قد تبلـــــــــغت الـمـدعى عليها عــــــــــــــبر الوسائل الإلكترونية بمهمة التبليغ رقم (456)، \n\n'
+        + 'بـمــوعـــد هذه الجلسة ولــم يـــحــــضـــر من يـمـثـــلــها\n\n'
+        + 'وقد فحصت الدائرة ملف القضية فلم يتبين لها أن المدعى عليها أودع مذكرة بدفاعها بناء على ما قررته المادة الخامسة والأربعون من نظام المرافعات الشرعية'
+    );
+    // والوقف مذكر في هذا المولّد، فيأخذ بنية الشخصية الاعتبارية بصيغة المذكر
+    state.defendant.entityType = M.ENTITY_TYPES.WAQF;
+    state.defendant.gender = 'م';
+    const waqf = M.buildPartyClause(state, 'defendant');
+    assert.match(waqf, /ولــم يـــحــــضـــر من يـمـثـــلــه/);
+    assert.match(waqf, /وقد فحصت الدائرة ملف القضية فلم يتبين لها أن المدعى عليه أودع مذكرة بدفاعه/);
 });
 
 test('composeMinutes: فقرة غياب المدعى عليه موضعها بعد رصد الدعوى ومصادقة المدعي', () => {
@@ -229,13 +253,13 @@ test('composeMinutes: فقرة غياب المدعى عليه موضعها بع�
     state.defendant.attendance = 'لم يحضر';
     state.defendant.tabligh = '456';
     const text = M.composeMinutes(state);
-    assert.match(text, /صادق عليها\. وقد تبلَّغ المدعى عليه ولم يحضر هو ولا من يمثله، بمهمة التبليغ رقم \(456\)،/);
+    assert.match(text, /صادق عليها\. وقد تبلـــــــــغ الـمـدعى عليه عــــــــــــــبر الوسائل الإلكترونية بمهمة التبليغ رقم \(456\)، /);
     // ولا تُذكر مرتين: أُخرجت من فقرات الحضور التي تلي الافتتاح
-    assert.equal(text.match(/قد تبلَّغ المدعى عليه/g).length, 1);
+    assert.equal(text.match(/قد تبلـــــــــغ الـمـدعى عليه/g).length, 1);
     // وإضافة المدعي إن وُجدت سبقت فقرة الغياب
     state.claim.plaintiffAddition = true;
     state.claim.plaintiffAdditionText = 'أضيف كذا';
-    assert.match(M.composeMinutes(state), /هكذا قدَّم\. وقد تبلَّغ المدعى عليه/);
+    assert.match(M.composeMinutes(state), /هكذا قدَّم\. وقد تبلـــــــــغ الـمـدعى عليه/);
 });
 
 // ==================== مذكرة المدعى عليه الغائب (المادة 45) ====================
@@ -269,19 +293,30 @@ test('defendantAbsentWithMemo: لا يثبت إلا للغائب المتبلّ�
     assert.equal(M.defendantAnswerRecorded(noMemo), false);
 });
 
-test('buildDefendantAbsenceClause: إيداع المذكرة يُثبت بدل نفيه', () => {
+test('buildDefendantAbsenceClause: إيداع المذكرة يطوي سطر نفي الإيداع', () => {
     const d = M.freshMinutesState().defendant;
     d.tabligh = '456';
-    assert.match(M.buildDefendantAbsenceClause(d, 'المدعى عليه', true), /وقد أودع مذكرة بدفاعه بناء على ما قررته المادة الخامسة والأربعون/);
-    assert.match(M.buildDefendantAbsenceClause(d, 'المدعى عليه', false), /ولم يودع مذكرة بدفاعه/);
+    const filed = M.buildDefendantAbsenceClause(d, 'المدعى عليه', true);
+    assert.equal(filed.split('\n\n').length, 2);
+    assert.ok(!filed.includes('مذكرة بدفاعه'));
+    const notFiled = M.buildDefendantAbsenceClause(d, 'المدعى عليه', false);
+    assert.equal(notFiled.split('\n\n').length, 3);
+    assert.match(notFiled, /ولم يودع مذكرة بدفاعه/);
     d.gender = 'ف';
-    assert.match(M.buildDefendantAbsenceClause(d, 'المدعى عليها', true), /وقد أودعت مذكرة بدفاعها/);
+    assert.match(M.buildDefendantAbsenceClause(d, 'المدعى عليها', false), /ولم تودع مذكرة بدفاعها/);
+});
+
+test('buildDefendantAbsenceClause: مدُّ اللقب يقع في صدره ويبقى اسم الطرف وترتيبه على حالهما', () => {
+    const d = M.freshMinutesState().defendant;
+    d.tabligh = '456';
+    assert.match(M.buildDefendantAbsenceClause(d, 'المدعى عليه الأول فهد', false), /الـمـدعى عليه الأول فهد عــــــــــــــبر/);
 });
 
 test('composeMinutes: مذكرة الدفاع الأولى مع الغياب تُرصد بلا عرض ولا مصادقة، ويُكلَّف المدعي بالبينة', () => {
     const text = M.composeMinutes(absentWithMemoState());
-    assert.match(text, /وقد أودع مذكرة بدفاعه بناء على ما قررته المادة الخامسة والأربعون/);
-    assert.match(text, /وبالاطلاع على مذكرة الدفاع الأولى المقدَّمة من المدعى عليه ونصها: \(\( أنكر ما جاء في الدعوى \)\) أ\. هـ\./);
+    // سطر نفي الإيداع مطويٌّ، وإيداعُها يرصده نصُّ المذكرة المسبوق بفحص الدائرة لملف القضية
+    assert.ok(!text.includes('بناء على ما قررته المادة الخامسة والأربعون'));
+    assert.match(text, /ثم فحصت الدائرة ملف القضية ووجد بأن المدعى عليه\n\nقد أودع مذكرة بدفاعه تتضمن النص التالي : \[ {3}\[ أنكر ما جاء في الدعوى \] {2}\] أ\. هـ\./);
     // لم يحضر فلا تُعرض عليه مذكرته ولا يصادق عليها
     assert.ok(!text.includes('وبعرضها على المدعى عليه'));
     assert.match(text, /ولمَّا كانت إجابة المدعى عليه إنكاراً لما جاء في الدعوى، وأن البينة على المدعي، فقد جرى تكليف المدعي بإحضار بينته/);
@@ -346,7 +381,7 @@ test('composeMinutes: الجلسة المنظورة سابقًا تُبقي غي
     state.defendant.tabligh = '456';
     assert.match(
         M.composeMinutes(state),
-        /^لدي أنا فلان بن فلان في المحكمة الرياض، وقد تبلَّغ المدعى عليه ولم يحضر هو ولا من يمثله، بمهمة التبليغ رقم \(456\)،/
+        /^لدي أنا فلان بن فلان في المحكمة الرياض، وقد تبلـــــــــغ الـمـدعى عليه عــــــــــــــبر الوسائل الإلكترونية بمهمة التبليغ رقم \(456\)، /
     );
 });
 
