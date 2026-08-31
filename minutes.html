@@ -516,7 +516,11 @@
 
                             <div class="sub-fields" id="defendantResponseSection">
                                 <label>إجابة المدعى عليه على الدعوى <span class="req">*</span></label>
+                                <div class="notice-box" id="defendantAbsentAnswerNotice" style="display:none;">
+                                    المدعى عليه غائب متبلّغ: لا تُتصوَّر منه إجابة شفهية ولا طلب مهلة، وإنما يثبت جوابه بما أودعه من مذكرة وفق المادة (45) من نظام المرافعات الشرعية، فتُرصد بنصها ولا تُعرض عليه للمصادقة، ويُكيَّف ما فيها كما لو حضر. وإيداعه المذكرة مما يُنظر فيه عند تحديد صفة الحكم (حضوري/غيابي).
+                                </div>
                                 <div class="choice-group vertical" data-group="defendant-answer-mode">
+                                    <button type="button" class="choice-btn" data-value="none" style="display:none;">لم يودع مذكرة بدفاعه</button>
                                     <button type="button" class="choice-btn" data-value="firstMemo">مذكرة الدفاع الأولى</button>
                                     <button type="button" class="choice-btn active" data-value="oral">إجابة شفهية رصدها كاتب الضبط</button>
                                     <button type="button" class="choice-btn" data-value="writtenMemo">مذكرة مكتوبة مقدمة من المدعى عليه</button>
@@ -537,6 +541,7 @@
                                 </div>
                                 <div class="hint" id="defendantAnswerModeHint"></div>
 
+                                <div id="defendantStanceBlock">
                                 <label style="margin-top:0.9rem;">تكييف الإجابة</label>
                                 <div class="choice-group vertical" data-group="defendant-stance">
                                     <button type="button" class="choice-btn active" data-value="إنكار">إنكار — يُكلَّف المدعي بالبينة</button>
@@ -560,6 +565,7 @@
                                         <button type="button" class="choice-btn" data-value="لا">لا — يُنظر الدفع أولًا</button>
                                     </div>
                                 </div>
+                                </div><!-- /defendantStanceBlock -->
                             </div>
 
                             <!-- في الجلسة التالية: ما الذي جرى في هذه الجلسة -->
