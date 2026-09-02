@@ -40,11 +40,13 @@ function sortedCorrections() {
 // عبارة افتتاح الجلسة بكل صيغها (عادية / هذه / المرئية / عن بعد / عبر الاتصال المرئي)
 const SESSION_OPEN = String.raw`افتتحت\s+(?:هذه\s+)?الجلسة(?:\s+المرئية)?(?:\s+(?:عبر\s+الترافع\s+المرئي|بالترافع\s+المرئي|عبر\s+الاتصال\s+المرئي|بالاتصال\s+المرئي))?(?:\s+عن\s+بُ?عد)?`;
 // ذيل «وفيها» يُحذف مع عبارة الافتتاح
-const TAIL = String.raw`(?:\s+وفيها)?`;
+const TAIL = String.raw`(?:\s+وفيها)?(?:\s+و(?=\s|$))?`;
 // عبارة ختام الجلسة بالساعة
 const KHITAM = String.raw`وكان\s+ختامها\s+الساعة\s+\d{1,2}:\d{2}\s+(?:صباحاً|صباحًا|مساءً|مساءًا|[صم])(?![\u0600-\u06FF])`;
 // عبارة التوفيق بكل صيغها (هذا وبالله / هذا بالله / وبالله / بالله)
-const TAWFIQ = String.raw`(?:هذا\s+)?و?بالله\s+التوفيق`;
+// عبارة الصلاة على النبي التي قد تلي «وبالله التوفيق» (اختيارية)
+const SALAT = String.raw`(?:\s*[.،,]?\s*وصلى\s+الله\s+(?:وسلم\s+)?على\s+نبينا\s+محمد\s+و[آاأ]له\s+وصحبه(?:\s+وسلم)?(?:\s+[اأ]جمعين)?)?`;
+const TAWFIQ = String.raw`(?:هذا\s+)?و?بالله\s+التوفيق` + SALAT;
 
 // ==================== أنماط دمج الجلسات ====================
 // الترتيب مقصود: الأطول والأخص أولاً، حتى لا يبتلع نمط عام ما يخص نمطاً أدق.
@@ -105,12 +107,12 @@ function buildSessionMergePatterns() {
 
         // 9- رفع/رفعت الجلسة [.] افتتحت الجلسة [المرئية عن بعد] [وفيها]
         {
-            pattern: new RegExp(String.raw`(رفعت?\s+الجلسة)\s*\.?\s*` + SESSION_OPEN + TAIL, 'g'),
+            pattern: new RegExp(String.raw`(رفعت?\s+الجلسة(?:\s+(?:لذلك|لذا))?)\s*\.?\s*` + SESSION_OPEN + TAIL, 'g'),
             replacement: '$1. وفي جلسة أخرى'
         },
         // 10- رفع/رفعت الجلسة [.] [و]في هذه الجلسة
         {
-            pattern: /(رفعت?\s+الجلسة)\s*\.?\s*و?في\s+هذه\s+الجلسة/g,
+            pattern: /(رفعت?\s+الجلسة(?:\s+(?:لذلك|لذا))?)\s*\.?\s*و?في\s+هذه\s+الجلسة/g,
             replacement: '$1. وفي جلسة أخرى'
         },
 
@@ -331,7 +333,7 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         SAKK_MARKS,
         MERGE_START, MERGE_END, DELETE_MARK, MERGED_PHRASE,
-        SESSION_OPEN, TAIL, KHITAM, TAWFIQ,
+        SESSION_OPEN, TAIL, KHITAM, SALAT, TAWFIQ,
         SESSION_START_SOURCES, SHATB_PATTERN_SOURCE, SHATB_END_PATTERN,
         buildSessionMergePatterns, sortedCorrections,
         countChars, processSakk
